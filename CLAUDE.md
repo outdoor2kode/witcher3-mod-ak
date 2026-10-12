@@ -1,0 +1,279 @@
+# Witcher 3 × CS2 AK-47 Mod — 專案說明
+
+> 這份檔案記錄了開發前的所有討論與決策。每次開始工作前先讀完。
+> 回覆請一律使用**繁體中文**，排版用短句、一行一個重點、段落分明。
+
+---
+
+## 1. 專案目標
+
+- 在《巫師3》**Remastered（5.x，Steam 版）**加入 **CS2 的 AK-47**，讓 Geralt 能開槍射擊
+- **維持第三人稱**，不做第一人稱
+- 射擊手感盡量接近 CS2：後座力彈道、散布、射速、停火回復、全自動連射
+- 第一階段**只做一把：AK-47**
+- **個人使用，不公開散布**（CS2 素材版權屬 Valve，不上傳 Nexus 或任何平台）
+
+---
+
+## 2. 路徑（2026-10-12 確認）
+
+| 代號 | 路徑 | 備註 |
+|---|---|---|
+| `<REDKIT_PROJECT>` | `D:\OneDrive\Desktop\gunforgeralt` | REDkit 建立的專案資料夾，**Claude 在這裡啟動**；專案檔 `gunforgeralt.w3edit` |
+| `<W3_GAME_DIR>` | `D:\Program Files (x86)\Steam\steamapps\common\The Witcher 3` | 巫師3 安裝資料夾（唯讀）；`bin\x64_dx12\witcher3.exe` 版本 **5.0.0.1048522** |
+| `<W3_VANILLA_SCRIPTS>` | `<W3_GAME_DIR>\content\content0\scripts` | 原版 WitcherScript 原始碼（唯讀）；UTF-8，1525 個 `.ws` |
+| `<REDKIT_DIR>` | `D:\Program Files (x86)\Steam\steamapps\common\The Witcher 3 REDkit` | REDkit 安裝資料夾（唯讀） |
+| `<REDKIT_DEPOT>` | `<REDKIT_DIR>\r4data` | REDkit 的 uncook depot（唯讀）；**原版物品 XML 散檔在 `gameplay\items\`** |
+| `<W3MODS_DIR>` | `D:\OneDrive\Desktop\W3Mods` | 放參考 mod 與 CS2 匯出素材 |
+| `<CS2_VPK>` | `D:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\pak01_dir.vpk` | CS2 素材封存檔的**索引檔**（唯讀）；資料在同資料夾的 `pak01_000`～`pak01_505.vpk` |
+
+**路徑相關的已查證事實**
+
+- `<REDKIT_DEPOT>\scripts` 與 `<W3_VANILLA_SCRIPTS>` 內容完全相同（2026-10-12 用 `diff -rq` 比對）
+- 這台電腦**沒有可用的 Python**（`python` 只是 Microsoft Store 的空殼）
+  → `tools\` 的腳本用 **PowerShell 7** 寫
+
+---
+
+## 3. 開發環境
+
+| 工具 | 版本 / 狀態 | 用途 |
+|---|---|---|
+| Windows + PowerShell 7 + Windows Terminal | 已裝 | 開發環境 |
+| Claude Code CLI | 已裝 | 文字檔開發 |
+| 巫師3 Remastered | 5.x（Steam） | 目標遊戲 |
+| REDkit | 已裝 | 官方 mod 工具；內含 Script Studio |
+| Blender | **5.2** | 模型處理（內建 glTF 匯入、FBX 匯出） |
+| REDkit Blender 外掛 | `<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip` | **動畫階段才裝**；Blender 5.x 移除了部分舊 API，不相容時另裝 Blender 3.6 專做動畫 |
+| Wwise | **2021.1.7.7796**（必須剛好這版） | 聲音階段；授權每 3 個月重新申請 |
+| ffmpeg | 聲音階段 | 把 REDkit 原版音效 `.opus` 轉 `.wav` |
+| Source 2 Viewer | GUI + CLI | 從 CS2 的 VPK 匯出模型、貼圖、聲音 |
+| Git | 已裝 | 版本控制 |
+| VS Code + WitcherScript（作者 webspam） | 選用 | 使用者自己讀程式碼用 |
+
+**兩個 Blender 版本並用時**：用 FBX / glTF 交換檔案，不要直接互開 `.blend`。
+
+---
+
+## 4. 資料夾配置
+
+```
+<REDKIT_PROJECT>\                 ← Claude 的工作目錄（可修改）
+  CLAUDE.md
+  .claude\settings.local.json
+  docs\                           ← 調查筆記、決策紀錄
+  data\cs2\weapons.vdata          ← CS2 武器數值（文字檔，納入 git）
+  tools\                          ← 遊戲外驗證用腳本（後座力模擬、Blender 腳本）
+
+<W3MODS_DIR>\reference\                          ← 參考 mod（唯讀；這裡的副本沒有裝進遊戲，但遊戲另外裝了 MCME，見 §12）
+  Firearms\                                      ← Roenaxx：燧發槍作為十字弩替代武器（舊版遊戲）
+  FirearmsNextGen\                               ← RickThedope：次世代版（4.x）
+  CompleteCrossbowOverhaul\                      ← 2017 年 v1.0：半自動／全自動／狙擊／霰彈弩，含射速、彈匣、散布
+  CompleteCrossbowOverhaul_base_game_steering\   ← 同 mod 的選用檔：替換 rangedWeapon.ws，改成按住連射的操作方式
+  MCME_Remastered\                               ← Multi Companion Mod Remastered：已確認能在 5.x 運作的「腳本」mod
+  Required_for_MCME_Remastered\                  ← Multi Companion Mod Remastered 的 mod required 依賴
+                                               
+
+<W3MODS_DIR>\cs2_export\ak47\     ← 從 CS2 匯出的素材
+  model\                          ← glTF + 貼圖（worldmodel）
+  sounds\                         ← WAV
+```
+
+---
+
+## 5. 分工
+
+**Claude 負責（文字檔與命令列）：**
+
+- WitcherScript（`.ws`）、物品定義 XML
+- 解析 `weapons.vdata`，轉成巫師3 用的數值
+- 後座力產生演算法與遊戲外驗證
+- Blender Python 腳本（`blender --background --python`）
+- Source 2 Viewer CLI 批次匯出
+- git、除錯、文件
+
+**使用者負責（圖形介面與測試）：**
+
+- REDkit 編輯器：check out 檔案、匯入模型與貼圖、設定實體、處理動畫
+- Wwise：建立聲音
+- Blender 需要目視調整的部分（大小、方向、握把對齊）
+- 從 REDkit 啟動遊戲測試，回報結果給 Claude
+
+---
+
+## 6. 已查證的重要限制
+
+1. **Remastered 5.x**（2026-09-29 上線）讓含腳本、XML、w3strings 的舊 mod 失效，需用 REDkit 更新
+   → 參考 mod 大多不能直接用，**只參考作法**
+2. REDkit 專案中，要修改的原版檔案需先在 REDkit **check out**，REDkit 才會打包
+3. 從 **REDkit 編輯器啟動遊戲**時，Script Studio 可**熱重載腳本**；XML、模型等資源可能需要重新啟動
+4. REDkit 匯入動畫時，**骨骼名稱與階層必須完全一致**
+   → CS2 的動畫不能套到 Geralt，持槍／開槍／換彈動作要用 Geralt 骨架重做
+5. 模型流程：Source 2 Viewer 匯出 glTF → Blender 內建 glTF 匯入 → 調整 → 匯出 FBX → REDkit Asset Browser「Import > Mesh」
+   REDkit 與 Blender 有**座標系差異**，匯入時注意骨骼軸向
+6. Windows 上 Claude Code 權限規則的絕對路徑寫法：`D:\W3Mods` → `//d/W3Mods`
+
+---
+
+## 7. 設計決策（已定案）
+
+**系統基礎**
+
+- **借用十字弩系統**（遠程武器、投射物、瞄準模式），不從零寫武器系統
+
+**第三人稱射擊**
+
+- **後座力作用在鏡頭**（pitch / yaw），準心固定在畫面中央
+  → 保留 CS「往下拉滑鼠壓槍」的肌肉記憶
+- **射擊方向**：從鏡頭中心打射線找出目標點，子彈從槍口飛向該點
+  → 避免「準心對著敵人，子彈卻打到旁邊牆壁」的視差問題
+- **腰射與瞄準分開**：瞄準沿用十字弩的瞄準模式（散布小、移動慢）
+- **命中方式**：模擬即時命中（射線檢測或極高速投射物）
+  → 先查原版腳本有哪些可用 API，**不可臆測函式名稱**
+
+**素材**
+
+- 只用 CS2 的 **worldmodel**（第三人稱），不用 viewmodel
+- CS2 的粒子特效無法移植，槍口火光、曳光用巫師3 原有特效
+
+**手感參考**（只看影片，不需要檔案）
+
+- Remnant 2：第三人稱 + 近戰 + 翻滾閃避，類型最接近巫師3
+- PUBG 第三人稱模式：第三人稱下的 CS 式壓槍
+
+---
+
+## 8. CS2 AK-47 資料
+
+**來源**：SteamTracking/GameTracking-CS2 的 `game/csgo/pak01_dir/scripts/weapons.vdata`
+
+```
+https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/master/game/csgo/pak01_dir/scripts/weapons.vdata
+```
+
+下載到 `data\cs2\weapons.vdata`。以下為 2026-10-12 讀取的 `weapon_ak47_prefab` 數值，**開工時重新下載，以檔案為準**：
+
+| 欄位 | 值 | 說明 |
+|---|---|---|
+| `m_nDamage` | 36 | 傷害 |
+| `m_iMaxClip1` | 30 | 彈匣容量 |
+| `m_bIsFullAuto` | true | 全自動 |
+| `m_flCycleTime` | 0.1 | 射擊間隔（秒），即 600 RPM |
+| `m_flDeployDuration` | 1.0 | 拔槍時間 |
+| `m_flDisallowAttackAfterReloadStartDuration` | 2.466667 | 換彈開始後禁止射擊的時間（換彈時長參考） |
+| `m_flSpread` | [0.0006, 0.0006] | 基礎散布 |
+| `m_flInaccuracyStand` | [0.00641, 0.00641] | 站立 |
+| `m_flInaccuracyCrouch` | [0.00481, 0.00481] | 蹲下 |
+| `m_flInaccuracyMove` | [0.17506, 0.17506] | 移動 |
+| `m_flInaccuracyJump` | [0.14076, 0.14076] | 跳躍（`JumpInitial` 0.10094） |
+| `m_flInaccuracyLand` | [0.000242, 0.000242] | 落地 |
+| `m_flInaccuracyFire` | [0.0078, 0.0078] | 每發增加 |
+| `m_flRecoveryTimeStand` | 0.368（Final 0.506） | 站立回復時間 |
+| `m_flRecoveryTimeCrouch` | 0.305257（Final 0.419728） | 蹲下回復時間 |
+| `m_nRecoveryTransitionStartBullet` / `EndBullet` | 2 / 5 | 回復時間過渡區間 |
+| `m_flRecoilAngle` | [0.0, 0.0] | 後座力角度 |
+| `m_flRecoilAngleVariance` | [70.0, 70.0] | 角度變化量 |
+| `m_flRecoilMagnitude` | [30.0, 30.0] | 後座力大小 |
+| `m_flRecoilMagnitudeVariance` | [0.0, 0.0] | 大小變化量 |
+| `m_nRecoilSeed` | 223 | 後座力種子 |
+| `m_flHeadshotMultiplier` | 4.0 | 爆頭倍率 |
+| `m_flRange` / `m_flRangeModifier` | 8192 / 0.98 | 射程與距離衰減 |
+| `m_flMaxSpeed` | [215.0, 215.0] | 持槍移動速度 |
+| `m_nTracerFrequency` | 3 | 曳光頻率 |
+| `m_vecMuzzlePos0` | [37.422, -4.938, -3.394] | 槍口位置 |
+
+陣列的兩個值推測對應兩種狀態（例如一般／開鏡），**需查證**。
+
+**素材路徑**（在 `<CS2_VPK>` 內）：
+
+- 模型：`weapons/models/ak47/weapon_rif_ak47.vmdl`
+- 彈匣：`weapons/models/ak47/weapon_rif_ak47_mag.vmdl`
+- 槍聲事件：`Weapon_AK47.Single`（實際音檔路徑需在 VPK 內查找）
+
+---
+
+## 9. 後座力實作注意
+
+- CS2 的射擊是**兩套系統疊加**：
+  - **後座力**：固定、可學習的彈道
+  - **散布**：依站立、移動、跳躍等狀態疊加的隨機誤差
+- `weapons.vdata` 只有參數（種子、角度、大小、變化量），**不是每發子彈的座標表**
+  → 需要實作產生彈道的演算法（社群有逆向研究，引用時要註明來源）
+- **先在遊戲外驗證**：
+  1. 在 `tools\` 寫一個小腳本，輸出 AK-47 前 30 發的彈道
+  2. 與 csdb.gg 的 AK-47 彈道比對：前 9～10 發幾乎垂直上升，之後先往左飄，再往右擺回
+  3. 吻合後，才轉成 WitcherScript 的資料表或演算法
+
+---
+
+## 10. 里程碑
+
+| 階段 | 內容 | 完成條件 |
+|---|---|---|
+| **M0 盤點** | 讀原版十字弩相關腳本與物品定義、參考 mod、5.x 範例 mod（MCME_Remastered）；解析 AK-47 數值。起點：Complete Crossbow Overhaul 替換的是 `rangedWeapon.ws`，先從原版的這個檔案找十字弩射擊邏輯；比對舊版 mod 與 5.x 範例 mod 的寫法差異 | `docs\findings.md`（附檔案路徑與行號）、`docs\ak47_params.md` |
+| **M1 佔位 AK** | 複製十字弩的物品定義，做成新物品並改成 AK 數值，不換模型 | 主控台可取得、可裝備、可射擊，數值有變 |
+| **M2 射擊機制** | 全自動 600 RPM、彈匣 30、換彈；鏡頭後座力（CS2 彈道）、散布狀態、停火回復 | 遊戲內手感接近 CS2，壓槍有效 |
+| **M3 模型** | CS2 AK-47 → Blender → FBX → REDkit，掛到 Geralt 手上 | 外觀為 AK-47，握持位置正確 |
+| **M4 聲音** | Wwise SoundBank 加入 AK-47 槍聲 | 射擊時播放 CS2 槍聲 |
+| **M5 打磨** | 槍口火光、曳光、命中回饋、準心 | 整體手感完成 |
+
+每個里程碑內：**小步修改 → 提供測試步驟 → 使用者回報 → git commit**
+
+---
+
+## 11. 工作規則
+
+- **只修改 `<REDKIT_PROJECT>` 內的檔案**
+  遊戲安裝資料夾、REDkit 安裝資料夾、`reference\` 一律唯讀
+- 不確定的 API、欄位、檔案格式：
+  先在原版腳本或參考 mod 搜尋，**引用出處（檔案路徑與行號）**；查不到就明說，**不要臆測**
+- 修改前先說明要改什麼、為什麼
+- 每次修改後提供：
+  - 測試步驟
+  - 需要輸入的主控台指令
+  - 預期結果
+- **不刪除既有檔案**，除非使用者同意
+- git：每個可運作的小步 commit 一次
+  大型二進位（模型、貼圖、音檔、打包輸出）先用 `.gitignore` 排除，需要納入時先問
+- 確認了新的重要事實（路徑、API、格式）就更新本檔
+
+---
+
+## 12. 測試方式
+
+- **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
+- **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
+- **測試用靶子**：用原版主控台生成怪物，指令以實測為準
+  （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
+- **開發時從 REDkit 啟動遊戲**，以便使用 Script Studio 熱重載
+- 測試前備份存檔：`文件\The Witcher 3\gamesaves`
+
+---
+
+## 13. 參考資料
+
+**REDkit 官方 Wiki**
+
+- Script Studio：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/36864027/WS+Script+Studio+basics
+- 新增物品與屬性：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/136445979/HOW-TO+Add+items+and+attributes
+- 動畫與 Blender：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/6326649/HOW-TO+Use+animations+in+REDkit+and+Blender
+- 蒙皮模型與 Blender：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/6326771/HOW-TO+Use+skinned+meshes+in+Blender
+- Blender 外掛安裝：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/6326607/HOW-TO+Install+the+Blender+plugin
+- Wwise 授權：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/6327958/HOW-TO+Get+a+Wwise+license
+- Wwise 聲音實作：https://cdprojektred.atlassian.net/wiki/spaces/W3REDkit/pages/6327994/HOW-TO+Implement+sounds+and+use+Wwise
+
+**CS2 素材與數值**
+
+- Source 2 Viewer 匯出模型：https://s2v.app/ValveResourceFormat/guides/exporting-models.html
+- Source 2 Viewer 命令列：https://s2v.app/ValveResourceFormat/guides/command-line.html
+- CS2 武器數值檔：https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/master/game/csgo/pak01_dir/scripts/weapons.vdata
+- CS2 彈道圖（驗證用）：https://csdb.gg/recoil-patterns/
+
+**參考 mod（Nexus）**
+
+- Firearms：https://www.nexusmods.com/witcher3/mods/4903
+- Complete Crossbow Overhaul：https://www.nexusmods.com/witcher3/mods/2755
+
+**音效設定**
+
+- REDkit & Wwise 設定教學：https://www.audiokinetic.com/en/blog/the-witcher-3-redkit-tutorial

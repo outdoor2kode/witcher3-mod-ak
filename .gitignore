@@ -1,0 +1,34 @@
+# Claude Code 本機設定
+.claude/settings.local.json
+
+# 模型
+*.fbx
+*.gltf
+*.glb
+*.bin
+*.blend
+*.blend1
+*.w2mesh
+
+# 貼圖
+*.png
+*.jpg
+*.tga
+*.dds
+*.xbm
+
+# 聲音
+*.wav
+*.opus
+*.wem
+*.bnk
+
+# 打包輸出
+# TODO: REDkit 第一次打包後，確認輸出資料夾名稱再補上
+*.bundle
+*.cache
+metadata.store
+
+# 系統
+Thumbs.db
+desktop.ini
