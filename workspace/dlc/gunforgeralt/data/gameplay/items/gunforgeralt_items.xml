@@ -4,11 +4,11 @@
 		<abilities>
 			<!-- ######################## gunforgeralt: AK-47 ######################## -->
 			<!-- M1 placeholder: copied from "Crossbow 1 _Stats" (def_item_weapons_crossbow.xml:9-12) -->
-			<!-- attack_power is still the vanilla value; damage tuning comes in a later step -->
+			<!-- M1 placeholder damage: attack_power = 2x Crossbow 1 (1.01) so the change is easy to see; real balance in M2 -->
 			<!-- ammo = magazine size 30 (CS2 m_iMaxClip1); vanilla scripts never read it (inventoryComponent.ws:4165) -->
 			<ability name="gfg_ak47 _Stats">
 				<tags></tags>
-				<attack_power type="mult" min="1.01" />
+				<attack_power type="mult" min="2.02" />
 				<ammo type="add" min="30" />
 			</ability>
 		</abilities>
