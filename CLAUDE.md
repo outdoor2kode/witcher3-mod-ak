@@ -298,7 +298,11 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
     - Script Studio 的熱重載（Wiki 寫可在遊戲執行中改程式）尚未實測
   - **測試用世界建議 `engine\reference_level\world\reference_level.w2w`**：官方的測試關卡，實測載入 0.20 秒（Novigrad 約 2～3 秒），見 `docs\findings.md` §13.9
   - 需要平常存檔的狀態時才用 `load a saved game`（約 35 秒，會播前情提要影片）
-  - 遊戲中按 **F10** 切回編輯器，再按一次回到遊戲
+  - **按 `Fast` 前先把鏡頭放到地面附近**，否則 Geralt 會從鏡頭位置掉下來摔死（Wiki「Start the game from the editor」）
+    - 滑鼠指向地面按 **J**：鏡頭瞬移到該點；**Q／E** 升降；**Ctrl+Alt+0～9** 存鏡頭位置、**Ctrl+0～9** 叫回（Wiki「Useful shortcuts」、「Control the camera」）
+    - 存的位置寫在 `<REDKIT_DIR>\bin\r4LavaEditor2.sessions.ini` 各世界的 `WorldCameraBookmarks` 區段
+  - **F10**：Wiki 兩頁說法不同——「Switch between the game and editor」寫切回編輯器、再按回到遊戲；「Useful shortcuts」寫結束遊戲（quit game session）；實際行為未確認
+  - 遊戲中其他快捷鍵（Wiki「Useful shortcuts」）：數字鍵盤 **1** 殺死範圍內所有敵人、數字鍵盤 **+／-** 調整時間流速、**F1** 自由鏡頭
   - 存檔資料夾：`C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`（REDkit 的紀錄檔所示）
 - 測試前備份存檔：`文件\The Witcher 3\gamesaves`
 
