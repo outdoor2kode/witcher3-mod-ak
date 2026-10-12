@@ -877,8 +877,9 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | 21:45:25 | 刪除 `gfg_m1_test.ws`（commit `31503ec`） |
 | 21:54～22:34 | 啟動遊戲 6 次，**都沒有** `Parsing ... script files` |
 
-- → **新增、刪除或修改腳本檔後，要重開 REDkit 才會被編譯**；只重開遊戲不會
-- Script Studio 的熱重載（Wiki「WS: Script Studio basics」）尚未實測
+- → 新增、刪除或修改腳本檔後，**只重開遊戲不會重新編譯**；重開 REDkit 會（23:49 重開後的紀錄也確認）
+- ⚠️ **更正（2026-10-13）**：原本寫「要重開 REDkit 才會被編譯」是錯的——只觀察到「重開遊戲不會編譯」，沒有去找重新載入的功能
+  - REDkit 與 Script Studio 都有「Reload scripts」選單，見 §13.14
 
 ### 13.11 M2 第一步：彈匣 30 發（實作，待遊戲內測試）
 
@@ -915,3 +916,54 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 目前 `gfg_ak47` 的 `attack_power` = 2.02 → **需求等級 31**；`Fast` 啟動的 Geralt 等級不夠（2026-10-12 使用者回報無法裝備）
 - 測試時可用主控台 `setlevel(31)`（`playerCheats.ws:162-182`：加經驗值直到目標等級，只升不降）
 - → M2 設計傷害時要考慮：`attack_power` 會同時改變需求等級
+
+### 13.13 M2 全自動：第一次實測（`editor.log` 2026-10-12 23:53～23:55）
+
+- 實作（commit `0ba8bd7`）：AK 是選用物品時，左鍵＝扳機；按住時每 0.1 秒（`AddTimer`）呼叫一次 `OnProcessThrowEvent('ProjectileThrow')`；打空時觸發 `Crossbow_Reload`
+- 結果：
+  - 每次按下都有 `trigger=true`、放開都有 `trigger=false`；只在按住時開火
+  - 連射到第 30 發 → `playReloadAnim=true` → `magazine empty: Crossbow_Reload raised`；換彈後 `shotCount=0`，可以再連射
+  - 點放：23:55:37、23:55:38 各按一次，各開 1 發
+- **射速只有 540 RPM**（目標 600）：
+  - 94 發、81 個連射間隔，平均 **0.1111 秒**
+  - 間隔只有兩種：0.100 秒（29 次）、約 0.117 秒（51 次），另有 1 次 0.145
+  - 0.100 = 6/60、0.117 ≈ 7/60 → 計時器在**畫面邊界**觸發，而且**超過的時間不會累計到下一次**（否則平均應為 0.100）
+- **打空後繼續按住會打斷換彈**（第 31～34 發，每 0.78 秒一發，狀態 `State_WeaponReload`）：
+  - 換彈動畫中段的動畫事件 `'OnWeaponReload'` 就會裝上新箭（`rangedWeapon.ws:150-152` → `81-88` → `ReloadWeapon` `338-363`；log `Equipped bullet item Bodkin Bolt`）
+  - `shotCount` 要等 `OnWeaponReloadEnd` 才歸零（`r4Player.ws:14737` → `rangedWeapon.ws:697-703`）
+  - 我們的計時器一看到箭就開火 → `shotCount` 31 ≥ 30 → 又觸發換彈，循環到放開為止
+- 收槍中按左鍵（23:55:41，`State_WeaponHolster`）：不開火；收完（`State_WeaponWait`）也不會自己拿出來，要放開再按（**未修**）
+- `Couldn't find item 'draw' anim action for item 'gfg_ak47'`：原版 `Crossbow 1`（23:27:53）、`Geralt fists`（23:55:25）也有 → 不是我們造成的
+- 判讀注意：`editor.log` **不是依時間排列**
+  - 23:49 重開 REDkit 後：第 1～385 行是 23:13 的內容，接著才是本次（23:49～），本次之後還殘留 23:23～23:48 的舊內容
+  - → 要用時間戳切出本次的範圍再分析
+
+**修正（2026-10-13，wcc_lite 編譯通過，未進遊戲測試）**
+
+- 換彈中（`State_WeaponReload`）不開火
+- 射速：下一發時間 = 上一發的預定時間 + 0.1 秒（`theGame.GetEngineTimeAsSeconds()`，`game.ws:58`）；停過火才從現在起算
+- 計時器改成每個畫面檢查（`AddTimer(..., 0.001f, true)`，寫法同 `rangedWeapon.ws:1248`）
+- 按下時立刻檢查第一發（原本要等 0.1 秒，按放短於 0.1 秒會一發都沒有）
+
+### 13.14 重新編譯腳本的方法（2026-10-13 查證，**尚未實測**）
+
+- **REDkit：Tools → Debuggers → Reload scripts**
+  - 證據：`bin\x64_RedKit\editor.exe` 內嵌的 wxWidgets 選單定義（XRC）
+    - `UniversalFrameMenuBar` → `toolsMenu`（`_Tools`）→ `debugMenu`（`Debuggers`）→ `reloadScripts`
+    - 標籤 `Reload scripts`；說明 `Reload and recompile scripts`；沒有預設快捷鍵（`<accel/>` 空白）
+  - 同一個子選單還有：
+    - `Reload resource definitions`（說明 `Reload resource definitions (xml files)`）
+    - `Reload game definitions`（說明 `Reload definitions (items, abilities, etc.)`）——§13.7 記的 Loot Editor 視窗裡也有一個
+- **Script Studio：Debug → Reload scripts，快捷鍵 F7**
+  - 程式：`bin\x64_RedKit\scriptStudio.exe`（REDkit 的 Tools → Script Studio... 開啟）
+  - 證據：`scriptStudio.exe` 內嵌選單 `MainMenu` → `debugMenu`（`_Debug`）→ `debugReloadScripts`，標籤 `_Reload scripts\tF7`
+  - 工具列也有 `Reload` 按鈕（提示文字 `Reload scripts`）
+  - 同選單還有 `Forget compilation action choice`
+- Wiki「WS: Script Studio basics」（頁面 36864027，第 3 版，2024-06-06）原文：
+  - 「Script Studio allows you to place breakpoints in your code and hot reloads your code - which means you can change the code while the game is running in the Editor.」
+  - 「Script Studio connects to the game automatically.」
+- 引擎支援執行中重新載入：`editor.exe` 有實體事件 `OnScriptReloading`、`OnScriptReloaded`；REDkit 啟動時 log 有 `Notifying 14 scriptables of reload.`、`Scriptables reloaded.`
+- ❓ 待實測：
+  - REDkit 的 Reload scripts 在遊戲執行中能不能用
+  - 會不會編譯 `workspace\scripts\local\` 的檔案
+  - 驗證方法：使用後看 `editor.log` 有沒有新的 `Parsing ... script files`，以及新版腳本的 log 格式（`trigger=... t=...`）
