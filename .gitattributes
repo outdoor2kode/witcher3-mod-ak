@@ -1,0 +1,15 @@
+# REDkit 的二進位格式：禁止換行轉換與文字 diff
+*.reddlc     binary
+*.w2ent      binary
+*.w2mesh     binary
+*.w2mi       binary
+*.w2beh      binary
+*.w2anims    binary
+*.w2rig      binary
+*.w2w        binary
+*.w2l        binary
+*.xbm        binary
+*.redscripts binary
+*.rsblob     binary
+*.bundle     binary
+*.db         binary
