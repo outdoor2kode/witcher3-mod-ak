@@ -130,6 +130,10 @@
 10. 舊版參考 mod 的 `.ws` 是 **UTF-16 LE**；5.x 原版與 5.x mod 是 UTF-8
 11. **新物品 XML 要放在自訂 DLC 資料夾，並由 `.reddlc` 掛載**（`CR4DefinitionsDLCMounter`）
     → `.reddlc` 是二進位檔，**只能在 REDkit 建立**（使用者操作）；原版範例 `<REDKIT_DEPOT>\dlc\dlc5\`
+    - **`.reddlc` 一定要填 `id`**（本專案 `gunforgeralt`），否則整個 DLC 被拒絕（`has empty DLC ID`）
+    - 新 DLC 第一次被掃描時只登記，**之後再啟動遊戲才會掛載**；改了 XML 也要重新啟動遊戲
+    - 本專案：`workspace\dlc\gunforgeralt\test.reddlc` 掛載 `dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`
+    - **腳本放 `workspace\scripts\local\`**，會被從 REDkit 啟動的遊戲載入（2026-10-12 確認）
 12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
     - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
     - 包 `event` 時**不能寫回傳型別**（固定是 bool），但可以 `return wrappedMethod(...)`
@@ -283,6 +287,12 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
   - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
 - **開發時從 REDkit 啟動遊戲**，以便使用 Script Studio 熱重載
+  - 工具列按鈕（使用者 2026-10-12 確認的提示文字，左到右）：
+    `play game`、`play game on the current layer only. Fast.`、**`load a saved game`**、`enable editor streaming`、`leave game camera postion`
+    - 另有 `use selected game definition`（把 Asset Browser 選取的 `.redgame` 放進下拉選單）與 `play game from definition`（用該定義檔開始；預設 `witcher3.redgame` 是從新遊戲開頭）
+  - 測試 mod 時用 **`load a saved game`** 讀平常的存檔
+  - 遊戲中按 **F10** 切回編輯器，再按一次回到遊戲
+  - 存檔資料夾：`C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`（REDkit 的紀錄檔所示）
 - 測試前備份存檔：`文件\The Witcher 3\gamesaves`
 
 ---

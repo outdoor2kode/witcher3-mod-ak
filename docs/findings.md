@@ -744,3 +744,56 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - wcc_lite 編譯時，有沒有 BOM 都可以（§12.5）
   - 原版 `r4data\scripts` 的 1525 個 `.ws` **全部沒有 BOM**（2026-10-12 統計），但它們不在專案裡，不受這個檢查
 - `tools/wcc_compile.py` 編譯前會檢查並警告缺 BOM 的檔案
+
+---
+
+## 13. M1 第一步實測（2026-10-12）
+
+### 13.1 結果
+
+- ✅ `additem('gfg_ak47', 1, true)` 成功，裝備後能正常射擊
+  - 紀錄：`Item gfg_ak47 attached to ... player433 with item entity spawned`
+- ✅ `workspace\scripts\local\gfg_m1_test.ws` 的 `gfg_hello()` 可以執行，HUD 有顯示訊息
+  - → **REDkit 專案的腳本放在 `workspace\scripts\local\` 會被遊戲載入**（§12.4 的推測已確認）
+  - 紀錄裡會出現 `StringKeyMiss: '<訊息文字>'`：`DisplayHudMessage` 會先把文字當成翻譯鍵值去查，查不到才直接顯示
+
+### 13.2 DLC 定義檔（`.reddlc`）一定要有 `id`
+
+- `CDLCDefinition` 的 `id` 欄位（型別 `CName`）沒填時，紀錄出現：
+  - `[Error][Game] [DLC] DLC definition from 'dlc\gunforgeralt\test.reddlc' has empty DLC ID`
+  - 整個 DLC 被拒絕，mounter 不會掛載
+- 原版範例：`dlc5.reddlc` 的 `id` = `dlc_005_001`，`dlc1.reddlc` = `dlc_001_001`
+- 本專案：`id` = `gunforgeralt`
+
+### 13.3 新 DLC 要「之後的啟動」才會掛載
+
+| 時間 | 紀錄 |
+|---|---|
+| 21:18:07 | `Found new DLC '' (id: 'gunforgeralt', ...)`、`Set initial state of DLC 'gunforgeralt' to ENABLED`、`Mounted 163 DLC mounter(s).` |
+| 21:22:16 | `Mounted 163` |
+| 21:26:01 | **`Mounted 164`**，並 `Reading defs from file: 'dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml'` |
+
+- → 第一次掃描到新 DLC 時只登記並啟用，**之後再啟動遊戲才會真正掛載**
+- 啟用狀態會被記住，之後每次啟動都會掛載
+
+### 13.4 從 REDkit 啟動的遊戲
+
+- 讀存檔（`load a saved game`）時，會播放存檔的前情提要影片（storybook，例：`cutscenes\storybook\st_4.usm`，約 32 秒），同時讀取存檔；整個過程約 36 秒
+- 讀存檔後，存檔所在的世界會留在編輯器裡；**不要儲存對原版世界的任何變更**
+- 不會載入平常裝的 mod（含 mod.io 的 mod），存檔用過 mod 時，左上角會顯示 `PLAYING FROM A SAVE GAME THAT USED MODS`
+- 畫面上的除錯資訊：FPS、`F8 key opens Debug Windows`、`SAVE LOCKS ACTIVE NOW` 等
+  - `SAVE LOCKS` 是原版十字弩的禁止存檔鎖：`RangedWeapon`（`rangedWeapon.ws:421`）、`AimThrow`（`aimThrow.ws:25`），不是錯誤
+- Print Screen 綁定 `ScreenshotRequested`（`bin\config\r4game\legacy\base\input_qwerty.ini`），由引擎處理
+  - 按下後，物品欄 3D 預覽出現 `Broken parrent attachment in '...PreviewEntity::witcher_crossbow_lvl1'`
+  - 🔶 只影響預覽模型；紀錄沒有物品被移除
+  - 測試時截圖改用 Win + Shift + S
+- 調時間：遊戲內冥想，或主控台 `TM(60)`（`temp.ws:1027`），用完 `TM(0.25)` 恢復預設（`r4Game.ws:682`）
+
+### 13.5 原版的已知訊息（不是我們造成的）
+
+- 用 `additem(..., true)` 換掉身上的十字弩時：
+  - `hudModuleDamagedItems.ws(103)`：`damagedItems[ slot - 1 ]` 陣列越界（`Index 16 is out of bounds`）
+  - `rangedweapon.ws(536)`：銷毀舊十字弩上的箭
+  - `Custom orientation cannot be removed, stack is already empty`
+- 物品說明的重量 = `0.01 + 重量 × 數量 × 0.5`（`inventoryComponent.ws:4123`）
+  - 例：`Crossbow 1`（1.53）顯示 0.77；`gfg_ak47`（3.5）應顯示 1.76

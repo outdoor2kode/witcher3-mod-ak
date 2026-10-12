@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<redxml>
+	<definitions>
+		<abilities>
+			<!-- ######################## gunforgeralt: AK-47 ######################## -->
+			<!-- M1 placeholder: copied from "Crossbow 1 _Stats" (def_item_weapons_crossbow.xml:9-12) -->
+			<!-- attack_power is still the vanilla value; damage tuning comes in a later step -->
+			<!-- ammo = magazine size 30 (CS2 m_iMaxClip1); vanilla scripts never read it (inventoryComponent.ws:4165) -->
+			<ability name="gfg_ak47 _Stats">
+				<tags></tags>
+				<attack_power type="mult" min="1.01" />
+				<ammo type="add" min="30" />
+			</ability>
+		</abilities>
+
+		<items>
+			<!-- M1 placeholder: copied from "Crossbow 1" (def_item_weapons_crossbow.xml:103-127) -->
+			<!-- weight 3.5 (vanilla 1.53) makes it easy to tell this item apart in the tooltip -->
+			<item
+				name							="gfg_ak47"
+				category						="crossbow"
+				price							="100"
+				weight							="3.5"
+				enhancement_slots				="0"
+				ability_slots					="0"
+				grid_size						="2"
+				hold_slot						="l_weapon"
+				equip_template					="witcher_crossbow_lvl1"
+				equip_slot						="crossbow_back_slot"
+				localisation_key_name			="item_name_crossbow_1"
+				localisation_key_description	="item_desc_crossbow_1"
+				icon_path						="icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png"
+			>
+				<tags>							Weapon, crossbow, mod_weapon
+				</tags>
+				<base_abilities>				<a>Default weapon _Stats</a>
+												<a>gfg_ak47 _Stats</a>
+				</base_abilities>
+			</item>
+		</items>
+	</definitions>
+</redxml>
