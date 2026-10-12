@@ -1107,3 +1107,22 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - ❓ 待確認：
   - `record` 的 demo 存在哪裡（`game\csgo\` 第二層內目前沒有 `.dem`）
   - aim punch 角度和子彈實際方向的比例：CS:GO 時代 `weapon_recoil_scale` 預設 2（https://totalcsgo.com/command/weaponrecoilscale），CS2 的 dump 裡沒有這個 convar
+
+### 14.3 採用的數據（2026-10-13；使用者同意 AK 的數據可以推測、任何來源都可以）
+
+- 使用者覺得錄 CS2 demo 太麻煩 → 改用網路上現成的彈道數據
+- **CSGODOT** 的 `reference/spray_patterns/README.md`（https://github.com/sidcarrollworks/CSGODOT ，沒有標授權）說明兩份 AK 數據：
+  - `ak47.csv`：從 CS2 彈道圖讀出，**形狀是量的，大小是假設的**（假設往上爬 16°）
+  - `weapon_ak47.csv`：來自 Artanis-RCS，換算方式「2.45 × 0.022° 一個單位」，再乘 1.3577 對齊前者
+- **採用原始來源 Artanis-RCS**（MIT）：`data/recoil/ak47_artanis-rcs.csv`，來源、授權、換算依據見 `data/recoil/README.md`
+- 工具 `tools/recoil_pattern.py` 的驗證：
+  - 和 CSGODOT 的 `weapon_ak47.csv` 比對：乘 1.3577 後誤差 **0.000°** → 單位與方向的理解和他們一致
+  - 和 CS2 彈道圖的 `ak47.csv` 比對：最合適倍率 1.3577，誤差 **0.670°**（CSGODOT 寫的是 1.358、0.67°）
+- 結果（工具的換算）：
+  - 最高點：第 26 發，往上 **11.73°**；左右範圍 -2.83° ～ +4.52°
+  - 形狀：第 0～7 發往左（到 -1.64°）→ 第 7～14 發往右（到 +4.52°）→ 第 14～19 發往左（到 -2.83°）→ 第 19～29 發往右（到 +3.66°）（忽略 1.5° 以下的來回）
+  - CS2 彈道圖那份的整體形狀相同；17～25 發多了幾段小來回，CSGODOT 說那幾發的順序在圖上分不出來
+  - 圖：`docs/ak47_recoil_pattern.svg`
+- 不確定、需要遊戲裡調整的：
+  - **大小**：11.7°（工具換算）或 16°（CSGODOT 的假設）都沒有實測 → 遊戲裡留一個整體倍率
+  - 第 1 發：這份數據和第 0 發同一點；CS2 彈道圖那份高 0.5°
