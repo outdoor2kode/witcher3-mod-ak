@@ -182,7 +182,8 @@ https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/master/game/csg
 | `m_nTracerFrequency` | 3 | 曳光頻率 |
 | `m_vecMuzzlePos0` | [37.422, -4.938, -3.394] | 槍口位置 |
 
-陣列的兩個值推測對應兩種狀態（例如一般／開鏡），**需查證**。
+陣列的兩個值是 **[一般, 第二模式（開鏡／連發／消音器）]**（推論，證據充分）。
+AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數值見 `docs\ak47_params.md`。
 
 **素材路徑**（在 `<CS2_VPK>` 內）：
 
