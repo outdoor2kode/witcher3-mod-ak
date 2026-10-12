@@ -858,4 +858,36 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | `levels\the_spiral` | 5238 | 3733 | 197 | 576 |
 | `levels\novigrad` | 6907 | 31150 | 13754 | 2116 |
 
-- ❓ 各世界的實際載入時間尚未量測；開啟時可從 `editor.log` 的時間戳計算
+- 實測載入時間（`editor.log` 的 `World loaded in`）：
+
+| 世界 | `World loaded in` | 紀錄時間 |
+|---|---|---|
+| `levels\novigrad` | 2.95 秒、2.91 秒、1.97 秒 | 21:31:38、21:54:51、22:34:30 |
+| `levels\kaer_morhen` | 1.10 秒 | 21:53:57 |
+| `engine\reference_level` | **0.20 秒** | 22:33:47 |
+
+  - reference_level 開好後啟動遊戲：22:33:56 `OnEditorStopped` → 22:33:57 `OnGameStarted`
+
+### 13.10 腳本什麼時候被編譯（`editor.log` 證據）
+
+| 時間 | 紀錄 |
+|---|---|
+| 21:29:22 | REDkit 啟動：`Parsing 1525 script files...`（原版） |
+| 21:29:29 | `Parsing 1 script files...`（workspace 裡的 `gfg_m1_test.ws`，另外編譯） |
+| 21:45:25 | 刪除 `gfg_m1_test.ws`（commit `31503ec`） |
+| 21:54～22:34 | 啟動遊戲 6 次，**都沒有** `Parsing ... script files` |
+
+- → **新增、刪除或修改腳本檔後，要重開 REDkit 才會被編譯**；只重開遊戲不會
+- Script Studio 的熱重載（Wiki「WS: Script Studio basics」）尚未實測
+
+### 13.11 M2 第一步：彈匣 30 發（實作，待遊戲內測試）
+
+- `gunforgeralt_items.xml`：物品標籤加上 `gfg_ak47`
+- `workspace/scripts/local/gfg_ak47.ws`：
+  - `@addMethod(Crossbow) GfgIsAk()`：裝備欄的十字弩（`GetItemEquippedOnSlot(EES_RangedWeapon, ...)`，`playerWitcher.ws:5963`）是否有 `gfg_ak47` 標籤（`ItemHasTag`，`inventoryComponent.ws:636`）
+  - `@addMethod(Crossbow) GfgMagazineSize()`：讀 XML 的 `ammo`（`GetCrossbowAmmo`，`inventoryComponent.ws:4165`）
+    - `Default weapon _Stats` 是空的（`def_item_weapons.xml:9`），所以讀到的就是 `gfg_ak47 _Stats` 的 30
+  - `@wrapMethod(Crossbow) PlayOwnerReloadAnim() : bool`：AK 射滿彈匣才播換彈動畫，其餘條件照抄原版（`rangedWeapon.ws:830-852`）；每次判斷用 `LogChannel('GFG', ...)` 寫入 `editor.log`（格式 `[Info][Script_GFG]`，對照 `guiPaperdollInventoryComponent.ws:18`）
+- wcc_lite 編譯通過（第一次就通過）；新驗證的寫法：
+  - `@wrapMethod` 可包帶回傳型別的 protected 函式（`function PlayOwnerReloadAnim() : bool`）
+  - 新增與包裝的方法可存取原版 protected 成員（`shotCount`、`previousAmmoItemName`、`ownerPlayerWitcher`、`SetBehaviorGraphVariables`、`GetSpecialAmmoCount`）
