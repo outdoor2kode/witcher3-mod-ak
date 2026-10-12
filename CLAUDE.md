@@ -293,7 +293,13 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
-- **測試用靶子**：用原版主控台生成怪物，指令以實測為準
+- **測試用靶子**（原版主控台指令；2026-10-13 查程式碼，**未實測**，見 `docs\findings.md` §15）
+  - `spawnPath('characters\npc_entities\monsters\wolf_lvl1.w2ent', true)`：在面前生成**敵對**的狼（`temp.ws:6790-6813`）；不加 `true` 會設成友善
+  - ⚠️ **友善的角色打不到**：玩家射出的投射物碰到友善角色不算命中（`throwable.ws:126-128`）
+  - `spawn(名稱, 數量, 距離, 是否敵對, 等級)`（`temp.ws:6815-6942`）；「不敵對」時保留生物原本的態度，怪物照樣會攻擊
+  - 人物也用 `spawnPath`，例：`characters\npc_entities\main_npc\ciri.w2ent`
+  - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
+  - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試

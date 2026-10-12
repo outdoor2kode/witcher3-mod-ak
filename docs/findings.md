@@ -1144,3 +1144,40 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
     - 原版目標是 `GetLookAtPosition()`，最遠 25 公尺（`playerBoltProjectile.ws:128-142`）
     - 射線寫法照原版 `CalculateAimPosition`（`playerAiming.ws:553-616`，private 不能直接呼叫）；長度 208 公尺（CS2 `m_flRange`）
   - ⚠️ 尚未處理：戰鬥中有鎖定目標時，原版會改成直接射向敵人骨架（自動瞄準，`playerBoltProjectile.ws:353-377`）；弩箭的飛行距離上限仍是 25 公尺（`:348`）
+
+### 14.5 準心版第二次實測：`theCamera` 的位置不是畫面上的鏡頭（2026-10-13）
+
+- 使用者回報：準心移動幅度非常小；一開槍準心就跑到不相干的地方
+- `editor.log` 01:28～01:29：
+  - 用 `theCamera.GetCameraPosition()` 加 `GetCameraDirection()` 取 10 公尺外的點投影，「畫面中央」的比例是 (-1.245,-0.186)、(-0.707,0.205)、(-0.784,-0.070)，應該要接近 (0,0)
+  - 準心位移忽大忽小：往上 1.37° 時 (-678,+110) 像素；往上 11.6° 時只有 (5,24) 像素
+  - 射線大多打到 208.5 公尺（＝射線全長，什麼都沒打到）
+  - → `theCamera` 給的位置不是畫面上的鏡頭（在 REDkit 裡）。起點錯了，準心就會跳走；起點離真正的鏡頭很遠，10 公尺的方向差投影到畫面上就只剩幾個像素
+- 修正（wcc_lite 編譯通過，**未進遊戲測試**）：
+  - 位置與方向改取遊戲鏡頭本身：`theGame.GetGameCamera().GetCameraWorldPosition()／GetCameraWorldRotation()`（`r4Game.ws:261`、`customCamera.ws:110-111`），方向用 `RotForward`（`math.ws:459`）
+  - 投影改取 1000 公尺外的點，準心位移 = 帶偏移的點 − 不帶偏移的點
+  - 診斷 log：`crosshair check` 同時記錄兩種鏡頭位置離 Geralt 的距離、兩種方向的內積
+
+---
+
+## 15. 測試用靶子：生成怪物、人物，敵我關係與血量（2026-10-13 查證，未實測）
+
+- **主控台指令**（原版 `temp.ws`）：
+  - `spawn( 名稱, 數量, 距離, 是否敵對, 等級 )`（`:6815-6942`）
+    - 名稱用 `LoadResource` 找資源別名（`:6857`）；找不到時拼成 `characters\npc_entities\monsters` + 名稱 + `.w2ent`（`:6862-6868`，中間少一個反斜線，拼出來的路徑不對）
+    - 「是否敵對」為 true 時設成 `hostile_to_player`（`:6933-6936`）；false 時**不改**，怪物照樣會攻擊
+    - 等級：`SetLevel`（`:6938-6941`）
+  - `spawnPath( 實體模板路徑, 是否敵對 )`（`:6790-6813`）：任何 `.w2ent` 都可以；敵對時 `hostile_to_player`，否則 **`friendly_to_player`**
+  - `attitude( 標籤, 是否敵對 )`（`:8548-8559`）、`SetHostile( 標籤 )`（`:503-509`）：用標籤找角色改態度（`spawn` 生出來的沒有標籤）
+  - `freeze` 不是凍住：只會讓 NPC 踉蹌或進入戰鬥專注（`:7007-7024`）
+  - `HPM` 是遊戲時間流速（`SetHoursPerMinute`，`:7347`），跟血量無關
+  - `stats( 標籤 )`、`statstarget()` 印出數值（`:6154-6177`）；`killall( 範圍 )` 清敵人（`playerCheats.ws:9`）
+- ⚠️ **友善的角色打不到**：玩家投射物的碰撞判定 `CanCollideWithVictim`，對 `AIA_Friendly` 回傳 false（`throwable.ws:110-131`）
+- 血量：原版沒有給 NPC 用的指令；API 有 `SetHealthPerc`、`SetHealth`（`actor.ws:947`、`964`）、`ForceSetStat`（`npc.ws:1447`）、`SetImmortalityMode`（`actor.ws:415`）
+- 模板（`<REDKIT_DEPOT>`）：
+  - 怪物 `characters\npc_entities\monsters\`：`wolf_lvl1.w2ent`、`nekker_lvl1.w2ent`、`drowner_lvl1.w2ent`、`ghoul_lvl1.w2ent`、`bear_lvl1__black.w2ent` 等
+  - 人物 `characters\npc_entities\main_npc\`：`ciri.w2ent`、`yennefer.w2ent`、`triss.w2ent`、`vesemir.w2ent`、`dandelion.w2ent`、`zoltan.w2ent` 等
+- **REDkit 編輯器**（Wiki）：
+  - 「HOW-TO: Create a monster encounter」（頁面 6326170）：在世界的圖層放 Encounter Area、Spawn Point、Guard Area，用 spawn tree 生成怪物
+    - 原文：「Enemies will only engage in combat, when you are in close range of (4m) or inside the guard area.」
+  - 「TOOL: Attitude Editor」（頁面 6328884，Tools → Attitude Editor...）：改群體之間的敵我關係，「can also be used to test out how different entities are acting when their attitudes are edited (even during gameplay)」
