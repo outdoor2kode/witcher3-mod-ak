@@ -27,7 +27,7 @@
 				hold_slot						="l_weapon"
 				equip_template					="witcher_crossbow_lvl1"
 				equip_slot						="crossbow_back_slot"
-				localisation_key_name			="item_name_crossbow_1"
+				localisation_key_name			="gfg_item_name_ak47"
 				localisation_key_description	="item_desc_crossbow_1"
 				icon_path						="icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png"
 			>

@@ -57,3 +57,129 @@ function PlayOwnerReloadAnim() : bool
 	}
 	return false;
 }
+
+// ===== 全自動：AK 是選用物品時，左鍵＝扳機（使用者 2026-10-12 選定）=====
+
+@addField(Crossbow)
+var gfgTriggerHeld : bool;
+
+@addField(Crossbow)
+var gfgReloadRequested : bool;
+
+// 射擊間隔：CS2 m_flCycleTime = 0.1 秒（data/cs2/weapons.vdata:13298）
+@addMethod(Crossbow)
+function GfgCycleTime() : float
+{
+	return 0.1;
+}
+
+@addMethod(Crossbow)
+function GfgLoadedText() : string
+{
+	if ( deployedEnt )
+		return "yes";
+	return "no";
+}
+
+// 扣下／放開扳機
+@addMethod(Crossbow)
+function GfgSetTrigger( pressed : bool )
+{
+	gfgTriggerHeld = pressed;
+	LogChannel( 'GFG', "trigger=" + pressed + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
+
+	if ( pressed )
+	{
+		AddTimer( 'GfgAutoFire', GfgCycleTime(), true );
+	}
+	else
+	{
+		RemoveTimer( 'GfgAutoFire' );
+		// 放開：瞄準與射擊狀態都設回 false，同原版 Crossbow.ResetOwnerAndWeapon（rangedWeapon.ws:750-758）
+		SetBehaviorGraphVariables( 'isAimingWeapon', false );
+		SetBehaviorGraphVariables( 'isShootingWeapon', false );
+		thePlayer.SetIsAimingCrossbow( false );
+	}
+}
+
+// 每 GfgCycleTime() 秒觸發一次：直接觸發射擊，不等動畫事件（CCO 的作法，docs/findings.md §8.1）
+@addMethod(Crossbow)
+timer function GfgAutoFire( dt : float, id : int )
+{
+	if ( !gfgTriggerHeld )
+		return;
+
+	// 還沒拿出來（拿出中由原版流程處理）
+	if ( GetCurrentStateName() == 'State_WeaponWait' || GetCurrentStateName() == 'State_WeaponHolster' )
+		return;
+
+	// 沒有裝好的箭：拿出或換彈中
+	if ( !deployedEnt )
+		return;
+	gfgReloadRequested = false;
+
+	// 連射時不收槍：移除原版的收槍計時器（同 rangedWeapon.ws:1367-1370）
+	RemoveTimer( 'HolsterAfterDelay' );
+	RemoveTimer( 'HolsterWhenMovingTimer' );
+	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelay', 0.f );
+	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelayHorse', 0.f );
+
+	OnProcessThrowEvent( 'ProjectileThrow' );
+	LogChannel( 'GFG', "auto fire: t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() );
+
+	// 彈匣打空（PlayOwnerReloadAnim 回傳 true，不會立刻裝箭）：觸發換彈動畫，同 rangedWeapon.ws:1690-1691
+	if ( !deployedEnt && !gfgReloadRequested )
+	{
+		gfgReloadRequested = true;
+		RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
+		LogChannel( 'GFG', "magazine empty: Crossbow_Reload raised" );
+	}
+}
+
+// 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
+@addMethod(CPlayerInput)
+function GfgSelectedAk() : Crossbow
+{
+	var id : SItemUniqueId;
+
+	id = thePlayer.GetSelectedItemId();
+	if ( !thePlayer.inv.IsIdValid( id ) || !thePlayer.inv.ItemHasTag( id, 'gfg_ak47' ) )
+		return NULL;
+	return (Crossbow)thePlayer.inv.GetItemEntityUnsafe( id );
+}
+
+// 左鍵（輕攻擊，input_qwerty.ini:656）：AK 選用時改成扳機
+@wrapMethod(CPlayerInput)
+function OnCbtAttackWithAlternateLight( action : SInputAction )
+{
+	var ak : Crossbow;
+
+	ak = GfgSelectedAk();
+	if ( !ak )
+		return wrappedMethod( action );
+
+	if ( IsPressed( action ) )
+	{
+		// 還沒拿出來：照原版中鍵按下的流程拿出十字弩（playerInput.ws:3185-3204）
+		if ( !thePlayer.IsCrossbowHeld() && IsActionAllowed( EIAB_Crossbow ) )
+		{
+			thePlayer.SetIsAimingCrossbow( true );
+			thePlayer.SetupCombatAction( EBAT_ItemUse, BS_Pressed );
+		}
+		ak.GfgSetTrigger( true );
+	}
+	else if ( IsReleased( action ) )
+	{
+		ak.GfgSetTrigger( false );
+	}
+	return true;
+}
+
+// 按住左鍵 0.2 秒的特殊攻擊（input_qwerty.ini:674）：AK 選用時不放劍招
+@wrapMethod(CPlayerInput)
+function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
+{
+	if ( GfgSelectedAk() )
+		return true;
+	return wrappedMethod( action );
+}
