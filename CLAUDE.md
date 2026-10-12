@@ -68,7 +68,8 @@
   data\cs2\weapons.vdata          ← CS2 武器數值（文字檔，納入 git）
   tools\                          ← 遊戲外驗證用腳本（後座力模擬、Blender 腳本）
   gunforgeralt.w3edit             ← REDkit 專案檔
-  LocalEditorStringDataBaseW3_UTF8_mod.db   ← 專案字串資料庫（物品名稱等；ID 從 10000000 起）
+  LocalEditorStringDataBaseW3_UTF8_mod.db   ← 專案字串資料庫（物品名稱等；ID 從 10000000 起；SQLite）
+  LocalEditorStringDataBaseW3_UTF8_mod_export.csv   ← 字串資料庫的文字版（REDkit 存字串時自動寫出，檔名寫死在 editor.exe）；納入 git 以便看出字串的變更
   workspace\                      ← REDkit 虛擬 depot 的專案層（第一次新增檔案時建立）；路徑和 depot 一一對應
     dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
     scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
