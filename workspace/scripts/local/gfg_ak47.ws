@@ -63,8 +63,9 @@ function PlayOwnerReloadAnim() : bool
 @addField(Crossbow)
 var gfgTriggerHeld : bool;
 
+// 下一發的預定時間（引擎時間，秒）
 @addField(Crossbow)
-var gfgReloadRequested : bool;
+var gfgNextShotTime : float;
 
 // 射擊間隔：CS2 m_flCycleTime = 0.1 秒（data/cs2/weapons.vdata:13298）
 @addMethod(Crossbow)
@@ -86,11 +87,15 @@ function GfgLoadedText() : string
 function GfgSetTrigger( pressed : bool )
 {
 	gfgTriggerHeld = pressed;
-	LogChannel( 'GFG', "trigger=" + pressed + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
+	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
 
 	if ( pressed )
 	{
-		AddTimer( 'GfgAutoFire', GfgCycleTime(), true );
+		// 按下就檢查第一發，不等第一個計時器週期
+		GfgTryFire();
+		// 之後每個畫面檢查一次（0.001 秒的重複計時器，同 rangedWeapon.ws:1248 的寫法）
+		RemoveTimer( 'GfgAutoFire' );
+		AddTimer( 'GfgAutoFire', 0.001f, true );
 	}
 	else
 	{
@@ -102,10 +107,19 @@ function GfgSetTrigger( pressed : bool )
 	}
 }
 
-// 每 GfgCycleTime() 秒觸發一次：直接觸發射擊，不等動畫事件（CCO 的作法，docs/findings.md §8.1）
 @addMethod(Crossbow)
 timer function GfgAutoFire( dt : float, id : int )
 {
+	GfgTryFire();
+}
+
+// 扳機按住時，條件符合、而且到了下一發的時間就開一槍
+// 直接觸發射擊，不等動畫事件（CCO 的作法，docs/findings.md §8.1）
+@addMethod(Crossbow)
+function GfgTryFire()
+{
+	var now : float;
+
 	if ( !gfgTriggerHeld )
 		return;
 
@@ -113,10 +127,23 @@ timer function GfgAutoFire( dt : float, id : int )
 	if ( GetCurrentStateName() == 'State_WeaponWait' || GetCurrentStateName() == 'State_WeaponHolster' )
 		return;
 
+	// 換彈中不開火：換彈動畫中段就裝上新箭（rangedWeapon.ws:150-152、338-363），
+	// 換彈結束才把 shotCount 歸零（rangedWeapon.ws:697-703）；中間開火會打斷換彈
+	if ( GetCurrentStateName() == 'State_WeaponReload' )
+		return;
+
 	// 沒有裝好的箭：拿出或換彈中
 	if ( !deployedEnt )
 		return;
-	gfgReloadRequested = false;
+
+	// 射速：下一發的時間由上一發的預定時間累加，不從實際開火的那一格畫面起算
+	// （從實際時間起算，實測只有 540 RPM：docs/findings.md §13.13）
+	now = theGame.GetEngineTimeAsSeconds();
+	if ( now < gfgNextShotTime )
+		return;
+	if ( now - gfgNextShotTime >= GfgCycleTime() )
+		gfgNextShotTime = now;	// 剛按下，或中間停過：從現在起算
+	gfgNextShotTime += GfgCycleTime();
 
 	// 連射時不收槍：移除原版的收槍計時器（同 rangedWeapon.ws:1367-1370）
 	RemoveTimer( 'HolsterAfterDelay' );
@@ -125,12 +152,11 @@ timer function GfgAutoFire( dt : float, id : int )
 	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelayHorse', 0.f );
 
 	OnProcessThrowEvent( 'ProjectileThrow' );
-	LogChannel( 'GFG', "auto fire: t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() );
+	LogChannel( 'GFG', "auto fire: t=" + FloatToString( now ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() );
 
 	// 彈匣打空（PlayOwnerReloadAnim 回傳 true，不會立刻裝箭）：觸發換彈動畫，同 rangedWeapon.ws:1690-1691
-	if ( !deployedEnt && !gfgReloadRequested )
+	if ( !deployedEnt )
 	{
-		gfgReloadRequested = true;
 		RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
 		LogChannel( 'GFG', "magazine empty: Crossbow_Reload raised" );
 	}
