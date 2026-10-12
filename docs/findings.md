@@ -1181,3 +1181,18 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 「HOW-TO: Create a monster encounter」（頁面 6326170）：在世界的圖層放 Encounter Area、Spawn Point、Guard Area，用 spawn tree 生成怪物
     - 原文：「Enemies will only engage in combat, when you are in close range of (4m) or inside the guard area.」
   - 「TOOL: Attitude Editor」（頁面 6328884，Tools → Attitude Editor...）：改群體之間的敵我關係，「can also be used to test out how different entities are acting when their attitudes are edited (even during gameplay)」
+
+### 15.1 內建的靶子（2026-10-13 調查：沒有「有血量、不反擊」的現成靶子）
+
+- depot 裡名稱含 dummy／target／training 的 `.w2ent` 有 43 個；從二進位檔讀出類別：
+  - 物件（`CGameplayEntity`／靜態模型，沒有血量）：序章假人 `items\quest_items\q001\q001_dummy_for_geralt.w2ent`、石之心十字弩靶 `dlc\ep1\data\quests\quest_files\q603_bank\entities\q603_crossbow_npc_target.w2ent`、血與酒射擊靶 `dlc\bob\data\quests\main_quests\quest_files\q704_truth\entities\q704_shooting_target.w2ent`、比武大會靶 `dlc\bob\data\environment\architecture\tournament\entities\target.w2ent`
+  - 會被打壞的物件：`sq701_target_01.w2ent`（`W3DestroyableClue`）
+  - **角色**：尾聲的訓練木樁 `quests\epilogues\quest_files\q505_ciri_free\entities\q505_training_dummy.w2ent`
+    - `entityClass` = `CActor`；標籤含 `softLock_Bolt` 等鎖定標籤；有 `CAttackableArea`；模型 `environment\decorations\battleground\trainer\trainer.w2mesh`
+    - 沒有看到能力或數值設定 → 多半沒有血量；原版腳本沒有引用它
+    - 用 `spawnPath` 生成時要加 `true`（敵對），否則會被設成友善、子彈打不到（`temp.ws:6809-6812`、`throwable.ws:126-128`）
+- REDkit 參考關卡 `engine\reference_level\world\test_cases\`：
+  - `friendly_dummies\dummies.w2l`：**空的圖層**（只有 `CLayer`、`CLayerInfo`）
+  - `attack_changes_demo\attack_changes_demo.w2l`：一個 `CNewNPC`、圖層引用 `characters\npc_entities\monsters\fogling_lvl1.w2ent`、三條移動路徑 `combat_dummy_*_wp`（繞圈、直線、慢速直線）、Quen／Igni／Aard 的測試物件 → 次世代版攻擊改動的示範區；NPC 的敵我與 AI 設定從字串看不出來
+  - `skills_demo\skills_demo.w2l`：只有觸發區域 `skills_demo_trigger`
+  - `quest\`：只有開場與功能測試圖層，沒有生成 NPC
