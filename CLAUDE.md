@@ -136,7 +136,8 @@
     - `@replaceMethod` 後面**不能加** `protected` 等修飾詞；`@addMethod` 可以加 `public`
     - **state 的方法可以包**：類別名稱 = 父類別 + `State` + 狀態名，例如 `CR4PlayerStateAimThrow`
       → 後座力可以包 `CR4PlayerStateAimThrow.OnGameCameraTick`（已編譯通過）
-    - `.ws` 用 UTF-8（無 BOM），可以寫繁體中文註解
+    - **`.ws` 和 `.xml` 一律存成 UTF-8 加 BOM**：REDkit 開專案時會檢查，缺 BOM 會跳出 invalid encoding（`docs\findings.md` §12.7）
+      - 可以寫繁體中文註解；換行 LF 或 CRLF 都可以
 13. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---

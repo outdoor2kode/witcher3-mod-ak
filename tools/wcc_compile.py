@@ -10,6 +10,7 @@
 - 第一次在這台電腦執行時會跳出 EULA 視窗，要使用者本人確認
 - wcc_lite 會自動重建 <REDKIT_DEPOT>/x64.release.redscripts（CLAUDE.md §11 的例外）
 - 錯誤訊息只有行號 [N]、沒有檔名，所以失敗時會列出每個檔案的第 N 行供對照
+- 編譯前會檢查 .ws 與 workspace 內的 .xml 是否有 UTF-8 BOM（REDkit 的要求）
 - 編譯分階段（語法 → annotation → 函式內容），前一階段失敗時，後面的錯誤不會顯示
 """
 import argparse
@@ -27,6 +28,13 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 ERROR_RE = re.compile(r'\]\[Error\]\[WCC\] (?:\[(\d+)\]: )?(.*)')
 GENERIC_ERRORS = ('Could not compile patch.', 'Wcc operation failed')
+
+
+def warn_missing_bom(paths: list[Path]) -> None:
+    # REDkit 要求專案裡的 .ws / .xml 是 UTF-8 加 BOM，否則開專案時會跳出 invalid encoding（docs/findings.md §12.7）
+    for p in paths:
+        if p.read_bytes()[:3] != b'\xef\xbb\xbf':
+            print(f'  警告：缺少 UTF-8 BOM，REDkit 會判定為編碼錯誤：{p}')
 
 
 def show_line_candidates(files: list[Path], root: Path, line_no: int) -> None:
@@ -50,6 +58,7 @@ def main() -> int:
         return 2
     if ' ' in str(patch):
         print(f'警告：路徑含空白，wcc_lite 可能無法正確解析：{patch}')
+    warn_missing_bom(files + sorted((PROJECT_DIR / 'workspace').rglob('*.xml')))
     print(f'編譯 {len(files)} 個檔案：{patch}')
     if args.out:
         out = Path(args.out).resolve()

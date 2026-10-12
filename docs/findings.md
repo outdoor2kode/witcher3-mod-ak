@@ -706,7 +706,7 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | 6 | `@replaceMethod(Crossbow) function ResetShotCount()` | ✅ | — |
 | 7 | `@replaceMethod(Crossbow) protected function ...`（加存取修飾詞） | ❌ 語法錯誤 | `unexpected TOKEN_PROTECTED, expecting TOKEN_FUNCTION` |
 | 8 | `exec function gfg_test()`（主控台指令） | ✅ | — |
-| 9 | UTF-8（無 BOM）檔案、含繁體中文註解與字串 | ✅ | — |
+| 9 | UTF-8（無 BOM）檔案、含繁體中文註解與字串 | ✅ 編譯器接受；但 **REDkit 專案要求加 BOM**，見 §12.7 | — |
 | 10 | 包住不存在的方法 | ❌（預期中） | `@wrapMethod cannot wrap 'CR4Player::...' because it is not defined.` |
 | 11 | 使用未宣告的變數 | ❌（預期中） | `I dont know any '...'` |
 
@@ -729,3 +729,18 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - ⚠️ Changelog（REDkit 5.0）原文：「REDkit now requires Wwise 2023 with the Mastering Suite and Motion plugins installed.」
 - → CLAUDE.md §3 原本寫的「Wwise 2021.1.7.7796（必須剛好這版）」對 REDkit 5.0 已經過時
 - 確切的 2023 版號仍待查（Wiki 的 Wwise 頁面可能還沒更新）
+
+### 12.7 專案檔案的編碼：一律 UTF-8 加 BOM
+
+- ✅ 2026-10-12 重開 REDkit 專案時跳出：
+  - 「Your mod project contains files with invalid encoding. Do you want your script and xml files in your mod project to be converted to utf-8 now?」
+- 當時專案裡的檔案：
+  - `workspace\scripts\local\gfg_m1_test.ws`：UTF-8、**無 BOM**、含中文、LF 換行
+  - `workspace\dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`：UTF-8、**有 BOM**、純 ASCII、CRLF 換行
+- 使用者按下「Yes」，前後比對結果：
+  - `.ws`：**只加上 UTF-8 BOM**（239 → 242 bytes）；6 行內容完全不變，中文沒有變亂碼；換行還是 LF
+  - `.xml`：完全沒動
+- → **結論：REDkit 要求專案裡的 `.ws` 和 `.xml` 是 UTF-8 加 BOM**；換行方式不影響
+  - wcc_lite 編譯時，有沒有 BOM 都可以（§12.5）
+  - 原版 `r4data\scripts` 的 1525 個 `.ws` **全部沒有 BOM**（2026-10-12 統計），但它們不在專案裡，不受這個檢查
+- `tools/wcc_compile.py` 編譯前會檢查並警告缺 BOM 的檔案
