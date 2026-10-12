@@ -247,6 +247,12 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 - **只修改 `<REDKIT_PROJECT>` 內的檔案**
   遊戲安裝資料夾、REDkit 安裝資料夾、`reference\` 一律唯讀
+  - **例外（2026-10-12 使用者同意）**：執行 `wcc_lite` 時，工具**自動**寫入的檔案可以接受
+    - `<REDKIT_DIR>\bin\wcc.log`（紀錄檔）
+    - `<REDKIT_DEPOT>\x64.release.redscripts`（腳本編譯快取，每次啟動引擎都會重建）
+  - Claude **不得用其他方式**寫入 REDkit 資料夾（不手動複製、不還原、不刪除），需要時先問
+  - `wcc_lite` 一定要用 `<REDKIT_DIR>\bin\x64_RedKit` 當工作目錄，否則紀錄檔會寫到別處（見 `docs\findings.md` §12.5）
+  - 暫存檔放 Claude 的 scratchpad，不放專案資料夾外的其他地方
 - 不確定的 API、欄位、檔案格式：
   先在原版腳本或參考 mod 搜尋，**引用出處（檔案路徑與行號）**；查不到就明說，**不要臆測**
 - 修改前先說明要改什麼、為什麼
