@@ -4,6 +4,7 @@
     python -X utf8 tools/wcc_compile.py [patch 資料夾] [--out 輸出資料夾] [--timeout 秒]
 
 - patch 資料夾預設是 workspace/scripts（會遞迴找 .ws）
+- 輸出預設放在用完即刪的暫存資料夾；要保留 blob.rsblob 就加 --out
 - 原版腳本固定用 <REDKIT_DEPOT>/scripts，不會被修改
 - 工作目錄必須是 <REDKIT_DIR>/bin/x64_RedKit，否則紀錄檔會寫到別處（docs/findings.md §12.5）
 - 第一次在這台電腦執行時會跳出 EULA 視窗，要使用者本人確認
@@ -38,7 +39,7 @@ def show_line_candidates(files: list[Path], root: Path, line_no: int) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('patch', nargs='?', default=str(PROJECT_DIR / 'workspace' / 'scripts'))
-    parser.add_argument('--out', help='輸出資料夾（預設為系統暫存資料夾）')
+    parser.add_argument('--out', help='保留輸出的資料夾（預設用完即刪）')
     parser.add_argument('--timeout', type=int, default=600)
     args = parser.parse_args()
 
@@ -49,17 +50,24 @@ def main() -> int:
         return 2
     if ' ' in str(patch):
         print(f'警告：路徑含空白，wcc_lite 可能無法正確解析：{patch}')
-    out = Path(args.out).resolve() if args.out else Path(tempfile.mkdtemp(prefix='wcc_'))
-    out.mkdir(parents=True, exist_ok=True)
+    print(f'編譯 {len(files)} 個檔案：{patch}')
+    if args.out:
+        out = Path(args.out).resolve()
+        out.mkdir(parents=True, exist_ok=True)
+        return compile_patch(files, patch, out, args.timeout, keep=True)
+    # 沒指定 --out 時，輸出放在用完即刪的暫存資料夾，不留檔案
+    with tempfile.TemporaryDirectory(prefix='wcc_') as tmp:
+        return compile_patch(files, patch, Path(tmp), args.timeout, keep=False)
 
+
+def compile_patch(files: list[Path], patch: Path, out: Path, timeout: int, keep: bool) -> int:
     cmd = [str(WCC_DIR / 'wcc_lite.exe'), 'compilescripts', str(VANILLA_SCRIPTS),
            f'-patch={patch}', f'-out={out}']
-    print(f'編譯 {len(files)} 個檔案：{patch}')
     start = time.monotonic()
     try:
-        result = subprocess.run(cmd, cwd=WCC_DIR, capture_output=True, timeout=args.timeout)
+        result = subprocess.run(cmd, cwd=WCC_DIR, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        print(f'逾時（{args.timeout} 秒）。如果是第一次執行，請確認畫面上的 EULA 視窗。')
+        print(f'逾時（{timeout} 秒）。如果是第一次執行，請確認畫面上的 EULA 視窗。')
         return 3
     print(f'耗時 {time.monotonic() - start:.1f} 秒，exit={result.returncode}')
 
@@ -74,7 +82,8 @@ def main() -> int:
             show_line_candidates(files, patch, int(line_no))
 
     if success:
-        print(f'成功：{out / "blob.rsblob"}')
+        blob = out / 'blob.rsblob'
+        print(f'成功（blob.rsblob {blob.stat().st_size:,} bytes）' + (f'：{blob}' if keep else ''))
         return 0
     if not errors:
         print('失敗，但沒有解析到錯誤行；完整紀錄見 <REDKIT_DIR>/bin/wcc.log')
