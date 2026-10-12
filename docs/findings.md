@@ -818,7 +818,7 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 同一場遊戲中重新載入物品定義：
   - 原版腳本沒有相關的 exec 指令（只有 `ForceHudScaleRefresh`、`debugRefreshModioMutedUsersList`）
   - REDkit 5.0 Changelog 只提到「Gwent definitions are reloadable now」
-  - **但 REDkit 編輯器有選單「Reload Game Definitions」**（`bind_RedKit\editor.exe` 內的介面設定字串）：
+  - **但 REDkit 編輯器有選單「Reload Game Definitions」**（`bin\x64_RedKit\editor.exe` 內的介面設定字串）：
     - 說明文字：「Reload definitions (items, abilities, etc.)」，內部名稱 `menuReloadDefinitions`
     - 位置：主編輯器 **Tools → Loot Editor...** 打開的 Loot Editor 視窗裡的 **Tools** 選單
     - Wiki「TOOL: Loot Editor」（頁面 6328941）沒有提到這個選單
