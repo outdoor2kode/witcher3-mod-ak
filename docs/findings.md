@@ -835,3 +835,27 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - `gfg_ak47` 的 `attack_power` 改為 2.02 後，物品說明顯示 **+202%**（原本 +101%），使用者實測確認
 - M1 四個完成條件：主控台可取得 ✅、可裝備 ✅、可射擊 ✅、數值有變 ✅
 - 尚未改的部分：顯示名稱仍借用原版 `item_name_crossbow_1`，外觀仍是原版十字弩
+
+### 13.9 測試用世界的選擇（2026-10-12 實查）
+
+- Wiki「Learn from the reference level」（頁面 6325117）：REDkit 提供**專門的參考關卡**
+  - 原文：「you can first use try them out on a dedicated reference level」「Take advantage of them as examples to be studied and tested!」
+  - 路徑：`engine\reference_level\world\reference_level.w2w`（depot 實際存在）
+  - 開啟後看不到區域或物件時，Wiki 指向「HOW-TO: Change display settings」
+- Wiki「Load an existing world」：「The larger the level, the more time it can take to load.」
+- `<REDKIT_DEPOT>` 內各世界資料夾的資料量：
+
+| 世界 | 總大小 MB | 檔案數 | 圖層 `.w2l` | 地形格 `.w2ter` |
+|---|---|---|---|---|
+| `engine\reference_level` | 1526 | 1754 | 48 | 100 |
+| `levels\island_of_mist` | 209 | 1312 | 73 | 16 |
+| `levels\wyzima_castle` | 252 | 1535 | 189 | 81 |
+| `levels\prolog_village_winter` | 1596 | 3680 | 640 | 256 |
+| `levels\prolog_village` | 1689 | 4648 | 1534 | 256 |
+| `levels\kaer_morhen` | 3014 | 4554 | 1142 | 256 |
+| `levels\skellige` | 3975 | 15734 | 6578 | 1024 |
+| `dlc\bob\data\levels\bob` | 4208 | 18610 | 8305 | 1024 |
+| `levels\the_spiral` | 5238 | 3733 | 197 | 576 |
+| `levels\novigrad` | 6907 | 31150 | 13754 | 2116 |
+
+- ❓ 各世界的實際載入時間尚未量測；開啟時可從 `editor.log` 的時間戳計算
