@@ -67,6 +67,10 @@ var gfgTriggerHeld : bool;
 @addField(Crossbow)
 var gfgNextShotTime : float;
 
+// 上一次檢查能不能開火的時間（引擎時間，秒）
+@addField(Crossbow)
+var gfgLastCheckTime : float;
+
 // 射擊間隔：CS2 m_flCycleTime = 0.1 秒（data/cs2/weapons.vdata:13298）
 @addMethod(Crossbow)
 function GfgCycleTime() : float
@@ -126,6 +130,12 @@ timer function GfgAutoFire( dt : float, id : int )
 function GfgTryFire()
 {
 	var now : float;
+	var lastCheck : float;
+
+	// 每次檢查都記下時間（包括還不能開火的時候）
+	now = theGame.GetEngineTimeAsSeconds();
+	lastCheck = gfgLastCheckTime;
+	gfgLastCheckTime = now;
 
 	if ( !gfgTriggerHeld )
 		return;
@@ -145,11 +155,13 @@ function GfgTryFire()
 
 	// 射速：下一發的時間由上一發的預定時間累加，不從實際開火的那一格畫面起算
 	// （從實際時間起算，實測只有 540 RPM：docs/findings.md §13.13）
-	now = theGame.GetEngineTimeAsSeconds();
 	if ( now < gfgNextShotTime )
 		return;
-	if ( now - gfgNextShotTime >= GfgCycleTime() )
-		gfgNextShotTime = now;	// 剛按下，或中間停過：從現在起算
+	// 以下情況從現在起算，只補償「對齊畫面」造成的延遲：
+	// - 上一次檢查時就到了預定時間，卻不能開火（換彈、拿出中）；不重算的話下一發會提早（實測 0.066 秒：docs/findings.md §13.17）
+	// - 落後超過一個間隔（中間停過）
+	if ( gfgNextShotTime <= lastCheck || now - gfgNextShotTime >= GfgCycleTime() )
+		gfgNextShotTime = now;
 	gfgNextShotTime += GfgCycleTime();
 
 	// 連射時不收槍：移除原版的收槍計時器（同 rangedWeapon.ws:1367-1370）
