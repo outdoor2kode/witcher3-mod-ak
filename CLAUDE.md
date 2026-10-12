@@ -130,8 +130,13 @@
 10. 舊版參考 mod 的 `.ws` 是 **UTF-16 LE**；5.x 原版與 5.x mod 是 UTF-8
 11. **新物品 XML 要放在自訂 DLC 資料夾，並由 `.reddlc` 掛載**（`CR4DefinitionsDLCMounter`）
     → `.reddlc` 是二進位檔，**只能在 REDkit 建立**（使用者操作）；原版範例 `<REDKIT_DEPOT>\dlc\dlc5\`
-12. REDkit 5.0：`event` 與 state 可以正式加 annotation；`@replaceMethod` 有官方文件
-    → 後座力可以包 `AimThrow` 狀態的 `OnGameCameraTick`
+12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
+    - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
+    - 包 `event` 時**不能寫回傳型別**（固定是 bool），但可以 `return wrappedMethod(...)`
+    - `@replaceMethod` 後面**不能加** `protected` 等修飾詞；`@addMethod` 可以加 `public`
+    - **state 的方法可以包**：類別名稱 = 父類別 + `State` + 狀態名，例如 `CR4PlayerStateAimThrow`
+      → 後座力可以包 `CR4PlayerStateAimThrow.OnGameCameraTick`（已編譯通過）
+    - `.ws` 用 UTF-8（無 BOM），可以寫繁體中文註解
 13. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
@@ -273,6 +278,9 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
 - **測試用靶子**：用原版主控台生成怪物，指令以實測為準
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
+- **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
+  - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
+  - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
 - **開發時從 REDkit 啟動遊戲**，以便使用 Script Studio 熱重載
 - 測試前備份存檔：`文件\The Witcher 3\gamesaves`
 

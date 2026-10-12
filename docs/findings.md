@@ -524,7 +524,7 @@
 | 2 | `equip_template` 名稱怎麼對應到檔案 | M1 | **部分已解**：模板目錄由 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載（第 12.3 節）；名稱比對規則仍 🔶 推測是檔名 |
 | 3 | `bodkin_bolt.w2ent` 的 `projSpeed` 實際值 | M2 | 未解；在 REDkit 打開模板 |
 | 4 | `theCamera` 的實際型別：原版呼叫了 `CCameraDirector` 才有的方法（`aimThrow.ws:32` 的 `GetTopmostCameraObject`，`cameraDirector.ws:30`），但 `<REDKIT_DIR>\bin\redscripts.ini` 寫 `theCamera=CCamera` | M2 | 未解；🔶 依原版用法應為 `CCameraDirector` |
-| 5 | `@replaceMethod` 在 5.x 能不能用；`local` 資料夾是否必要 | M1 | **`@replaceMethod` 有官方文件**（第 12.4 節）；`local` 是否必要仍待實測 |
+| 5 | `@replaceMethod` 在 5.x 能不能用；`local` 資料夾是否必要 | M1 | **`@replaceMethod` 已用 wcc_lite 編譯通過**（第 12.5 節）；遊戲實際載入時 `local` 是否必要，M1 實測 |
 | 6 | `.input.settings` 在 5.x 的合併方式 | M2 | 未解 |
 | 7 | 每秒 10 個投射物的效能 | M2 | 未解；實測 |
 | 8 | `items_plus` 的用途 | 低 | **已解**：NG+ 用的定義，由 `CR4DefinitionsNGPlusDLCMounter` 掛載（第 12.3 節） |
@@ -683,11 +683,46 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 執行期間，`r4data\scripts` 裡沒有任何檔案被修改（用時間標記檔搜尋確認）
 - 覆寫後的檔頭和我們的輸出完全相同（含 REDkit 版號 `1048625` 與同一組時間戳記）
 
-**加上 `-patch` 時**
+**加上 `-patch` 的實測（2026-10-12，共 5 次）**
 
-- 🔶 快取是在引擎啟動時、從 `r4data\scripts` 重建，比 patch 編譯還早
-  → 應該不會把 mod 腳本寫進快取
-- 執行時仍要先備份快取，跑完比對雜湊確認
+- ✅ **快取不受影響**：
+  - 每次執行，快取的修改時間都會更新，但 **SHA256 都一樣**（`3DE856E6…`）
+    → 從同一份原版腳本重建，每次產出完全相同
+  - 每次都在快取裡搜尋測試腳本的識別字（`gfg_test` 等），**都找不到**
+  - 對照組：成功時輸出的 `blob.rsblob`（642 bytes）裡**找得到**這些識別字
+- ✅ 第二次之後**不再跳出 EULA**（同意紀錄有被保存）
+- 每次約 **20 秒**
+- `-patch` 資料夾會**遞迴**找 `.ws`，所以放在 `local\` 子資料夾裡也找得到
+
+**已驗證的 annotation 寫法（REDkit 5.0 編譯器）**
+
+| # | 寫法 | 結果 | 錯誤訊息（寫錯時） |
+|---|---|---|---|
+| 1 | `@wrapMethod(CR4Player) function OnSpawned(...)`：用 `function` 包 `event` | ✅ | — |
+| 2 | `@wrapMethod(...) event OnEnableAimingMode(...)`：用 `event` 關鍵字 | ❌ 語法錯誤 | `unexpected TOKEN_EVENT, expecting TOKEN_FUNCTION` |
+| 3 | `@wrapMethod(CR4PlayerStateAimThrow) function OnGameCameraTick(out moveData : SCameraMovementData, dt : float)`，內容 `return wrappedMethod(moveData, dt);` | ✅ **state 的方法可以包** | — |
+| 4 | 同上，但加上 `: bool` | ❌ | `Event function ... should not have an explicit return type. It is implicitly always bool.` |
+| 5 | `@addField(Crossbow) var ...`、`@addMethod(Crossbow) public function ...` | ✅ | — |
+| 6 | `@replaceMethod(Crossbow) function ResetShotCount()` | ✅ | — |
+| 7 | `@replaceMethod(Crossbow) protected function ...`（加存取修飾詞） | ❌ 語法錯誤 | `unexpected TOKEN_PROTECTED, expecting TOKEN_FUNCTION` |
+| 8 | `exec function gfg_test()`（主控台指令） | ✅ | — |
+| 9 | UTF-8（無 BOM）檔案、含繁體中文註解與字串 | ✅ | — |
+| 10 | 包住不存在的方法 | ❌（預期中） | `@wrapMethod cannot wrap 'CR4Player::...' because it is not defined.` |
+| 11 | 使用未宣告的變數 | ❌（預期中） | `I dont know any '...'` |
+
+- state 的類別名稱 = 父類別 + `State` + 狀態名，例如 `state AimThrow in CR4Player` → `CR4PlayerStateAimThrow`
+
+**錯誤訊息的特性**
+
+- 只有行號 `[N]`，**沒有檔名**
+- 編譯分階段（語法 → annotation → 函式內容），**前一階段失敗，後面的錯誤就不會顯示**
+  - 例：同一次編譯裡同時有第 10、11 項的錯誤，只會報出第 10 項
+
+**工具**：`tools/wcc_compile.py`
+
+- 用法：`python -X utf8 tools/wcc_compile.py [patch 資料夾]`，預設 `workspace/scripts`
+- 失敗時會列出每個檔案的第 N 行，方便找出錯的位置
+- 回傳值：0 成功、1 編譯失敗、2 找不到 `.ws`、3 逾時（第一次執行時可能是卡在 EULA）
 
 ### 12.6 其他：Wwise 版本
 
