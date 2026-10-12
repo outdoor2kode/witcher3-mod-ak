@@ -753,7 +753,7 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 
 - ✅ `additem('gfg_ak47', 1, true)` 成功，裝備後能正常射擊
   - 紀錄：`Item gfg_ak47 attached to ... player433 with item entity spawned`
-- ✅ `workspace\scripts\local\gfg_m1_test.ws` 的 `gfg_hello()` 可以執行，HUD 有顯示訊息
+- ✅ `workspace\scripts\local\gfg_m1_test.ws` 的 `gfg_hello()` 可以執行，HUD 有顯示訊息（測試完已刪除，commit `31503ec`）
   - → **REDkit 專案的腳本放在 `workspace\scripts\local\` 會被遊戲載入**（§12.4 的推測已確認）
   - 紀錄裡會出現 `StringKeyMiss: '<訊息文字>'`：`DisplayHudMessage` 會先把文字當成翻譯鍵值去查，查不到才直接顯示
 
@@ -797,3 +797,9 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `Custom orientation cannot be removed, stack is already empty`
 - 物品說明的重量 = `0.01 + 重量 × 數量 × 0.5`（`inventoryComponent.ws:4123`）
   - 例：`Crossbow 1`（1.53）顯示 0.77；`gfg_ak47`（3.5）顯示 **1.76**（實測確認）
+
+### 13.6 REDkit 在 workspace 建立的空資料夾
+
+- 第一次用 `load a saved game` 啟動時（21:07:58），REDkit 在 `workspace\levels\novigrad\` 建了 `source_foliage\`、`streaming\temp\` 等**空資料夾**
+- 裡面沒有任何檔案；git 不追蹤空資料夾
+- 🔶 應該是世界的工作或暫存資料夾；之後若出現暫存檔，再加進 `.gitignore`
