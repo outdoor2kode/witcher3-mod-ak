@@ -1041,14 +1041,28 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 換彈中按住（312.549）：換彈結束開第一發，第二發只隔 **0.066 秒**
   - 收槍時按下（257.252）：拿出中（`State_WeaponDraw`）開第一發，第二發只隔 **0.084 秒**
   - 原因：補償時間的邏輯把「等換彈、等拿出」的延遲也補了，本來只該補「對齊畫面」的延遲
-- 修正（wcc_lite 編譯通過，**未進遊戲測試**）：
+- 修正：
   - 每次檢查都記下時間（`gfgLastCheckTime`），包括還不能開火的時候
   - 上一次檢查時就到了預定時間卻不能開火 → 從現在起算
-  - 遊戲外模擬（60 FPS，`$CLAUDE_JOB_DIR` 暫存腳本，未納入專案）：
+  - 遊戲外模擬（60 FPS，暫存腳本，未納入專案）與實測（`editor.log` 00:39～00:41；腳本 00:27:31 修改 → 00:38:53 遊戲中 Reload scripts）：
 
-| 情境 | 修正前（實測） | 修正後（模擬） |
-|---|---|---|
-| 換彈中按住，換彈結束後第 1→2 發 | 0.066 秒 | 0.100 秒 |
-| 收槍時按下，拿出後第 1→2 發 | 0.084 秒 | 0.101 秒 |
-| 連續按住 3 秒 | — | 30 發，平均 0.1004 秒 |
-| 點放 20 次 | — | 20 發，最短間隔 0.133 秒 |
+| 情境 | 修正前（實測） | 修正後（模擬） | 修正後（實測） |
+|---|---|---|---|
+| 換彈中按住，換彈結束後第 1→2 發 | 0.066 秒 | 0.100 秒 | 0.100、0.101、0.101、0.100 秒 |
+| 收槍時按下，拿出後第 1→2 發 | 0.084 秒 | 0.101 秒 | 0.116、0.102、0.100、0.101、0.102 秒（5 次） |
+| 連續按住 3 秒 | — | 30 發，平均 0.1004 秒 | — |
+| 點放 20 次 | — | 20 發，最短間隔 0.133 秒 | — |
+
+### 13.18 收槍（2026-10-13 查證）
+
+- 原版自動收槍：計時器 `HolsterAfterDelay` 只把行為變數 `canHolsterAfterDelay` 設成 1（`rangedWeapon.ws:640-646`）
+  - 射擊動畫狀態 `State_WeaponShoot` 每發之後加：戰鬥中 0.5 秒、非戰鬥 5 秒（`rangedWeapon.ws:1548-1562`）
+  - 進入 `State_WeaponAim` 0.2 秒後（`CheckGotoAimThrow`）沒按住中鍵：瞄準中 0.75 秒、戰鬥中 0 秒、非戰鬥 4.9 秒（`rangedWeapon.ws:1413-1427`）
+- **AK 停火後不會自動收槍**（使用者 2026-10-13 實測：等 5 秒仍拿著）
+  - 我們在 `State_WeaponAim`／`State_WeaponDraw` 直接開火（log：開火狀態只有這兩種），不經過 `State_WeaponShoot`
+  - 每發都移除 `HolsterAfterDelay`（`gfg_ak47.ws`，照 `rangedWeapon.ws:1367-1370`）→ 停火後沒有計時器
+- **衝刺會收槍**（使用者實測：按 Shift 就收）
+  - 按衝刺 → `thePlayer.rangedWeapon.OnSprintHolster()`（`playerInput.ws:607-610`；切換式衝刺 `:629-630`）
+  - `OnSprintHolster`（`rangedWeapon.ws:491-507`）：玩家在 `Exploration`／`Swimming`、行為變數 `isShootingWeapon` 與 `isAimingWeapon` 都是 0、武器在 `State_WeaponAim` → `OnForceHolster( true, false )`
+  - 我們放開扳機時把這兩個變數設成 false（`GfgSetTrigger`）
+- 其他會強制收槍的（腳本呼叫 `OnRangedForceHolster`，**未實測**）：翻滾（`explorationStateRoll.ws:105`）、跳躍（`explorationStateJump.ws:408`）、開始墜落（`explorationStateStartFalling.ws:78`）、擊倒（`knockdown.ws:65`）等
