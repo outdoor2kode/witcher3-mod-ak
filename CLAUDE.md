@@ -30,8 +30,10 @@
 **路徑相關的已查證事實**
 
 - `<REDKIT_DEPOT>\scripts` 與 `<W3_VANILLA_SCRIPTS>` 內容完全相同（2026-10-12 用 `diff -rq` 比對）
-- 這台電腦**沒有可用的 Python**（`python` 只是 Microsoft Store 的空殼）
-  → `tools\` 的腳本用 **PowerShell 7** 寫
+- **Python 3.14.7**（2026-10-12 用 winget 安裝，使用者範圍）：`C:\Users\beyon\AppData\Local\Programs\Python\Python314\python.exe`
+  - 已加入使用者 PATH，排在 Microsoft Store 空殼之前；**重開終端機後** `python`、`py` 才會生效
+  - 系統語系是 **cp950**，Python 要加 `-X utf8`（或設 `PYTHONUTF8=1`），否則輸出特殊字元會出錯
+  - `tools\` 的工具腳本用 Python 寫；小型串接用 PowerShell 7
 
 ---
 
@@ -42,10 +44,11 @@
 | Windows + PowerShell 7 + Windows Terminal | 已裝 | 開發環境 |
 | Claude Code CLI | 已裝 | 文字檔開發 |
 | 巫師3 Remastered | 5.x（Steam） | 目標遊戲 |
-| REDkit | 已裝 | 官方 mod 工具；內含 Script Studio |
+| REDkit | **5.0.0.1048625** | 官方 mod 工具；內含 Script Studio、`wcc_lite`（可命令列編譯腳本，見 `docs\findings.md` §12.5） |
+| Python | **3.14.7** | 工具腳本（後座力模擬、資料解析、繪圖） |
 | Blender | **5.2** | 模型處理（內建 glTF 匯入、FBX 匯出） |
 | REDkit Blender 外掛 | `<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip` | **動畫階段才裝**；Blender 5.x 移除了部分舊 API，不相容時另裝 Blender 3.6 專做動畫 |
-| Wwise | **2021.1.7.7796**（必須剛好這版） | 聲音階段；授權每 3 個月重新申請 |
+| Wwise | ⚠️ **待重新確認**：原本寫 2021.1.7.7796，但 REDkit 5.0 Changelog 寫「requires Wwise 2023 with the Mastering Suite and Motion plugins」 | 聲音階段；授權每 3 個月重新申請；M4 前查清確切版號 |
 | ffmpeg | 聲音階段 | 把 REDkit 原版音效 `.opus` 轉 `.wav` |
 | Source 2 Viewer | GUI + CLI | 從 CS2 的 VPK 匯出模型、貼圖、聲音 |
 | Git | 已裝 | 版本控制 |
@@ -64,6 +67,12 @@
   docs\                           ← 調查筆記、決策紀錄
   data\cs2\weapons.vdata          ← CS2 武器數值（文字檔，納入 git）
   tools\                          ← 遊戲外驗證用腳本（後座力模擬、Blender 腳本）
+  gunforgeralt.w3edit             ← REDkit 專案檔
+  LocalEditorStringDataBaseW3_UTF8_mod.db   ← 專案字串資料庫（物品名稱等；ID 從 10000000 起）
+  workspace\                      ← REDkit 虛擬 depot 的專案層（第一次新增檔案時建立）；路徑和 depot 一一對應
+    dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
+    scripts\local\                ← 🔶 mod 腳本（annotation），待實測確認
+  packed\、publish\               ← REDkit 打包輸出（不納入 git）
 
 <W3MODS_DIR>\reference\                          ← 參考 mod（唯讀；這裡的副本沒有裝進遊戲，但遊戲另外裝了 MCME，見 §12）
   Firearms\                                      ← Roenaxx：燧發槍作為十字弩替代武器（舊版遊戲）
@@ -119,7 +128,11 @@
 9. 原版十字弩的**發射時機由動畫事件 `'ProjectileThrow'` 決定**，每發都要換彈
    → 全自動要從腳本直接觸發（CCO 的作法）
 10. 舊版參考 mod 的 `.ws` 是 **UTF-16 LE**；5.x 原版與 5.x mod 是 UTF-8
-11. 詳細出處（檔案路徑與行號）見 `docs\findings.md`
+11. **新物品 XML 要放在自訂 DLC 資料夾，並由 `.reddlc` 掛載**（`CR4DefinitionsDLCMounter`）
+    → `.reddlc` 是二進位檔，**只能在 REDkit 建立**（使用者操作）；原版範例 `<REDKIT_DEPOT>\dlc\dlc5\`
+12. REDkit 5.0：`event` 與 state 可以正式加 annotation；`@replaceMethod` 有官方文件
+    → 後座力可以包 `AimThrow` 狀態的 `OnGameCameraTick`
+13. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
 

@@ -23,11 +23,22 @@
 *.wem
 *.bnk
 
-# 打包輸出
-# TODO: REDkit 第一次打包後，確認輸出資料夾名稱再補上
+# 打包輸出（REDkit Wiki：Starting the Editor、Publishing mods）
+/packed/
+/publish/
+/cooked/
 *.bundle
 *.cache
 metadata.store
+
+# 腳本編譯輸出（wcc_lite compilescripts）
+*.redscripts
+*.rsblob
+
+# Python
+__pycache__/
+*.pyc
+.venv/
 
 # 系統
 Thumbs.db

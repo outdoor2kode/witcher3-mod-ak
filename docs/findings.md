@@ -49,7 +49,7 @@
   - 舊版參考 mod（CCO、Firearms、FirearmsNextGen）：**UTF-16 LE**
   - MCME 與已安裝的 5.x mod：UTF-8
 - ✅ 專案檔 `gunforgeralt.w3edit`：`"useLooseScripts": false`、`"idSpace": 10000000`
-  - ❓ 這兩個欄位的意義未查證
+  - 兩個欄位的意義見第 12.2、12.4 節
 
 **已安裝的 mod（`[M]`，共 23 個）與衝突風險**
 
@@ -490,8 +490,9 @@
    - 彈匣用 `ammo = 30`：`GetCrossbowAmmo()` 會讀它，原版又沒有人呼叫，不會影響原版
    - 射速等 CS2 數值可以用自訂屬性，用 `GetItemAttributeValueNoRandom` 讀（CCO 的作法）
 3. **彈藥**：先借用 `Bodkin Bolt`（無限彈藥）
-4. **開工前要先查清楚**：REDkit 專案裡 XML 和腳本該放哪裡
-   - 參考 REDkit Wiki「HOW-TO Add items and attributes」
+4. **放置位置**：見第 12 節
+   - 物品 XML 放在自訂 DLC 資料夾，並由 `.reddlc` 掛載（`.reddlc` 要在 REDkit 建立）
+   - 腳本 🔶 放在 `workspace\scripts\local\`，待實測
 
 ### M2（射擊機制）
 
@@ -517,14 +518,130 @@
 
 ## 11. 未解問題
 
-| # | 問題 | 影響 | 怎麼查 |
+| # | 問題 | 影響 | 狀態 |
 |---|---|---|---|
-| 1 | REDkit 專案中，物品 XML 與腳本要放在哪裡；`useLooseScripts` 的意義 | M1 | REDkit Wiki、Script Studio |
-| 2 | `equip_template` 名稱怎麼對應到檔案 | M1 | REDkit Wiki |
-| 3 | `bodkin_bolt.w2ent` 的 `projSpeed` 實際值 | M2 | 在 REDkit 打開模板 |
-| 4 | `theCamera` 的實際型別：原版呼叫了 `CCameraDirector` 才有的方法（`aimThrow.ws:32` 的 `GetTopmostCameraObject`，`cameraDirector.ws:30`），但 `<REDKIT_DIR>\bin\redscripts.ini` 寫 `theCamera=CCamera` | M2 | 🔶 依原版用法應為 `CCameraDirector`；實測確認 |
-| 5 | `@replaceMethod` 在 5.x 能不能用；`local` 資料夾是否必要 | M1 | 實測 |
-| 6 | `.input.settings` 在 5.x 的合併方式 | M2 | 實測或查 RMMR 文件 |
-| 7 | 每秒 10 個投射物的效能 | M2 | 實測 |
-| 8 | `items_plus` 的用途 | 低 | — |
-| 9 | CCO、Firearms 的 XML 內容（在 bundle 裡） | 低 | 需要解包工具 |
+| 1 | REDkit 專案中，物品 XML 與腳本要放在哪裡；`useLooseScripts` 的意義 | M1 | **大部分已解**，見第 12 節；腳本的確切子資料夾仍待實測 |
+| 2 | `equip_template` 名稱怎麼對應到檔案 | M1 | **部分已解**：模板目錄由 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載（第 12.3 節）；名稱比對規則仍 🔶 推測是檔名 |
+| 3 | `bodkin_bolt.w2ent` 的 `projSpeed` 實際值 | M2 | 未解；在 REDkit 打開模板 |
+| 4 | `theCamera` 的實際型別：原版呼叫了 `CCameraDirector` 才有的方法（`aimThrow.ws:32` 的 `GetTopmostCameraObject`，`cameraDirector.ws:30`），但 `<REDKIT_DIR>\bin\redscripts.ini` 寫 `theCamera=CCamera` | M2 | 未解；🔶 依原版用法應為 `CCameraDirector` |
+| 5 | `@replaceMethod` 在 5.x 能不能用；`local` 資料夾是否必要 | M1 | **`@replaceMethod` 有官方文件**（第 12.4 節）；`local` 是否必要仍待實測 |
+| 6 | `.input.settings` 在 5.x 的合併方式 | M2 | 未解 |
+| 7 | 每秒 10 個投射物的效能 | M2 | 未解；實測 |
+| 8 | `items_plus` 的用途 | 低 | **已解**：NG+ 用的定義，由 `CR4DefinitionsNGPlusDLCMounter` 掛載（第 12.3 節） |
+| 9 | CCO、Firearms 的 XML 內容（在 bundle 裡） | 低 | 未解；需要解包工具 |
+
+---
+
+## 12. REDkit 專案資料夾配置（2026-10-12 查證）
+
+### 12.1 來源
+
+- REDkit 官方 Wiki，用 Confluence 公開 REST API（`https://cdprojektred.atlassian.net/wiki/rest/api/content/<頁面ID>?expand=body.storage`）取得原文
+  - 一般網頁在匿名存取時，內文會被截斷
+- 引用的頁面：
+
+| 頁面 | ID | 最後更新 |
+|---|---|---|
+| Starting the Editor | 6324341 | 2024-06-05 |
+| Virtual depot and source control | 39190599 | 2024-06-17 |
+| HOW-TO: Add items and attributes | 136445979 | 2024-11-22 |
+| DLC Mods | 6328346 | 2024-04-19 |
+| Publishing mods | 6328254 | 2024-04-16 |
+| HOW-TO: Use ID spaces for localization modding | 6328202 | 2024-05-14 |
+| WS: Create your first script mod | 36241465 | 2024-06-05 |
+| WS: Script Compilation Errors overrides | 36241598 | 2024-06-05 |
+| Changelog | 12058625 | **2026-10-01**（含 REDkit 5.0） |
+
+- 本機證據：`<REDKIT_DIR>` 的程式檔字串、原版 DLC 範例 `[D]\dlc\dlc5\`
+- 本機 REDkit 編輯器版本：`bin\x64_RedKit\editor.exe` = **5.0.0.1048625**
+
+### 12.2 專案資料夾
+
+- ✅ 新專案底下會有（Starting the Editor）：
+  - `/workspace`：存放正在編輯的資產
+  - `/publish`：最終輸出的 mod
+  - 加上其他中繼和暫存資料夾
+- ✅ 打包（cook）的輸出放在專案的 `\packed` 資料夾（Publishing mods）
+- ✅ **虛擬 depot** 由三個實體資料夾合併而成，優先順序 `workspace > uncook > r4data`（Virtual depot）
+  - Wiki 的例子：depot 路徑 `gameplay\abilities\witch\` 對應到 `Z:\myModProject\workspace\gameplay\abilities\witch\`
+  - 只存在 workspace 的檔案，狀態是 **added**（使用者新增）
+  - check out 會把 r4data 的檔案複製到 workspace 的相同路徑
+- 本專案目前**還沒有** `workspace\`
+  - 🔶 推測第一次在 Asset Browser 新增或 check out 檔案時才會建立
+- ✅ `idSpace: 10000000`（`.w3edit`）是專案字串 ID 的起點，官方規定最小 1000 萬（ID spaces 頁）
+- ✅ `LocalEditorStringDataBaseW3_UTF8_mod.db` 是專案的字串資料庫
+  - 匯出的 CSV 會放在它旁邊，檔名是 `LocalEditorStringDataBaseW3_UTF8_mod_export.csv`
+
+### 12.3 物品 XML：要放在自訂 DLC 裡，並用 `.reddlc` 掛載
+
+- ✅ 建議**新建自己的 XML**，不要改原版的 `def_item_*.xml`（Add items 頁）
+- ✅ 原文：「You need to mount every new .xml file so that it can be visible to the engine … create new .reddlc file」
+- ✅ 在 Asset Browser 的 `dlc` 底下建立子資料夾（名稱不能是 bob、ep1、dlc1–16），REDkit 會自動把它打包成 DLC（DLC Mods 頁）
+  - 本專案 `.w3edit` 的 `excludedDlc` 列了 `dlc1`–`dlc20`、`ep1`、`bob`
+- ✅ `.reddlc` 是 **CR2W 二進位檔**，類別是 `CDLCDefinition`
+  - → **只能在 REDkit 編輯器裡建立**
+- ✅ 原版範例 `[D]\dlc\dlc5\dlc5.reddlc`（以字串搜尋取得）：
+
+| mounter | 參數 | 值 |
+|---|---|---|
+| `CR4DefinitionsDLCMounter` | `definitionXmlFilePath` | `dlc\dlc5\data\gameplay\items\dlc5_items.xml` 等 |
+| `CR4DefinitionsNGPlusDLCMounter` | — | `dlc\dlc5\data\gameplay\items_plus\...` |
+| `CR4DefinitionsEntitieTemplatesDLCMounter` | `entitieTemplatesDirectoryPath` | `dlc\dlc5\data\horse_items\`、`dlc\dlc5\data\items\bodyparts\geralt_items\` |
+| `CR4ScaleformContentDLCMounter` | `scaleformDirectoryPath` | `dlc\dlc5\data\gameplay\gui_new\`（圖示） |
+
+- ✅ dlc5 的資料夾結構：
+
+```
+dlc\dlc5\
+  dlc5.reddlc
+  data\gameplay\items\dlc5_items.xml
+  data\gameplay\items_plus\dlc5_items.xml
+  data\items\...（實體模板 .w2ent）
+  data\gameplay\gui_new\icons\...（圖示）
+```
+
+- ✅ REDkit 5.0 新增 **XML 細部覆寫**：XML 條目可加 `onConflict` 屬性，值為 `default`（重複定義就報錯）、`replace`、`extend`（Changelog）
+
+### 12.4 腳本
+
+- ✅ 原文：「To use annotation, create a new .ws file for your mod or workspace with your annotated code」（Script Compilation Errors overrides 頁）
+- ✅ 官方文件列出的 annotation：`@wrapMethod`、`@addMethod`、`@replaceMethod`（也能取代全域函式）、`@addField`
+- ✅ REDkit 5.0 的腳本更新（Changelog）：
+  - **scope-based overrides**：新檔案只要指定範圍（例如類別），就能新增或覆寫函式
+  - **script blobs**：腳本 mod 可以編譯成小型 blob，在遊戲啟動時載入
+    - 🔶 `.w3edit` 的 `useLooseScripts: false` 應該就是指這個
+  - 原生函式可以包（wrap）；**`event` 和 state 可以正式加 annotation**
+  - 「Now scripts are part of REDKit, please make sure that no vanilla scripts are part of the depot.」
+- ✅ 不經過 REDkit、手動做的腳本 mod 放在 `<遊戲>\mods\modXXXX\content\scripts\local\*.ws`（Create your first script mod 頁）
+- 🔶 **REDkit 專案裡的腳本應該放在 `workspace\scripts\...`**
+  - 理由：原版腳本在 depot 的 `scripts\` 底下（`[D]\scripts\`），而 workspace 會照 depot 路徑存放檔案
+  - 建議用 `workspace\scripts\local\`，和 5.x mod 的慣例一致
+  - **尚未實測**；Wiki 沒有寫出確切子資料夾
+- ✅ Script Studio 也有自己的「Workspace」設定（`bin\x64_RedKit\scriptStudio.exe` 的字串）：
+  - 「Workspace: Location on your computer where you would like the mod to reside. This should be away from the installation folder of your game」
+  - 編譯選項：
+    - `Use existing scripts`
+    - `Install Mod`（編譯前先把 mod 腳本安裝到遊戲）
+    - `Use Workspace scripts`（強制遊戲只用 workspace 的腳本）
+
+### 12.5 命令列編譯腳本（wcc_lite）
+
+- ✅ REDkit 5.0 新增「compile scripts」指令（Changelog）
+- ✅ 用法（`bin\x64_RedKit\wcc_lite.exe` 內的說明字串）：
+
+```
+compilescripts <source_dir> <options>
+  -out=<outputpath>             - Output path
+  -patch=<patch_source_dir>     - Blob source scripts (output will be a .rsblob)
+```
+
+- 輸出檔名：完整編譯是 `cooked-<CRC>.redscripts`，patch 是 `blob.rsblob`
+- 🔶 可以用來在遊戲外檢查 mod 腳本能不能編譯：
+  - `<source_dir>` 指向原版腳本，`-patch` 指向我們的腳本
+  - **尚未執行**：可能會在 REDkit 資料夾寫入紀錄檔，要先徵求同意
+
+### 12.6 其他：Wwise 版本
+
+- ⚠️ Changelog（REDkit 5.0）原文：「REDkit now requires Wwise 2023 with the Mastering Suite and Motion plugins installed.」
+- → CLAUDE.md §3 原本寫的「Wwise 2021.1.7.7796（必須剛好這版）」對 REDkit 5.0 已經過時
+- 確切的 2023 版號仍待查（Wiki 的 Wwise 頁面可能還沒更新）
