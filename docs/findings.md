@@ -803,3 +803,24 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 第一次用 `load a saved game` 啟動時（21:07:58），REDkit 在 `workspace\levels\novigrad\` 建了 `source_foliage\`、`streaming\temp\` 等**空資料夾**
 - 裡面沒有任何檔案；git 不追蹤空資料夾
 - 🔶 應該是世界的工作或暫存資料夾；之後若出現暫存檔，再加進 `.gitignore`
+
+### 13.7 改動後要怎麼重新載入（`editor.log` 證據）
+
+| 時間 | 動作 | 讀存檔 | 讀我們的 XML（`Reading defs from file: 'dlc\gunforgeralt\...'`） | 到 `OnGameStarted` |
+|---|---|---|---|---|
+| 21:29:41 | 編輯器啟動（`OnEditorStarted`） | — | ✅ | — |
+| 21:31:38 | 啟動遊戲 | ✅ `Loaded QuestLoadingVideo ... from save` | ✅ | 21:32:13（約 35 秒） |
+| 21:32:55 | 回到編輯器（`OnEditorStarted`） | — | ✅ | — |
+| 21:33:01 | 啟動遊戲 | ❌ | ✅（21:33:05） | 21:33:12（約 11 秒） |
+| 21:53:57 | 啟動遊戲 | ❌ | ✅ | 21:54:05（約 8 秒） |
+
+- → **每次啟動遊戲、回到編輯器都會重新掛載 DLC、重新讀 XML**；改 XML 後不需要讀存檔，用 `play game` / `Fast` 重新啟動即可
+- 同一場遊戲中重新載入物品定義：**沒有找到方法**
+  - 原版腳本沒有相關的 exec 指令（只有 `ForceHudScaleRefresh`、`debugRefreshModioMutedUsersList`）
+  - REDkit 5.0 Changelog 只提到「Gwent definitions are reloadable now」
+- 腳本：Script Studio 可熱重載（Wiki「WS: Script Studio basics」：「you can change the code while the game is running in the Editor」）
+- 不讀存檔、直接開世界：Wiki「Load an existing world」（頁面 6324517）
+  - **File → Open World**，選 `.w2w`（例：`levels\novigrad\novigrad.w2w`）
+  - 編輯器預設只顯示地形與植被；Scene Explorer 對最上層的世界資料夾按右鍵 → **Load all in group** 才會載入所有圖層
+  - `play game`：依串流資料載入圖層，Geralt 出生在 0,0,0；`Fast`：只用目前已載入的圖層，Geralt 出生在鏡頭位置（Wiki「Start the game from the editor」）
+- ❓ REDkit 重開時會不會自動打開上次的世界，未確認

@@ -71,7 +71,7 @@
   LocalEditorStringDataBaseW3_UTF8_mod.db   ← 專案字串資料庫（物品名稱等；ID 從 10000000 起）
   workspace\                      ← REDkit 虛擬 depot 的專案層（第一次新增檔案時建立）；路徑和 depot 一一對應
     dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
-    scripts\local\                ← 🔶 mod 腳本（annotation），待實測確認
+    scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
   packed\、publish\               ← REDkit 打包輸出（不納入 git）
 
 <W3MODS_DIR>\reference\                          ← 參考 mod（唯讀；這裡的副本沒有裝進遊戲，但遊戲另外裝了 MCME，見 §12）
@@ -290,7 +290,12 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 工具列按鈕（使用者 2026-10-12 確認的提示文字，左到右）：
     `play game`、`play game on the current layer only. Fast.`、**`load a saved game`**、`enable editor streaming`、`leave game camera postion`
     - 另有 `use selected game definition`（把 Asset Browser 選取的 `.redgame` 放進下拉選單）與 `play game from definition`（用該定義檔開始；預設 `witcher3.redgame` 是從新遊戲開頭）
-  - 測試 mod 時用 **`load a saved game`** 讀平常的存檔
+  - **改了 XML：結束遊戲，重新按 `play game` 或 `play game on the current layer only. Fast.`**（約 10 秒）
+    - 每次啟動遊戲、回到編輯器時，都會重新讀我們的 XML；**不需要讀存檔**（2026-10-12 紀錄確認，見 `docs\findings.md` §13.7）
+    - 編輯器裡要先開著世界：REDkit 重開後若沒有世界，用 **File → Open World** 開 `levels\novigrad\novigrad.w2w`（不必讀存檔）
+    - 不讀存檔時 Geralt 是預設狀態，要重新 `additem` 拿 AK
+  - **改了腳本：Script Studio 可在遊戲執行中熱重載，不用重開**
+  - 需要平常存檔的狀態時才用 `load a saved game`（約 35 秒，會播前情提要影片）
   - 遊戲中按 **F10** 切回編輯器，再按一次回到遊戲
   - 存檔資料夾：`C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`（REDkit 的紀錄檔所示）
 - 測試前備份存檔：`文件\The Witcher 3\gamesaves`
