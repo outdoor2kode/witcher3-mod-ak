@@ -663,14 +663,31 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | 檔案 | 變化 |
 |---|---|
 | `<REDKIT_DIR>\bin\wcc.log` | 新建（紀錄檔） |
-| `<REDKIT_DIR>\bin\LocalEditorStringDataBaseW3_UTF8_mod.db` | 新建，32 KB 的空字串資料庫 |
-| `<REDKIT_DEPOT>\x64.release.redscripts` | **被覆寫**（REDkit 自己的已編譯腳本） |
+| `<REDKIT_DIR>\bin\LocalEditorStringDataBaseW3_UTF8_mod.db` | 新建，32 KB 的空字串資料庫（0 筆字串）；**已刪除** |
+| `<REDKIT_DEPOT>\x64.release.redscripts` | **被覆寫**（腳本編譯快取，說明見下方） |
 
-  - 覆寫後的檔頭和我們的輸出完全相同（含 REDkit 版號 `1048625` 與同一組時間戳記）
-    → 🔶 是用同一份原版腳本重新編譯的結果，內容應該等價
-  - 原本的檔案沒有備份，無法逐位元組比對
-- ❓ 加上 `-patch` 時，會不會把 mod 腳本也寫進 `x64.release.redscripts`，尚未確認
-  - → 在確認之前，**不要用 `-patch` 跑**，以免影響從 REDkit 啟動的遊戲
+**`x64.release.redscripts` 是什麼**
+
+- 1525 個原版 `.ws` 編譯後的快取
+- 依 `wcc.log` 的時間順序，寫入發生在**引擎啟動階段**，不是 `compilescripts` 指令本身造成的：
+  - 19:17:18 Loading scripts（解析 `r4data\scripts`）
+  - 19:17:25 Rebuilding script data caches
+  - **19:17:26.200 檔案寫入**
+  - 19:17:26 之後才開始執行 `compilescripts`
+- 其他引擎啟動也有同一步「Rebuilding script data caches」：
+  - REDkit 首次設定時的 uncook（`uncook 2026-10-12 15-24-20.log`）
+    - 15:24:32 在「Parsing 0 script files」的狀態下執行，檔案正好在這一秒建立
+  - REDkit 編輯器啟動時（`editor.log` 15:46:20）
+- 🔶 結論：這是**每次啟動引擎都會重建的快取**，這次覆寫的影響和平常開一次 REDkit 一樣
+- 這次是從**沒有變動過**的 `r4data\scripts` 重建的
+  - 執行期間，`r4data\scripts` 裡沒有任何檔案被修改（用時間標記檔搜尋確認）
+- 覆寫後的檔頭和我們的輸出完全相同（含 REDkit 版號 `1048625` 與同一組時間戳記）
+
+**加上 `-patch` 時**
+
+- 🔶 快取是在引擎啟動時、從 `r4data\scripts` 重建，比 patch 編譯還早
+  → 應該不會把 mod 腳本寫進快取
+- 執行時仍要先備份快取，跑完比對雜湊確認
 
 ### 12.6 其他：Wwise 版本
 
