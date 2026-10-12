@@ -1066,3 +1066,44 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `OnSprintHolster`（`rangedWeapon.ws:491-507`）：玩家在 `Exploration`／`Swimming`、行為變數 `isShootingWeapon` 與 `isAimingWeapon` 都是 0、武器在 `State_WeaponAim` → `OnForceHolster( true, false )`
   - 我們放開扳機時把這兩個變數設成 false（`GfgSetTrigger`）
 - 其他會強制收槍的（腳本呼叫 `OnRangedForceHolster`，**未實測**）：翻滾（`explorationStateRoll.ws:105`）、跳躍（`explorationStateJump.ws:408`）、開始墜落（`explorationStateStartFalling.ws:78`）、擊倒（`knockdown.ws:65`）等
+- 決定（2026-10-13）：**維持現狀**，停火後不自動收槍
+
+---
+
+## 14. M2 後座力：彈道資料的來源（2026-10-13 調查）
+
+### 14.1 不能從參數自己推演算法
+
+- `weapons.vdata` 只有參數（種子、角度、大小、變化量），不是每發的座標（`docs\ak47_params.md` §4.3）
+- CS2 的 convar dump 沒有 CS:GO 時代的 `weapon_recoil_*`（`docs\ak47_params.md` §7）
+- 網路搜尋（2026-10-13）**找不到** Valve 後座力產生演算法的公開文件或逆向研究
+  - 唯一相關的是 Godot 重製專案 CSGODOT 的 PR #111（https://github.com/sidcarrollworks/CSGODOT/pull/111）
+    - 作者把「`m_nRecoilSeed` 造成左右偏移」標為**推測**，並計畫改用 demo 錄影實測取代
+  - csdb.gg 彈道頁（https://csdb.gg/recoil-patterns/）2026-10-13 回應 HTTP 429，沒有取得內容
+- → 用參數自己湊演算法就是臆測，不採用
+
+### 14.2 改用實測：CS2 demo ＋ demoparser2
+
+- **demoparser2**（LaihoE，MIT 授權，https://github.com/LaihoE/demoparser）
+  - README 的欄位表：`aim_punch_angle` = `CCSPlayerPawn.m_aimPunchAngle`、`aim_punch_angle_vel` = `CCSPlayerPawn.m_aimPunchAngleVel`
+  - 用法：`DemoParser(路徑).parse_ticks([欄位...])` 逐 tick 讀取
+  - PyPI 0.42.0 有 `cp314-win_amd64` 版本（2026-08-08 上傳），不用自己編譯
+  - 相依套件：pandas、numpy、polars、pyarrow、tqdm（下載至少 57 MB）
+- **CS2 的指令**（GameTracking-CS2 `DumpSource2/commands.txt`、`convars.txt`，2026-10-13 下載，未放進專案）：
+
+| 指令／convar | 出處 | 旗標 | 用途 |
+|---|---|---|---|
+| `record` | commands.txt:2718 | `cheat dontrecord release` | 開始錄 demo（要 `sv_cheats 1`） |
+| `stop` | commands.txt:3484 | `release` | 停止錄影 |
+| `map` | commands.txt:2039 | `release` | 開本機地圖 |
+| `give` | commands.txt:1713 | `gamedll ... client_can_execute` | 給武器 |
+| `bot_kick` | commands.txt:269 | `gamedll release` | 踢掉電腦玩家 |
+| `sv_cheats` | convars.txt:10908 | — | 允許作弊指令 |
+| `weapon_accuracy_nospread` | convars.txt:12909 | 不是 cheat | 關掉散布，只留後座力 |
+| `sv_showimpacts` | convars.txt:11751 | 不是 cheat | 顯示彈孔 |
+| `view_punch_decay` | convars.txt:12693 | `cheat`，預設 18 | 「Decay factor exponent for view punch」 |
+
+- CS2 已安裝的地圖（`game\csgo\maps\*.vpk`）：`de_dust2`、`de_mirage`、`de_inferno`、`cs_office`、`ar_shoots` 等
+- ❓ 待確認：
+  - `record` 的 demo 存在哪裡（`game\csgo\` 第二層內目前沒有 `.dem`）
+  - aim punch 角度和子彈實際方向的比例：CS:GO 時代 `weapon_recoil_scale` 預設 2（https://totalcsgo.com/command/weaponrecoilscale），CS2 的 dump 裡沒有這個 convar
