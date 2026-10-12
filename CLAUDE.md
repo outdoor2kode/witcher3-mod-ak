@@ -69,9 +69,9 @@
   Firearms\                                      ← Roenaxx：燧發槍作為十字弩替代武器（舊版遊戲）
   FirearmsNextGen\                               ← RickThedope：次世代版（4.x）
   CompleteCrossbowOverhaul\                      ← 2017 年 v1.0：半自動／全自動／狙擊／霰彈弩，含射速、彈匣、散布
-  CompleteCrossbowOverhaul_base_game_steering\   ← 同 mod 的選用檔：替換 rangedWeapon.ws，改成按住連射的操作方式
-  MCME_Remastered\                               ← Multi Companion Mod Remastered：已確認能在 5.x 運作的「腳本」mod
-  Required_for_MCME_Remastered\                  ← Multi Companion Mod Remastered 的 mod required 依賴
+  CompleteCrossbowOverhaul_base_game_steering\   ← 同 mod 的選用檔：只把 defaultSteering 設為 true，恢復原版操作（放開「使用物品」鍵時發射）
+  MCME_Remastered\                               ← Multi Companion Mod Remastered：已確認能在 5.x 運作的「腳本」mod（annotation 寫法範本）
+  Required_for_MCME_Remastered\                  ← Relapse's Mod Manager Redux 2.4：5.x 用的 mod 管理器（工具程式，不是遊戲 mod）
                                                
 
 <W3MODS_DIR>\cs2_export\ak47\     ← 從 CS2 匯出的素材
@@ -112,6 +112,14 @@
 5. 模型流程：Source 2 Viewer 匯出 glTF → Blender 內建 glTF 匯入 → 調整 → 匯出 FBX → REDkit Asset Browser「Import > Mesh」
    REDkit 與 Blender 有**座標系差異**，匯入時注意骨骼軸向
 6. Windows 上 Claude Code 權限規則的絕對路徑寫法：`D:\W3Mods` → `//d/W3Mods`
+7. **5.x 的腳本 mod 用 annotation**（`@wrapMethod` / `@addMethod` / `@addField`），檔案放 `content\scripts\local\`
+   → 本專案**不整檔覆寫原版腳本**（MCME 與已安裝的 5.x mod 都這樣做）
+8. **AK 的實體類別必須繼承 `Crossbow`**
+   → `thePlayer.rangedWeapon` 的型別是 `Crossbow`（`r4Player.ws:17`），射擊流程也會強制轉型（`r4Player.ws:10712`）
+9. 原版十字弩的**發射時機由動畫事件 `'ProjectileThrow'` 決定**，每發都要換彈
+   → 全自動要從腳本直接觸發（CCO 的作法）
+10. 舊版參考 mod 的 `.ws` 是 **UTF-16 LE**；5.x 原版與 5.x mod 是 UTF-8
+11. 詳細出處（檔案路徑與行號）見 `docs\findings.md`
 
 ---
 
