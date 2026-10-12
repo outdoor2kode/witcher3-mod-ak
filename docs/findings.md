@@ -796,4 +796,4 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `rangedweapon.ws(536)`：銷毀舊十字弩上的箭
   - `Custom orientation cannot be removed, stack is already empty`
 - 物品說明的重量 = `0.01 + 重量 × 數量 × 0.5`（`inventoryComponent.ws:4123`）
-  - 例：`Crossbow 1`（1.53）顯示 0.77；`gfg_ak47`（3.5）應顯示 1.76
+  - 例：`Crossbow 1`（1.53）顯示 0.77；`gfg_ak47`（3.5）顯示 **1.76**（實測確認）
