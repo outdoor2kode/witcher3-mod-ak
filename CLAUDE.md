@@ -115,7 +115,9 @@
 1. **Remastered 5.x**（2026-09-29 上線）讓含腳本、XML、w3strings 的舊 mod 失效，需用 REDkit 更新
    → 參考 mod 大多不能直接用，**只參考作法**
 2. REDkit 專案中，要修改的原版檔案需先在 REDkit **check out**，REDkit 才會打包
-3. 從 **REDkit 編輯器啟動遊戲**時，Script Studio 可**熱重載腳本**；XML、模型等資源可能需要重新啟動
+3. 從 **REDkit 編輯器啟動遊戲**時，可在遊戲中**熱重載腳本**（Tools → Debuggers → Reload scripts，2026-10-13 實測）；XML 要重新啟動遊戲，模型等資源未確認
+   - 這時遊戲跑在 `editor.exe` 裡，直接讀 `workspace` 的原始檔（`docs\findings.md` §13.16）
+   - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod 還沒打包、沒安裝，打包後的檔案與安裝位置未驗證
 4. REDkit 匯入動畫時，**骨骼名稱與階層必須完全一致**
    → CS2 的動畫不能套到 Geralt，持槍／開槍／換彈動作要用 Geralt 骨架重做
 5. 模型流程：Source 2 Viewer 匯出 glTF → Blender 內建 glTF 匯入 → 調整 → 匯出 FBX → REDkit Asset Browser「Import > Mesh」
@@ -294,11 +296,9 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
     - 每次啟動遊戲、回到編輯器時，都會重新讀我們的 XML；**不需要讀存檔**（2026-10-12 紀錄確認，見 `docs\findings.md` §13.7）
     - 編輯器裡要先開著世界：REDkit 重開後若沒有世界，用 **File → Open World** 開 `levels\novigrad\novigrad.w2w`（不必讀存檔）
     - 不讀存檔時 Geralt 是預設狀態，要重新 `additem` 拿 AK
-  - **改了腳本檔：只重開遊戲不會重新編譯**（`docs\findings.md` §13.10）
-    - 重新編譯的方法（`docs\findings.md` §13.14；從程式內嵌的選單定義查到，**尚未實測**）：
-      - REDkit：**Tools → Debuggers → Reload scripts**（說明文字「Reload and recompile scripts」）
-      - Script Studio（REDkit 的 Tools → Script Studio...）：**Debug → Reload scripts**，快捷鍵 **F7**；Wiki 寫可在遊戲執行中熱重載
-      - 重開 REDkit 也會重新編譯（已確認）；上面兩種實測可用後就不必重開
+  - **改了腳本檔：遊戲進行中按 REDkit 的 Tools → Debuggers → Reload scripts，就會重新編譯並套用**（2026-10-13 實測，`docs\findings.md` §13.14）
+    - 不用結束遊戲，也不用重開 REDkit；只重開遊戲則**不會**重新編譯（§13.10）
+    - Script Studio 的 **Debug → Reload scripts（F7）** 是同名功能，未實測
   - **測試用世界建議 `engine\reference_level\world\reference_level.w2w`**：官方的測試關卡，實測載入 0.20 秒（Novigrad 約 2～3 秒），見 `docs\findings.md` §13.9
   - 需要平常存檔的狀態時才用 `load a saved game`（約 35 秒，會播前情提要影片）
   - **按 `Fast` 前先把鏡頭放到地面附近**，否則 Geralt 會從鏡頭位置掉下來摔死（Wiki「Start the game from the editor」）

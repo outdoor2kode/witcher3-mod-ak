@@ -945,9 +945,9 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 計時器改成每個畫面檢查（`AddTimer(..., 0.001f, true)`，寫法同 `rangedWeapon.ws:1248`）
 - 按下時立刻檢查第一發（原本要等 0.1 秒，按放短於 0.1 秒會一發都沒有）
 
-### 13.14 重新編譯腳本的方法（2026-10-13 查證，**尚未實測**）
+### 13.14 重新編譯腳本的方法（2026-10-13 查證；REDkit 選單已實測）
 
-- **REDkit：Tools → Debuggers → Reload scripts**
+- **REDkit：Tools → Debuggers → Reload scripts**（✅ **遊戲進行中可用**，實測見本節最後）
   - 證據：`bin\x64_RedKit\editor.exe` 內嵌的 wxWidgets 選單定義（XRC）
     - `UniversalFrameMenuBar` → `toolsMenu`（`_Tools`）→ `debugMenu`（`Debuggers`）→ `reloadScripts`
     - 標籤 `Reload scripts`；說明 `Reload and recompile scripts`；沒有預設快捷鍵（`<accel/>` 空白）
@@ -963,7 +963,64 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 「Script Studio allows you to place breakpoints in your code and hot reloads your code - which means you can change the code while the game is running in the Editor.」
   - 「Script Studio connects to the game automatically.」
 - 引擎支援執行中重新載入：`editor.exe` 有實體事件 `OnScriptReloading`、`OnScriptReloaded`；REDkit 啟動時 log 有 `Notifying 14 scriptables of reload.`、`Scriptables reloaded.`
-- ❓ 待實測：
-  - REDkit 的 Reload scripts 在遊戲執行中能不能用
-  - 會不會編譯 `workspace\scripts\local\` 的檔案
-  - 驗證方法：使用後看 `editor.log` 有沒有新的 `Parsing ... script files`，以及新版腳本的 log 格式（`trigger=... t=...`）
+- ✅ **實測（2026-10-13，使用者在遊戲進行中按 Reload scripts，沒有結束遊戲）**，`editor.log`：
+  - 00:08:17 `Parsing 1525 script files...` → 00:08:21 `Parsing 1 script files...`（我們的腳本）→ 00:08:25 `Parsed scripts unit compiled and loaded in 0.02s`
+  - 00:08:25 `Unable to restore property 'gfgReloadRequested' from snapshot of object 'Unnamed CDynamicLayer::witcher_crossbow_lvl118cee330'`
+    - 這次刪掉了 `gfgReloadRequested` 欄位；訊息字面意思是「無法從物件的快照還原這個欄位」→ 刪欄位時會出現，不影響運作
+  - 00:08:25 `Notifying 146176 scriptables of reload.`、`Scriptables reloaded.`
+  - 00:08:32 第一次按左鍵就是新版的 log 格式（`trigger=true t=187.927 ...`）→ 新腳本在**同一場遊戲中**生效
+  - 重新編譯**沒有寫檔**：`<REDKIT_DEPOT>\x64.release.redscripts` 的修改時間停在 00:03:20，那是 wcc_lite 的編譯（`wcc.log` 00:03:11～00:03:20 `Parsing 1525 script files`）
+- ❓ Script Studio 的 F7 未實測
+
+### 13.15 M2 全自動：第二次實測（commit `dfc81e0`；`editor.log` 2026-10-13 00:08～00:09）
+
+- 按住 7.93 秒，共 64 發：
+  - 30 發 → 換彈 0.884 秒（期間不開火）→ 30 發 → 換彈 0.884 秒 → 4 發
+  - 開火時的狀態：`State_WeaponAim` 75 次、`State_WeaponDraw` 4 次，**沒有** `State_WeaponReload`
+  - 換彈後第一發是 `shotCount=1` → `OnWeaponReloadEnd` 有把發數歸零
+- 射速：
+  - 第一個彈匣 30 發用 2.915 秒（平均間隔 0.1005 秒，約 597 RPM）
+  - 第二個彈匣 30 發用 2.900 秒（平均間隔 0.1000 秒，600 RPM）
+  - 個別間隔 0.083～0.117 秒（對齊畫面），平均回到 0.1 秒
+- 點放（10 次，每次按住 0.05～0.10 秒）：
+  - 按下的那一格畫面就開火（延遲 0）
+  - 距離上一發不到 0.1 秒時，會等到 0.1 秒才開（延遲 0.034～0.05 秒）
+- **發現**：快速連點時，一次按下可能開 2 發，間隔只有 0.065～0.083 秒
+  - 例：197.662 開一發（預定下一發 197.762）→ 197.812 按下時只超過預定時間 0.05 秒，沒有重新起算 → 197.812 開一發、預定 197.862 → 197.877 又開一發
+  - 原因：新的一次按下沿用了上一次按住時累計的預定時間
+  - 修正（wcc_lite 編譯通過，未進遊戲測試）：按下時若預定時間已過，就從現在起算
+
+### 13.16 mod 的檔案怎麼被載入（2026-10-13 查證）
+
+- **目前的測試，遊戲跑在 REDkit 的 `editor.exe` 裡，不是 `witcher3.exe`**
+  - `tasklist`：只有 `editor.exe`（PID 30256），沒有 `witcher3.exe`
+  - `editor.log`：`Creating editor game session`
+- REDkit 直接讀 `workspace` 裡的原始檔（log 裡的路徑是去掉 `workspace\` 的 depot 相對路徑）：
+
+| 專案檔案 | 格式／語言 | 被讀取的證據（`editor.log`） | 內容 |
+|---|---|---|---|
+| `workspace\scripts\local\gfg_ak47.ws` | WitcherScript 原始碼（文字，UTF-8＋BOM） | `Missing dependency file entry for 'scripts\local\gfg_ak47.ws'`、`Parsing 1 script files...` | 射擊、彈匣、換彈的程式 |
+| `workspace\dlc\gunforgeralt\test.reddlc` | REDengine 二進位資源（CR2W），只能在 REDkit 建立 | `[DLC] Found new DLC '' (id: 'gunforgeralt', file: 'dlc\gunforgeralt\test.reddlc')` | 宣告 DLC，指定要掛載的 XML |
+| `workspace\dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml` | XML（根元素 `<redxml>`） | `Reading defs from file: 'dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml'` | 物品 `gfg_ak47`、能力 `gfg_ak47 _Stats` |
+| `LocalEditorStringDataBaseW3_UTF8_mod.db` | SQLite 資料庫（檔頭 `SQLite format 3`） | 沒有 log 行；遊戲中顯示「AK-47」（2026-10-12 使用者實測） | 物品名稱字串 |
+
+- 腳本在記憶體中編譯，不寫檔（§13.14）
+- 還在借用原版的部分（我們沒有自己的檔案）：
+  - 外觀：`equip_template="witcher_crossbow_lvl1"`
+  - 圖示：`icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png`
+  - 說明文字：`item_desc_crossbow_1`
+  - 子彈：原版 `Bodkin Bolt`（log：`Equipped bullet item Bodkin Bolt`）
+- **`witcher3.exe`（從 Steam 啟動）目前完全讀不到我們的 mod**
+  - `<W3_GAME_DIR>\mods\` 裡沒有我們的資料夾
+  - 專案的 `packed\`、`publish\` 不存在 → 從沒打包過
+- 已安裝的 5.x mod（`<W3_GAME_DIR>\mods\mod*\content\`）裡出現的檔案類型：
+  - `scripts\local\*.ws`：腳本原始碼（例：`modBetterIcons2025_Remastered`、`modArkkanisGwentQuickBets`）
+  - `precompiled.rsblob`：編譯好的腳本 blob
+    - Changelog 原文：「Script blobs: new way to compile script mods to small "script blobs" which the engine loads at game-start」
+  - `*.w3strings`：各語言的字串
+  - `blob0.bundle`、`metadata.store`、`texture.cache`、`info.json`
+- 原版編譯好的腳本：`<W3_GAME_DIR>\content\content0\x64.final.redscripts`（修改時間 2026-10-12 02:57:52）、`cookedfinal.redscripts`（2026-10-09）
+- ❓ 未驗證：
+  - REDkit 打包後，我們的檔案會變成哪些檔案
+  - `witcher3.exe` 是編譯 `.ws`，還是讀 `precompiled.rsblob`
+  - 驗證方法：用 REDkit 打包一次，看輸出資料夾的內容
