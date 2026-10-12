@@ -891,3 +891,27 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - wcc_lite 編譯通過（第一次就通過）；新驗證的寫法：
   - `@wrapMethod` 可包帶回傳型別的 protected 函式（`function PlayOwnerReloadAnim() : bool`）
   - 新增與包裝的方法可存取原版 protected 成員（`shotCount`、`previousAmmoItemName`、`ownerPlayerWitcher`、`SetBehaviorGraphVariables`、`GetSpecialAmmoCount`）
+
+### 13.12 十字弩的需求等級由 `attack_power` 決定
+
+- 物品等級：十字弩只看 `attack_power`（`inventoryComponent.ws:359-361`）
+- 換算表（`gameParams.ws:998-1016`，最後再減 1，最小 1）：
+
+| `attack_power`（mult） | 表內等級 | 需求等級（減 1） |
+|---|---|---|
+| ≤ 1.01 | 1 | 1 |
+| > 1.01 | 2 | 1 |
+| > 1.1 | 4 | 3 |
+| > 1.2 | 8 | 7 |
+| > 1.3 | 11 | 10 |
+| > 1.4 | 15 | 14 |
+| > 1.5 | 19 | 18 |
+| > 1.6 | 22 | 21 |
+| > 1.7 | 25 | 24 |
+| > 1.8 | 27 | 26 |
+| > 1.9 | 32 | **31** |
+
+- 裝備檢查：物品等級 > 玩家等級就不能裝備（`r4Player.ws:11727-11745` `HasRequiredLevelToEquipItem`；有 `EET_WolfHour` 時放寬 2 級）
+- 目前 `gfg_ak47` 的 `attack_power` = 2.02 → **需求等級 31**；`Fast` 啟動的 Geralt 等級不夠（2026-10-12 使用者回報無法裝備）
+- 測試時可用主控台 `setlevel(31)`（`playerCheats.ws:162-182`：加經驗值直到目標等級，只升不降）
+- → M2 設計傷害時要考慮：`attack_power` 會同時改變需求等級
