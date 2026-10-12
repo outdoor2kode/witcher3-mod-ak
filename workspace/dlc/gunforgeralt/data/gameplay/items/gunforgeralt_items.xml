@@ -31,7 +31,8 @@
 				localisation_key_description	="item_desc_crossbow_1"
 				icon_path						="icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png"
 			>
-				<tags>							Weapon, crossbow, mod_weapon
+				<!-- gfg_ak47 tag: scripts use it to recognise the AK (workspace/scripts/local/gfg_ak47.ws) -->
+				<tags>							Weapon, crossbow, mod_weapon, gfg_ak47
 				</tags>
 				<base_abilities>				<a>Default weapon _Stats</a>
 												<a>gfg_ak47 _Stats</a>
