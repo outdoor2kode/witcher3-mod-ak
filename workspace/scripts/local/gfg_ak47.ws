@@ -86,11 +86,18 @@ function GfgLoadedText() : string
 @addMethod(Crossbow)
 function GfgSetTrigger( pressed : bool )
 {
+	var now : float;
+
+	now = theGame.GetEngineTimeAsSeconds();
 	gfgTriggerHeld = pressed;
-	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
+	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( now ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
 
 	if ( pressed )
 	{
+		// 新的一次按下不沿用上次累計的時間，否則快速連點時兩發間隔會小於 0.1 秒
+		// （實測最短 0.065 秒：docs/findings.md §13.15）
+		if ( gfgNextShotTime < now )
+			gfgNextShotTime = now;
 		// 按下就檢查第一發，不等第一個計時器週期
 		GfgTryFire();
 		// 之後每個畫面檢查一次（0.001 秒的重複計時器，同 rangedWeapon.ws:1248 的寫法）
