@@ -11,6 +11,7 @@
 - --compare：和另一份 `shot,x_degrees,y_degrees` 格式的彈道比對（例：CSGODOT 的 ak47.csv），
   算出最合適的縮放倍率與均方根誤差（# 開頭的行會略過）
 - --svg：輸出彈道圖；--ascii：在終端機畫粗略的彈道圖
+- --ws：印出 WitcherScript 的位移表（GfgRecoilKickRight／GfgRecoilKickUp），貼進 workspace/scripts/local/gfg_ak47.ws
 """
 import argparse
 import math
@@ -110,6 +111,22 @@ def ascii_plot(points: list[tuple[float, float]], width: int = 61, height: int =
     return '\n'.join(lines) + f'\n（橫向 ±{span_x:.1f}°、縱向 0～{top:.1f}°，比例不同；數字是發數的個位數，* 是重疊）'
 
 
+def ws_tables(points: list[tuple[float, float]]) -> str:
+    # 第 k 發相對第 k-1 發的位移（度），k 從 1 起算
+    out = []
+    for name, axis, label in (('GfgRecoilKickRight', 0, '往右'), ('GfgRecoilKickUp', 1, '往上')):
+        out += [f'// 第 shot 發相對前一發{label}幾度（shot 從 1 起算，超過資料長度回傳 0）',
+                '@addMethod(Crossbow)',
+                f'function {name}( shot : int ) : float',
+                '{',
+                '\tswitch ( shot )',
+                '\t{']
+        for k in range(1, len(points)):
+            out.append(f'\t\tcase {k}: return {points[k][axis] - points[k - 1][axis]:.4f}f;')
+        out += ['\t}', '\treturn 0.f;', '}', '']
+    return '\n'.join(out)
+
+
 def write_svg(path: Path, points: list[tuple[float, float]]) -> None:
     scale = 30.0  # 每度 30 像素
     xs = [p[0] for p in points]
@@ -144,10 +161,14 @@ def main() -> int:
     parser.add_argument('--compare', help='參考彈道（shot,x_degrees,y_degrees）')
     parser.add_argument('--svg', help='輸出彈道圖的路徑')
     parser.add_argument('--ascii', action='store_true', help='在終端機畫彈道圖')
+    parser.add_argument('--ws', action='store_true', help='只印出 WitcherScript 的位移表')
     args = parser.parse_args()
 
     rows = load_rcs_rows(Path(args.data))
     points = pattern_from_rcs(rows)
+    if args.ws:
+        print(ws_tables(points))
+        return 0
     print(f'資料：{args.data}（{len(rows)} 列 → {len(points)} 發），一個單位 = {DEGREES_PER_UNIT:.4f}°')
     print(f'{"發":>3} {"x°":>8} {"y°":>8} {"這發的後座 x°":>12} {"y°":>8}')
     for i, (x, y) in enumerate(points):
