@@ -638,7 +638,39 @@ compilescripts <source_dir> <options>
 - 輸出檔名：完整編譯是 `cooked-<CRC>.redscripts`，patch 是 `blob.rsblob`
 - 🔶 可以用來在遊戲外檢查 mod 腳本能不能編譯：
   - `<source_dir>` 指向原版腳本，`-patch` 指向我們的腳本
-  - **尚未執行**：可能會在 REDkit 資料夾寫入紀錄檔，要先徵求同意
+
+**2026-10-12 試跑結果（只編譯原版，沒有 `-patch`）**
+
+- 指令（PowerShell）：
+
+```
+Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
+  -ArgumentList 'compilescripts "<REDKIT_DEPOT>\scripts" -out=<輸出資料夾>' `
+  -WorkingDirectory "<REDKIT_DIR>\bin\x64_RedKit"
+```
+
+- ✅ 成功：`Success! Scripts cooked to '...\cooked-000000007b8d4486.redscripts'`（7,973,538 bytes）
+  - 實際編譯約 **21 秒**；原版本身有 362 個警告
+  - 17 個 Error 都是環境訊息（缺設定檔、port 37000 被開著的 REDkit 編輯器占用等），不是腳本錯誤
+- ⚠️ **第一次執行會跳出 EULA 視窗**，要使用者本人在畫面上確認，否則會一直等待
+  - EULA 內文：`<REDKIT_DIR>\bin\x64_RedKit\wcc_eula.rtf`
+  - ❓ 同意紀錄會不會保存，下次執行還會不會再跳，尚未確認
+- ⚠️ **工作目錄一定要設成 `bin\x64_RedKit`**
+  - 紀錄檔寫在相對路徑 `..\wcc.log`
+  - 從專案資料夾執行時，紀錄檔寫到了 `D:\OneDrive\Desktop\wcc.log`（已刪除），而且 EULA 內文讀不到
+- ⚠️ **副作用**（依修改時間判斷，只算這次執行期間）：
+
+| 檔案 | 變化 |
+|---|---|
+| `<REDKIT_DIR>\bin\wcc.log` | 新建（紀錄檔） |
+| `<REDKIT_DIR>\bin\LocalEditorStringDataBaseW3_UTF8_mod.db` | 新建，32 KB 的空字串資料庫 |
+| `<REDKIT_DEPOT>\x64.release.redscripts` | **被覆寫**（REDkit 自己的已編譯腳本） |
+
+  - 覆寫後的檔頭和我們的輸出完全相同（含 REDkit 版號 `1048625` 與同一組時間戳記）
+    → 🔶 是用同一份原版腳本重新編譯的結果，內容應該等價
+  - 原本的檔案沒有備份，無法逐位元組比對
+- ❓ 加上 `-patch` 時，會不會把 mod 腳本也寫進 `x64.release.redscripts`，尚未確認
+  - → 在確認之前，**不要用 `-patch` 跑**，以免影響從 REDkit 啟動的遊戲
 
 ### 12.6 其他：Wwise 版本
 
