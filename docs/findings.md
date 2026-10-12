@@ -1126,3 +1126,21 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 不確定、需要遊戲裡調整的：
   - **大小**：11.7°（工具換算）或 16°（CSGODOT 的假設）都沒有實測 → 遊戲裡留一個整體倍率
   - 第 1 發：這份數據和第 0 發同一點；CS2 彈道圖那份高 0.5°
+
+### 14.4 遊戲內後座力：鏡頭版實測，改成準心版（2026-10-13）
+
+- **鏡頭版**（未 commit）：包裝 `CR4Player.OnGameCameraTick`，每發把位移加到 `moveData.pivotRotationValue`
+  - 方向：pitch 往上為正（`swimming.ws:1406`）；yaw 往左為正（`r4Player.ws:16144-16145`：右邊的點是 heading - 90）
+  - `editor.log` 01:09:22 起：每發 pitch 的變化等於位移表（例：第 2 發 -14.2219 → -12.8203，+1.4016）；下一發開火前的角度等於上一發之後的角度 → 寫入的角度會保留，不會被原版拉回
+  - 停火後偏移歸零：`recoil recovered: 0.216431s after last shot`
+  - 使用者回報：鏡頭有動、一頓一頓的、放開後有回原位；**要求改成「準心動就好」，並且要有準心**
+- **準心版**（wcc_lite 編譯通過，未進遊戲測試）：
+  - 準心模組：`hud.GetHudModule("CrosshairModule")`，開關用 `ShowElement`（同 `playerAiming.ws:208-219`）
+  - 移動準心：`GetModuleFlash().SetX／SetY`（HUD 模組定位的方式，`hudModuleBase.ws:114-126`）；回原位用 `SnapToAnchorPosition()`（`:72-112`，public）
+  - 角度換成像素：沿著帶偏移的方向取一點 → `theCamera.WorldVectorToViewRatio`（`cameraDirector.ws:15`）→ `(x+1)/2`、`(y+1)/2` → `hud.GetScaleformPoint`（`hud.ws:306-312`，線性換算），和畫面中央相減（換算同 `hud.ws:1864-1874`）
+  - 方向：`VecNormalize( GetCameraForward + GetCameraRight·tan(右) + GetCameraUp·tan(上) )`（`cameraDirector.ws` 的 `GetCameraForward／Right／Up`）
+  - 準心平滑：時間常數 0.03 秒（推測）
+  - 子彈：包裝 `W3BoltProjectile.ThrowProjectile`，AK 的目標點改成「從鏡頭沿準心方向打射線的最近命中點」
+    - 原版目標是 `GetLookAtPosition()`，最遠 25 公尺（`playerBoltProjectile.ws:128-142`）
+    - 射線寫法照原版 `CalculateAimPosition`（`playerAiming.ws:553-616`，private 不能直接呼叫）；長度 208 公尺（CS2 `m_flRange`）
+  - ⚠️ 尚未處理：戰鬥中有鎖定目標時，原版會改成直接射向敵人骨架（自動瞄準，`playerBoltProjectile.ws:353-377`）；弩箭的飛行距離上限仍是 25 公尺（`:348`）
