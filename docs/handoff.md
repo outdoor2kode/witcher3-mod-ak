@@ -13,10 +13,10 @@
 - **回到核心目標：做出 AK-47**（使用者 2026-10-13）
 - **跑射、跳射**：原因已查（`findings.md` §17.1～§17.5）；使用者選「讓 AK 能衝刺開槍」「做跳射」
   - 已實作、編譯通過（§17.6）；實測（§17.7）：跑步、衝刺都能連射；起跳不收槍有作用
-  - 實測發現的問題（§17.7）與使用者選的做法（§17.8，已實作、編譯通過、**未實測**）：
-    - 跑步、衝刺時沒有舉起 AK → 按下扳機時設 `isAimingWeapon` = 1（試試看）
-    - 起跳那一格扳機被放開（切到 `JumpClimb` 情境）→ 拿著 AK 時跳躍不切換按鍵情境
-    - 換彈後被原版計時器收槍 → 拿著 AK 時每格移除收槍計時器
+  - §17.8 實測通過（使用者 2026-10-13）：跑步會舉槍並能射；空中能射；只有換成其他道具才收槍（使用者覺得不錯，維持）
+  - 還沒解決：**衝刺、跳躍時沒舉槍**（§17.9）
+    - 已改、**未實測**：扣著扳機衝刺或在空中時，把 `playerMoveTypeForOverlay`、`playerSpeedForOverlay` 改成跑步的值（`UpdateLocomotion` 的改寫）
+    - 動畫圖用 `tools\cr2w_dump.py` 讀（§17.9）；上半身圖裡跑步和衝刺沒分開，跳躍的原因還沒找到
 - **分工**（另一個 session 負責 M3，2026-10-13 通知）：各自只 commit 自己的檔案（`git commit -- 路徑`，不用 `git add -A`／`.`／`commit -a`）；`docs/m3.md` 是它的；`gunforgeralt_items.xml`、`test.reddlc` 要改時先問使用者
 - 走路散布：使用者選「先不調」（能跑射之後，開槍時的速度會變）
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的（遊戲內建、網路上別人做過的）就直接用
@@ -31,22 +31,22 @@
 | 點射 | 實測通過 | `findings.md` §13.17 |
 | 後座力（鏡頭版） | 實測通過；箭不會插在牆上，照範圍規則不處理 | `findings.md` §14.6、§14.7、§15.2 |
 | 散布（站立／移動、連發累積、停火回復） | 實測有作用 | `findings.md` §16.3、§16.4 |
-| 邊衝刺邊射 | 實測能連射；姿勢沒舉槍（待處理） | `findings.md` §17.6、§17.7 |
-| 邊跳邊射 | 起跳不收槍有作用；扳機在起跳時被放開（待處理） | `findings.md` §17.6、§17.7 |
-| 一般跑步（只按 W） | 實測能連射（`PMT_Run` 5.1）；姿勢沒舉槍（待處理） | `findings.md` §17.7 |
+| 邊衝刺邊射 | 實測能連射；舉槍姿勢：改了、未實測 | `findings.md` §17.6、§17.9 |
+| 邊跳邊射 | 實測空中能射；舉槍姿勢：實驗中、未實測 | `findings.md` §17.8、§17.9 |
+| 一般跑步（只按 W） | 實測能連射、會舉槍 | `findings.md` §17.7、§17.9 |
+| 收槍 | 只在換成其他道具時收（實測，使用者同意維持） | `findings.md` §17.8、§17.9 |
 
 ## 沒 commit 的檔案
 
-- `workspace/scripts/local/gfg_ak47.ws`：§17.6 的衝刺開槍、起跳不收槍（衝刺、跑步實測可以連射）＋ §17.8 的三項（未實測）→ 實測通過後一起 commit
+- `workspace/scripts/local/gfg_ak47.ws`：§17.6、§17.8（已實測可用）＋ §17.9 的衝刺／空中姿勢改寫（未實測）→ 這輪實測後一起 commit
 
 ## 下一步
 
-1. 等使用者實測（已給步驟），看 `editor.log` 的 `[Script_GFG]`：
-   - 跑步、衝刺時有沒有舉槍（使用者目視）；沒用 → 請使用者在 REDkit 看 `pc_overlay.w2beh` 的 `CrossbowMovement`／`CrossbowAimMovement` 轉換條件
-   - 空中：起跳後沒有 `INPUT CONTEXT CHANGED JumpClimb`；`auto fire` 有 `inAir=true`；空中按、放左鍵有 `trigger=`
-   - 換彈後移動、跳躍：沒有 `crosshair hidden`
-   - 副作用：站著連射轉鏡頭時 Geralt 的面向；跳躍中其他鍵
-2. 都正常 → commit `gfg_ak47.ws`（只 commit 這個檔：`git commit -- 路徑`）
+1. 等使用者實測（已給步驟）：
+   - 衝刺、空中扣扳機時有沒有舉槍（使用者目視）
+   - `editor.log` 每發的 `spread:`：比對跑步（有舉槍）和空中、衝刺時的 `overlayMoveType`、`overlaySpeed`、`fullBody`、`inAir`
+2. 衝刺有效、空中沒效 → 繼續用 `tools\cr2w_dump.py` 查 `pc_overlay.w2beh` 的 `AimAnimation`（#17460）裡，空中和跑步差在哪個值；或空中的姿勢是不是由後面的區塊（`CombatActionFriendly`、`Right`）蓋掉
+3. 都正常 → commit `gfg_ak47.ws`（只 commit 這個檔：`git commit -- 路徑`）
 3. 跳射能用之後：空中的散布（CS2 跳躍 8.41°：`findings.md` §16.2）要不要加，問使用者
 4. 之後的候選（使用者還沒選）：鎖定敵人時的原版自動瞄準（`findings.md` §15.2）、M4 聲音（M3 模型由另一個 session 做）
 
