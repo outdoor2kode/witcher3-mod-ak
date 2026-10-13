@@ -144,6 +144,9 @@
     - `@replaceMethod` 後面**不能加** `protected` 等修飾詞；`@addMethod` 可以加 `public`
     - **state 的方法可以包**：類別名稱 = 父類別 + `State` + 狀態名，例如 `CR4PlayerStateAimThrow`
       → 後座力可以包 `CR4PlayerStateAimThrow.OnGameCameraTick`（已編譯通過）
+    - **`wrappedMethod` 在同一個函式裡只能寫一次**：第二次出現會報 `Could not find function 'wrappedMethod'`（2026-10-13，`docs\findings.md` §17.6）
+    - **不能直接寫入其他物件的欄位**（`thePlayer.欄位 = 值` 報 `Left hand side is const`）→ 在那個類別 `@addMethod` 一個設定函式
+    - annotation 裡能不能用 `super.`：官方 Wiki（頁面 36241598）沒寫；編譯會過，但行為沒驗證過，目前不用
     - **`.ws` 和 `.xml` 一律存成 UTF-8 加 BOM**：REDkit 開專案時會檢查，缺 BOM 會跳出 invalid encoding（`docs\findings.md` §12.7）
       - 可以寫繁體中文註解；換行 LF 或 CRLF 都可以
 13. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`

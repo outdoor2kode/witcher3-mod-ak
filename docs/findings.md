@@ -1428,3 +1428,23 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 
 - CS2 拿 AK 的最高移動速度：215 單位/秒 ≈ 5.46 公尺/秒（`m_flMaxSpeed`：`CLAUDE.md` §8、`docs\ak47_params.md` §6）
 - Geralt：衝刺 7.0、走路約 2.0 公尺/秒（log）；跑步速度這次沒有量到
+
+### 17.6 實作：衝刺開槍、起跳不收槍（2026-10-13；wcc_lite 編譯通過，**未實測**）
+
+- 使用者 2026-10-13 選：讓 AK 能衝刺開槍、做邊跳邊射
+- `gfg_ak47.ws`：
+  - `@wrapMethod(W3PlayerWitcher) CanSprint`：AK 裝備中時，呼叫原版前暫時把 `rangedWeapon` 設成空的 → 衝刺條件和沒拿十字弩時一樣
+    - 原版判斷衝刺時用到 `rangedWeapon` 的只有十字弩那段（`playerWitcher.ws:10701-10710`）和 `IsGuarded`（`r4Player.ws:13949-13952`）；`CR4Player.CanSprint`（`r4Player.ws:5662-5729`）呼叫的其他函式都沒用到
+  - `@wrapMethod(RangedWeapon) OnSprintHolster`：AK 按衝刺不收槍
+  - `@wrapMethod(Crossbow) RaiseOwnerGraphEvents`：戰鬥中衝刺時 AK 照常拿出（原版擋掉：`rangedWeapon.ws:800-806`）
+  - `@wrapMethod(CExplorationStateJump) StateEnterSpecific` ＋ `@wrapMethod(CR4Player) OnRangedForceHolster`：起跳的那段程式執行中不收 AK（log `jump: AK kept (holster skipped)`）；跳進水裡照原版收槍（游泳時十字弩拿著就不能移動：`locomotionDirectController.ws:817-825`）
+  - 診斷：`trigger=` 和 `auto fire:` 的紀錄多了 `context=`（按鍵情境）、`inAir=`
+- 編譯時查到的規則（已寫進 `CLAUDE.md` §6.12）：
+  - 同一個包裝函式寫兩次 `wrappedMethod`：第二次報 `Could not find function 'wrappedMethod'`（只寫一次就通過）
+  - `thePlayer.gfgKeepAkOnJump = …` 報 `Left hand side is const` → 改成 `@addMethod(CR4Player)` 的設定函式
+  - 包裝函式裡寫 `super.CanSprint( speed )` 編譯會過，但官方 Wiki（頁面 36241598）沒寫 annotation 裡的 `super` 指向哪裡 → 不用
+- 預期（未實測）：
+  - 衝刺開槍：`moveType=PMT_Sprint`、速度約 7.0；按 Shift 不收槍；圓錐約 10.3°（移動比例 1）
+  - 起跳：不再出現 `crosshair hidden`；空中能不能繼續射、扳機會不會被放開，看 `context=`、`inAir=`
+  - 不確定：衝刺、跳躍時的上半身動畫；空中彈匣打空時的換彈
+- 參考：其他會收槍的動作（開始墜落、攀爬、翻滾：§17.4）這次沒改
