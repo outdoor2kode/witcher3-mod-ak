@@ -310,12 +310,17 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 放模型時選 Static Mesh 才有碰撞（搜尋結果引用的同一頁內容）
   - 怪物：放遭遇區域、生成點、守衛區域，用 spawn tree 生成（Wiki「HOW-TO: Create a monster encounter」，頁面 6326170）
   - ⚠️ 放進原版世界的圖層等於修改原版檔案；測完不要存檔（§13.4 的原則）
-- **測試用靶子**（原版主控台指令；2026-10-13 查程式碼，**未實測**，見 `docs\findings.md` §15）
+- **測試用靶子**（原版主控台指令；2026-10-13 查程式碼；`spawnPath` 生成牆已實測，其餘**未實測**；見 `docs\findings.md` §15、§18.4）
   - `spawnPath('characters\npc_entities\monsters\wolf_lvl1.w2ent', true)`：在面前生成**敵對**的狼（`temp.ws:6790-6813`）；不加 `true` 會設成友善
+    - 位置固定在玩家前方 3 公尺、面向玩家（`temp.ws:6797-6803`）
   - ⚠️ **友善的角色打不到**：玩家射出的投射物碰到友善角色不算命中（`throwable.ws:126-128`）
   - `spawn(名稱, 數量, 距離, 是否敵對, 等級)`（`temp.ws:6815-6942`）；「不敵對」時保留生物原本的態度，怪物照樣會攻擊
-  - 人物也用 `spawnPath`，例：`characters\npc_entities\main_npc\ciri.w2ent`
-  - `spawnPath` 可以生成任何實體模板（`temp.ws:6790-6813` 用 `CreateEntity`），牆也可以，例：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（寬 8 公尺、高 4.75 公尺；箭不會插在上面：`docs\findings.md` §15.2）
+    - **可以指定距離 → 遠處的靶子用這個**，例：`spawn('wolf', 1, 60, true)`；沿鏡頭的水平方向，生成後往下找地面（上下 5 公尺內：`:6838-6849`、`:6903-6906`）
+    - 名稱是**資源別名**，不能寫路徑（找不到別名時，拼出來的路徑少一個反斜線：`:6862-6867`）
+    - 別名表：`<REDKIT_DEPOT>\gameplay\globals\resources\gameplay.xml`（例：`wolf`、`drowner`、`nekker`、`ghoul`、`bear_black`；盜賊沒有一般的別名）
+  - 人物也用 `spawnPath`，例：`characters\npc_entities\main_npc\ciri.w2ent`；盜賊：`characters\npc_entities\crowd_npc\bandit\bandit_lvl1.w2ent`（§15.2 用過）
+  - `spawnPath` 可以生成任何實體模板（`temp.ws:6790-6813` 用 `CreateEntity`），牆也可以（2026-10-13 實測），例：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（寬 8 公尺、高 4.75 公尺；箭會插在上面，約 5 秒後消失：`docs\findings.md` §18.4）
+    - 建築：`<REDKIT_DEPOT>` 裡路徑含 `architecture` 的 `.w2ent` 有 1598 個，例：`environment\architecture\human\redania\nomans_land\thatched_buildings\entities\nml_thatched_house_big_exterior.w2ent`（未實測；大小沒查過，生成在面前 3 公尺，可能壓到 Geralt）
   - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）

@@ -316,7 +316,7 @@
 - 相關資源：
   - 行為圖 `[D]\gameplay\behaviors\items\crossbow\witcher_crossbow_lvl1.w2beh`
   - 動畫 `[D]\animations\items\weapon\witcher_crossbow_lvl1.w2anims`
-- ❓ `projSpeed` 的實際數值（要在 REDkit 裡打開模板看）
+- ✅ `projSpeed` = 60.0；`projAngle` 模板沒覆寫（腳本預設 5）→ 見 §18.2
 - ❓ `equip_template` 名稱怎麼對應到檔案路徑（🔶 推測是用檔名）
 
 ---
@@ -527,7 +527,7 @@
 |---|---|---|---|
 | 1 | REDkit 專案中，物品 XML 與腳本要放在哪裡；`useLooseScripts` 的意義 | M1 | **大部分已解**，見第 12 節；腳本的確切子資料夾仍待實測 |
 | 2 | `equip_template` 名稱怎麼對應到檔案 | M1 | **部分已解**：模板目錄由 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載（第 12.3 節）；名稱比對規則仍 🔶 推測是檔名 |
-| 3 | `bodkin_bolt.w2ent` 的 `projSpeed` 實際值 | M2 | 未解；在 REDkit 打開模板 |
+| 3 | `bodkin_bolt.w2ent` 的 `projSpeed` 實際值 | M2 | **已解**：60.0（`tools\cr2w_dump.py` 讀模板，§18.2） |
 | 4 | `theCamera` 的實際型別：原版呼叫了 `CCameraDirector` 才有的方法（`aimThrow.ws:32` 的 `GetTopmostCameraObject`，`cameraDirector.ws:30`），但 `<REDKIT_DIR>\bin\redscripts.ini` 寫 `theCamera=CCamera` | M2 | 未解；🔶 依原版用法應為 `CCameraDirector` |
 | 5 | `@replaceMethod` 在 5.x 能不能用；`local` 資料夾是否必要 | M1 | **`@replaceMethod` 已用 wcc_lite 編譯通過**（第 12.5 節）；遊戲實際載入時 `local` 是否必要，M1 實測 |
 | 6 | `.input.settings` 在 5.x 的合併方式 | M2 | 未解 |
@@ -1540,3 +1540,278 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 749 發，空中 0 發（`auto fire … inAir=true` 0 筆）；5 次跳躍都 `jump: AK kept`
   - `moveType=PMT_Sprint` 的 2 發（22:50:11、22:50:24）都在停火 1.6～1.7 秒後、速度 7.0：放開 Shift、衝刺剛結束那一格就接著射（`GetIsSprinting()` 已是 false，`playerMoveType` 還沒更新），下一發就是跑步速度 → 符合設計
 - commit `f8b6756`
+
+---
+
+## 18. 射程：AK 的箭飛到 208 公尺（2026-10-13）
+
+### 18.1 原版的射程限制
+
+- `ReleaseProjectiles2`（`playerBoltProjectile.ws:323-414`）把射程傳給引擎的 `ShootProjectileAtPosition`／`ShootProjectileAtBone`（`:374-377`）
+  - 平常是 `MAX_THROW_RANGE`（`:348`），潛水時是 `UNDERWATER_THROW_RANGE`（`:341-345`）
+  - `MAX_THROW_RANGE = 25.0`、`UNDERWATER_THROW_RANGE = 5.0`，都是 `const`（`gameParams.ws:101-106`）
+  - 炸彈、飛刀、瞄準射線也用 `MAX_THROW_RANGE`（`petard.ws:136`、`throwingKnifeProjectile.ws:97`、`playerAiming.ws:326`）→ 不能、也不該改這個常數
+- 類別：`W3BoltProjectile` → `W3ArrowProjectile` → `W3DeflectableAdvancedProjectile` → `W3AdvancedProjectile`
+  - `ShootProjectileAtPosition`／`AtBone` 在 `W3AdvancedProjectile` 包了一層 `final function`：呼叫原生函式後再呼叫 `OnProjectileShot`（`advancedProjectile.ws:60-78`）
+- 飛到射程：引擎呼叫 `OnRangeReached()`（宣告：`ProjectileTrajectory.ws:96`）
+  - 箭（`W3ArrowProjectile`）：`StopAllEffects()`，2 秒後 `TimeDestroy` 刪掉（`arrowProjectile.ws:36-45`）；**沒有**呼叫 `StopProjectile()`
+  - 有的投射物會自己呼叫 `StopProjectile()`（例：`advancedProjectile.ws:696`、`leshyProjectile.ws:104`）
+  - `W3DeflectableAdvancedProjectile`（`advancedProjectile.ws:127-207`）沒有覆寫 `OnRangeReached`
+  - 到射程的那一刻，引擎會不會讓箭停下來：原生程式，腳本看不到 → ✅ 實測不會停（§18.4）
+- 現成做法：CCO 整個覆寫 `ReleaseProjectiles2`，射程與速度乘上弩的 `Range` 參數（CCO `playerBoltProjectile.ws:589-595`）
+
+### 18.2 弩箭的速度與角度（`tools\cr2w_dump.py` 讀模板）
+
+- `<REDKIT_DEPOT>\items\weapons\projectiles\witcher_bolts\bodkin_bolt.w2ent`：`W3BoltProjectile` 物件只覆寫 `projSpeed : Float = 60.0`（另有 `projectileName = 'arrow'`）
+  - 引用的父模板 `base\bolt_base.w2ent`：87 個物件，是 `CEntity`、元件和特效（`CFXDefinition` 等），沒有 `projSpeed`、`projAngle`
+  - → `projAngle` 是腳本預設 5（`advancedProjectile.ws:26`）；進水改 2、出水改回 5（`arrowProjectile.ws:441`、`:430`）
+- 速度 60 公尺／秒：25 公尺 0.42 秒、100 公尺 1.7 秒、208 公尺 3.5 秒
+- 軌跡（CCO 註解寫是實測的公式；我們沒驗證）：起點到目標的直線，再往上加 `距離 × tan(角度) ÷ π × sin(t·π)`，t 從 0（起點）到 1（目標）（CCO `playerAiming.ws:671-675`）
+  - 角度 5° 時，中段最多比直線高：25 公尺 0.7 公尺、100 公尺 2.8 公尺、208 公尺 5.8 公尺
+  - t = 1 時到達目標點 → 終點仍是準心指的點
+
+### 18.3 實作（wcc_lite 編譯通過，**未實測**）
+
+- 使用者選「只改射程」；箭速、角度之後再說（屬於 `CLAUDE.md` §7 的「命中方式」）
+- `gfg_ak47.ws`：
+  - `ThrowProjectile` 包裝（原本就在判斷 AK）：不在水中時，在箭上記下 `gfgAkRange` = `GfgRange()`（208 公尺）
+  - `@wrapMethod(W3AdvancedProjectile)` 的 `ShootProjectileAtPosition`、`ShootProjectileAtBone`：`gfgAkRange` > 0 時把射程參數換掉，其他參數照原版
+    - 包 `final` 函式的先例：`StateEnter`（§17.8 編譯、§17.9 實測有作用）
+    - 自動瞄準（打骨骼）那條路也換成 208 公尺；自動瞄準本身沒動
+  - 水中照原版 5 公尺
+  - 診斷 log（`[Script_GFG]`）：
+    - `bolt shot: range 25 -> 208 target distance=…`：這一發用的射程、離目標點多遠
+    - `bolt collision: flown=… t=… entity=… groups=…`：飛行中的碰撞（飛了幾公尺、幾秒、碰到的實體、碰撞群組）
+      - 只記 `isActive` 時：箭停下來之後，原版就不處理碰撞（`playerBoltProjectile.ws:159-160`）
+    - `bolt range reached: flown=… t=…`：飛到射程時飛了幾公尺、幾秒
+
+### 18.4 實測（2026-10-13；`editor.log` 23:22:02 Reload scripts 之後，GFG 紀錄 23:22:58～23:23:43）
+
+- 166 發都是 `bolt shot: range 25 -> 208` → 射程有換掉
+- 打牆（使用者用 `spawnPath` 生成的 `wall_super_wide`，紀錄的實體名稱 `wall_super_wide361`，群組 `Static`）：149 次，距離 12.1～**42.6 公尺**，其中 75 次超過 25 公尺 → 25 公尺外打得到
+  - 使用者回報：**牆上會有箭，幾秒後消失**
+    - 原版：箭打到有元件的 `Static`（牆）就停下，5 秒後 `TimeDestroy`（`arrowProjectile.ws:98-114`）；沒有元件的 `Terrain`／`Static` 也是 5 秒（`playerBoltProjectile.ws:182-203`）
+    - §15.2 當時回報「箭沒有插在牆上」；這次有插上，差別的原因沒查
+- 速度：第一次 `range reached` 在 207.1 公尺、3.467 秒 → 約 59.7 公尺／秒，和模板的 `projSpeed` 60 一致
+- ✅ **箭到射程後不會停**（§18.1 的 ❓）：
+  - 13 發射向天空，`bolt range reached` 卻有 1570 筆：到射程之後**每一格都觸發一次**，每筆的 `flown` 多約 1 公尺
+  - 最後一筆 327.5 公尺、5.466 秒 → 到射程後照原速再飛 2 秒，才被 `TimeDestroy` 刪掉（`arrowProjectile.ws:40-44`）
+  - `OnRangeReached` 沒有改 `isActive`，所以那 2 秒內還會處理碰撞（這次紀錄到的碰撞最遠 328.5 公尺，`Water`）
+  - 🔶 推論：原版射程 25 公尺時是同一套機制 → 箭飛過 25 公尺後尾跡消失，但還會再飛約 120 公尺，途中仍可能打到東西（沒有用 25 公尺實測）
+- 其他碰撞：`Water` 141 筆（箭飛過水面；原版碰到水只播聲音、不停下：`arrowProjectile.ws:115-127`）；`Terrain` 4 筆（8.0～18.7 公尺）
+
+### 18.5 牆壁、地面上的箭：不限時間、最多 100 支（2026-10-13；wcc_lite 編譯通過，**未實測**）
+
+- 使用者要求箭留久一點，選「不限時間、最多 100 支」（像 CS2 的彈孔）；打在角色身上的照原版
+- 原版：箭打到牆壁、地面停下後排 5 秒刪除（`arrowProjectile.ws:98-114` 的 `Static`；`playerBoltProjectile.ws:182-203` 的沒有元件的 `Terrain`／`Static`），兩處都把 `isScheduledForDestruction` 設成 true
+  - 弩箭的碰撞群組只有 `Ragdoll`、`Static`、`Terrain`、`Water`、`Character`（`playerBoltProjectile.ws:32-42`）
+- `gfg_ak47.ws`：
+  - `OnProjectileCollision` 包裝：原版處理後，AK 的箭的 `isScheduledForDestruction` 從 false 變 true、而且群組有 `Static` 或 `Terrain` → `RemoveTimer('TimeDestroy')`，交給玩家身上的清單
+  - `CR4Player.GfgAddStuckBolt`：先移掉已經不在的，加到最後；超過 `GfgMaxStuckBolts()`（100）就 `Destroy()` 最舊的（寫法照 `RemoveDroppedItem`：`actor.ws:4758-4779`）
+  - 紀錄：`bolt stuck: kept=… removed=…`
+- `bolt range reached` 改成只記第一次（原版第一次就把 `isScheduledForDestruction` 設成 true：`arrowProjectile.ws:40-44`）
+
+---
+
+## 19. 換彈後的姿勢鎖住（2026-10-13）
+
+### 19.1 現象（使用者回報）
+
+- 換彈結束時**沒按**左鍵 → 手垂下，之後開槍也不舉槍（箭照樣射出）
+- 換彈結束時**按著** → 一直舉著
+- 兩種都持續到下次換彈
+
+### 19.2 原因（`pc_overlay.w2beh` 十字弩狀態機 #17015，`tools\cr2w_dump.py --tree 17015`）
+
+- `editor.log`（23:23～23:29）：換彈後腳本一律是 `State_WeaponAim`
+  - 腳本只有一個地方會切到這個狀態：動畫圖進入 `WeaponAim` 時的 `OnWeaponAimStart`（`rangedWeapon.ws:98-103`；動畫圖狀態節點的 `becomesCurrentStateScriptEvent`，由玩家轉給十字弩：`r4Player.ws:14734-14745`）
+- 換彈 → `WeaponAim` 的轉換會寫內部變數 `shootWeaponComplete`：
+  - 瞄準中（`ANIMEVENT RaiseWeapon AND isAimingWeapon = 1` 等，#17346、#17304、#17318、#17332、#17384）：寫 0（檔案省略＝預設值）
+  - 沒瞄準（`isShootingWeapon = 0 AND isAimingWeapon = 0 AND isWeaponLoaded = 1 AND …`，#17422、#17436）：寫 1.0
+- `AimAnimation`（#17460）讀它決定姿勢（#18663 數學節點、#18907 比較節點）
+- 其他會改寫它的：`WeaponShoot`、`WeaponDraw`、`WeaponHolster` 進入時（#17764、#22169、#21838 有 `setValueOnActivationAsWell`）
+- 原版十字弩每一發都經過 `WeaponShoot` → 值一直被重寫；**AK 直接觸發射擊，不經過 `WeaponShoot`** → 值保留到下次換彈
+- 條件裡省略的比較方式、比較值當作 `CF_Equal`、0：整個狀態機裡明寫的只有 `CF_NotEqual`、`CF_Greater`、`CF_GreaterEqual`、`CF_LessEqual`，比較值只明寫 1、2、3，和「預設值不寫入檔案」一致（🔶 推論）
+- 動畫圖的其他切換（`*`＝省略）：`WeaponHolster` 只有 `Crossbow_AimShoot` 事件能回 `WeaponAim`（#21502）；`WeaponWait` 在 `isAimingWeapon = 1` 時進 `WeaponDraw`（#21587）；`WeaponAim` 在兩個變數都是 0 時進 `WeaponHolster`（#21310），但實測放開扳機大多沒有收槍，原因沒查
+
+### 19.3 修法（使用者選「一律舉槍」；wcc_lite 編譯通過，**未實測**）
+
+- 「放開就放下」不採用：動畫圖要讓手放下只能經過 `WeaponHolster`，而腳本一進收槍狀態就會真的收起十字弩（`rangedWeapon.ws:1654-1677`）
+- `GfgSetTrigger` 放開時：換彈中（`State_WeaponReload`）或還沒裝上箭（`deployedEnt` 是空的）→ 先不把 `isAimingWeapon` 設回 false
+  - → 換彈結束時一律走「瞄準中」的轉換，寫入 0 → 舉槍
+- `@wrapMethod(RangedWeapon) OnWeaponAimStart`：回到瞄準狀態後，AK 的扳機沒按著 → `isAimingWeapon` 設回 false；紀錄 `aim start: trigger=…`
+
+---
+
+## 20. 生成怪物後 Geralt 不能動（2026-10-13，調查中）
+
+### 20.1 現象（使用者回報）
+
+- 生成怪物時，有時 Geralt 完全不能動，直到殺死怪物，或被攻擊（不確定）才恢復
+
+### 20.2 已查到的（都還沒證實是原因）
+
+- `editor.log` 看不出卡住的時間點：主控台指令不會寫進紀錄；這次的狼在 23:46～23:50（`aim:` 紀錄的 `displayTarget`）
+  - 戰鬥中（`context=Combat`）AK 常被收起又拔出（`crosshair hidden` → `State_WeaponWait`，例：23:47:41、23:48:20、23:48:35）
+- 原版會鎖「移動」的只有三處：`CombatActionFriendly`（`r4Player.ws:13189`）、摸馬（`:16199`）、游泳踉蹌（`swimming.ws:936`）
+  - `CombatActionFriendly`：`OnCombatActionFriendlyStart` 鎖、`OnCombatActionFriendlyEnd`／`OnCombatActionEnd` 解（`r4Player.ws:13128-13200`）
+- 戰鬥動作開始時 `SetBIsInputAllowed(false, 'OnCombatActionStart')`（`r4Player.ws:13045-13056`），`OnCombatActionEnd` 才恢復（`:13154`）
+  - 十字弩的戰鬥動作由 `ExitCombatAction` 結束（`combatActionType` 是 `CAT_Crossbow` 時送 `ForceAlertToNormalTransition`／`ForceBlendOut`：`rangedWeapon.ws:987-1003`）
+  - 原版每射完一發、玩家在推移動鍵時會呼叫它（`OnWeaponShootEnd`：`rangedWeapon.ws:164-172`）；AK 不經過射擊狀態
+  - AK 第一次按左鍵會 `SetupCombatAction( EBAT_ItemUse, BS_Pressed )`（`gfg_ak47.ws` 的 `OnCbtAttackWithAlternateLight`），沒有對應的 `BS_Released`
+- 原版沒有現成的主控台指令能印出或解除動作鎖
+
+### 20.3 偵測紀錄（使用者同意；wcc_lite 編譯通過，**未實測**）
+
+- `CR4Player.GfgCheckStuck`，每格由 `OnGameCameraTick` 包裝呼叫；不管有沒有拿 AK 都偵測；只寫紀錄、不改行為
+- 「推著移動鍵」：移動軸 `GI_AxisLeftX／Y` 不是 0（同原版 `HandleMovement`：`player.ws:588-589`），或 `bLAxisReleased` 是 false（`:631-684`）
+- 推著移動鍵、速度不到 0.1 公尺／秒超過 1 秒 → 記一次 `stuck: …`；恢復時記 `stuck end: …s`
+  - 內容：移動軸、`movementAllowed`、移動鎖的來源（`GetActionLocks`：`player.ws:360`）、`inputAllowed`、`combatActionAllowed`、`inCombatAction`、`friendly`、`combatActionType`、玩家狀態、探索子狀態、按鍵情境、戰鬥姿態、十字弩狀態、`fullBodyAnimWeight`
+- 推著牆走也會記（不是真的卡住），看內容判斷
+
+### 20.4 偵測結果（2026-10-14；`editor.log` 00:03:48～00:07:11）
+
+- 使用者回報：又卡住；前進後退都不能動；**按著 Shift 就能前進，但不是衝刺**
+- `stuck:` 18 次，內容全部一樣（只有移動軸、`combatActionType` 0 或 2 不同）：
+  - `movementAllowed=true`、`locks=`（空）、`inputAllowed=true`、`combatActionAllowed=true`、`inCombatAction=false`、`friendly=false`
+  - `state=CombatSteel`、`substate=CombatExploration`、`context=Combat`、`stance=PCS_AlertNear`、`weapon=State_WeaponAim`、**`fullBody=1`**
+  - → §20.2 的兩個猜測（移動鎖、戰鬥動作沒結束）都不是
+- 原版 `ProcessFullBodyAnimWeight`（`rangedWeapon.ws:903-985`；拿著十字弩時每 0.1 秒呼叫：`:1285`）：
+  - `PCS_AlertNear`（附近有敵人）→ `fullBodyAnimWeight` = 1（`:916-917`、`:919-920`）
+  - 改回 0 的條件只有：在 `PCS_Normal` 推移動鍵（`:940-943`）、衝刺（`:945-946`、`:960-961`）、收槍中、空中、丟東西、`PMT_Run`／`PMT_Sprint`（`:957-958`）等
+  - → 附近有敵人時，除非已經在跑或衝刺，一律全身瞄準
+- 🔶 推論：全身瞄準的動畫（§17.9 的 #18497 → #18493 那條路）連腿都換掉，沒有走路的動作 → 推移動鍵也不會動；要跑起來才會變回 0，但動不了就跑不起來 → 卡死
+  - 證據：18 次都是 `fullBody=1` 而且速度 0；使用者按 Shift（衝刺 → `:945-946` 設成 0）就能動
+- 原版的脫困方式：射完或放開瞄準後自動收槍
+  - 計時器：`HolsterAfterDelay`（`:640-646`）、`HolsterWhenMovingTimer`（推移動鍵就收：`:649-671`）
+  - 加上的地方：`State_WeaponAim` 進入時（`:1300-1311`）、放開瞄準時（`:1413-1428`，**戰鬥中 0 秒就收**：`:1417-1418`）、射擊狀態（`:1497-1578`）
+  - AK 每格都移除這兩個計時器、把 `canHolsterAfterDelay` 設 0（`GfgCancelAutoHolster`，使用者選「只有換成其他道具才收」：§13.18、§17.8）→ 原版的脫困方式沒了
+  - 殺死怪物 → 不再是 `PCS_AlertNear` → 恢復；被攻擊為什麼會恢復沒查
+
+### 20.5 修法：推移動鍵時改上半身瞄準（使用者 2026-10-14 選；wcc_lite 編譯通過，**未實測**）
+
+- 不採用「恢復原版：移動就收槍」：和「只有換成其他道具才收」衝突
+- `@wrapMethod(Crossbow) ProcessFullBodyAnimWeight`：原版算出 1、AK 拿著、推著移動鍵（`bLAxisReleased` 是 false）→ 改成 0
+  - 同原版在探索時推移動鍵的處理（`rangedWeapon.ws:940-943`）
+  - 游泳（`:931-938`）、中鍵瞄準 `AimThrow`（`:963-964`）照原版
+  - 站著不動時照原版（附近有敵人就全身瞄準）
+- 卡住偵測（§20.3）先留著，用來確認修好
+
+### 20.6 實測：改上半身後還是卡住（2026-10-14；`editor.log` 00:56:57～00:57:58）
+
+- `stuck:` 7 次，`fullBody=0`（修正有生效），其餘欄位和 §20.4 一樣 → 全身瞄準不是唯一原因
+- 主動畫圖 `pc_gameplay.w2beh` 的移動狀態機 #15146（`tools\cr2w_dump.py --tree 15146`）：
+  - 附近有敵人時走路的狀態是 `WalkAlertNear`（#17975），底下的 `Walk with weapon` 只有劍、拳頭版本
+  - `Idle` 出去的每一條轉換都要 `moveSpeed > 0`（例：`Idle → WalkAlertNear`：`moveSpeed > 0 AND playerMoveType <= 1 AND playerCombatStance != 3 AND != 0`）
+- `moveSpeed` 不是腳本設的變數（腳本沒有 `SetBehaviorVariable('moveSpeed'…)`）；移動控制器 `CR4LocomotionPlayerControllerScript.UpdateLocomotion`（`locomotionDirectController.ws:103-`）：
+  - `IsUITakeInput()` 時整個跳過（`:122`；只有快捷輪盤會設：`hudModuleRadialMenu.ws:393`、`:468`）
+  - `GetIsMovable()`（`isMovable` 而且移動沒被鎖：`player.ws:1476-1479`）不成立時速度設 0（`:168`、`:260-266`）
+  - 速度：`CalculateMoveSpeed()`（`:789-1107`）；附近有敵人、沒衝刺時是走路速度 `speedWalkingMax`、`PMT_Walk`（`:1061-1071`）；衝刺時 `speedSprinting`、`PMT_Sprint`（`:928-932`）
+- 原因還沒找到 → 偵測紀錄加一行 `stuck detail:`：`GetIsMovable()`、`IsUITakeInput()`、`playerMoveType`、`rawPlayerSpeed`、`GetRelativeMoveSpeed()`、動畫圖變數 `playerMoveType`、`inputDirectionIsNotReady`、衝刺中、戰鬥中（wcc_lite 編譯通過，**未實測**）
+
+### 20.7 卡住時按 Z 不能鎖定（使用者 2026-10-14 回報）：原因是十字弩瞄準時的動作鎖
+
+- 按 Z（`OnCbtCameraLock`：`playerInput.ws:3497-3525`）要 `EIAB_CameraLock`（`:3503`）、`EIAB_HardLock`（`:3510`）都被允許
+- `State_WeaponAim` 進入時，如果正在瞄準或射擊就呼叫 `Lock()`（`rangedWeapon.ws:1300-1313`），離開這個狀態才 `Unlock()`（`:1318-1320`）
+- `Lock()`（`rangedWeapon.ws:374-423`）：`BlockAllActions('RangedWeapon', true, 例外)` ＋ 存檔鎖
+  - `BlockAllActions`（`playerInput.ws:378-390`）對每個動作各登記一個鎖（`:388`），但一律跳過 `EIAB_CameraLock`、`EIAB_NonPatternAlternatives`（`:385`）
+  - `EInputActionBlock`（`playerTypes.ws`）51 個裡，例外 31 個，再扣掉上面兩個，被鎖的 18 個：
+    - `EIAB_CallHorse`、`EIAB_Counter`、`EIAB_DismountVehicle`、`EIAB_DrawWeapon`、`EIAB_Explorations`、`EIAB_FastTravel`、`EIAB_FastTravelGlobal`、**`EIAB_HardLock`**、`EIAB_HighlightObjective`、`EIAB_MountVehicle`、`EIAB_Noticeboards`、`EIAB_OpenGwint`、`EIAB_OpenMeditation`、`EIAB_SpecialAttackHeavy`、`EIAB_SpecialAttackLight`、`EIAB_ThrowBomb`、`EIAB_Undefined`、`EIAB_UsableItem`
+  - → 擋住 Z 的是 `EIAB_HardLock`（`EIAB_CameraLock` 沒被鎖，所以 `OnCbtCameraLock` 會走到 `HardLockToTarget( false )`：`playerInput.ws:3517-3520`）
+  - 移動相關的（`EIAB_Movement`、`EIAB_RunAndSprint`、`EIAB_Sprint`、`EIAB_Jump`、`EIAB_Dodge`、`EIAB_Roll`）都在例外裡 → 不是移動卡住的原因
+- 原版瞄準很快就結束（射出後離開 `State_WeaponAim`）；AK 一直待在 `State_WeaponAim` → 鎖一直在
+  - 換彈後一律舉槍（§19.3）讓換彈結束時一律是「瞄準中」→ 每次都會 `Lock()`
+- 使用者選「先不處理」（2026-10-14）
+
+### 20.8 `stuck detail:` 實測（2026-10-14；`editor.log` 01:06:43 Reload scripts 之後，01:07:33～01:08:53）
+
+- 使用者回報：生成 30 隻狼，走過去**被包圍**後就不能動
+- 4 次卡住，`stuck detail:` 全部一樣：
+  - `movable=true`、`uiTakesInput=false`、`moveType=PMT_Walk`、`rawSpeed=0.8`、**`relSpeed=0.6`**、`behMoveType=1`、`inputNotReady=0`、`sprinting=false`、`inCombat=true`
+  - → 移動控制器有在要求移動（`GetRelativeMoveSpeed()` 0.6），輸入也就緒；實際速度卻是 0
+- 這次 `state=CombatFists`（之前是 `CombatSteel`）；`fullBody=0`
+- 卡住期間紀錄裡有大量「狼的咬擊判定撞到別隻狼」（`Script_ItemCollision`，例：`wolf_lvl38`、`41`、`42`、`57`、`86`、`91`、`111`、`112`、`114`、`116`）→ 很多隻狼擠在附近
+- 🔶 推論：被狼的身體擋住（要求移動正常，實際沒有位移）；還沒證實，也還沒確認原版（不拿 AK）會不會一樣
+- 偵測再加一行 `stuck around:`：5 公尺內、1.5 公尺內活著的角色數、最近的距離（`GetActorsInRange`：`actorsStorage.ws:44`；`VecDistance2D`：`math.ws:368`）；wcc_lite 編譯通過，**未實測**
+- 驗證方法（請使用者做）：
+  - 不拿 AK（拔劍）被一樣多的狼包圍 → 能不能走
+  - 拿著 AK、附近有敵人但沒被包圍（狼在遠處）→ 能不能走
+
+### 20.9 對照測試結果與新線索（2026-10-14）
+
+- 使用者回報（這次沒有重新載入腳本，`stuck around:` 沒有紀錄）：
+  - **不拿 AK 被包圍：可以走、可以鎖定** → 不是單純被狼擋住，§20.8 的推論不成立
+  - **拿 AK、只有兩隻狼**：靠近時先慢慢走（原版遇到怪物會慢走），一陣子後就不能動（`editor.log` 01:15:38，8.9 秒，內容和 §20.8 一樣）
+  - 慢走時，血條出現在「大概畫面對到」的那隻狼頭上，轉動畫面會換；**進入不能走的階段後，血條固定在同一隻，牠死了也不換**；此時也不能瞄準
+- 原版：十字弩拿著（不是 `State_WeaponWait`）、沒有中鍵瞄準時，畫面目標（血條）＝**滑動目標** `slideTarget`（`r4Player.ws:6749-6753`）
+  - 十字弩流程裡設定滑動目標的地方在射擊狀態（`rangedWeapon.ws:1536`、`:1598`），AK 不經過；其他地方：拿出時的 `ProcessCombatActionBuffer`（`r4Player.ws:10597-10605`）、格擋（`:1968`、`:9390`）、戰鬥動作的目標選擇（`:9596`、`:11148`、`:11179`）、近戰（`combat.ws:2063`、`:2489`）等
+  - → 推論：滑動目標一被設定（例如被狼攻擊時），AK 又一直在瞄準狀態，它就不再更新 → 血條卡住
+- 可疑的機制：動畫事件 `RotateToTarget`（`r4Player.ws:3913-3971`）建立移動調整請求，**`DontUseSourceAnimation`（不用動畫的位移）**、`ReplaceRotation`，`OT_Actor` 時轉向滑動目標（`:2712-2729`）；持續型的請求綁在動畫事件上
+  - 如果這個請求一直有效 → 只轉向、不前進；還沒證實
+- 排除：`IsActorLockedToTarget`／`LockToTarget`（只用在法印：`playerWitcher.ws:7085-7119`）；`DelayedDisableFindTarget`（腳本裡沒有地方加這個計時器）；`hasCrossbowHeld` 在移動狀態機只用在跑步急轉（`RunQuickTurn`）；`GetIsAimingCrossbow`（只用在放開按鍵、騎馬、NPC 同步動畫）
+- 偵測再加一行 `stuck adjust:`：移動調整器有沒有有效的請求（全部／轉向／位移／`RotateToTarget`：`movementAdjustor.ws:4-21`）、滑動目標（死了標 `(dead)`）、畫面目標、朝向目標；wcc_lite 編譯通過，**未實測**
+
+### 20.10 原因找到：上半身動畫圖在「附近有敵人＋走路」時強制全身瞄準（2026-10-14）
+
+- 實測（`editor.log` 01:24:30 Reload scripts 之後，01:24:45～01:26:34，8 次卡住）：
+  - `stuck adjust:` 全部 `any=false rotation=false translation=false rotateToTarget=false` → 移動調整請求**不是**原因（§20.9 的懷疑不成立）
+  - `stuck around:` 1.5 公尺內 0 隻、最近 1.8～5 公尺 → 不是被擋住
+  - 滑動目標大多 `none`，偶爾是狼；朝向大多 `OT_Actor`
+- 主動畫圖（`pc_gameplay.w2beh`，整份 568414 行）：
+  - 不認得 `Crossbow_*` 事件；最上層狀態機 `Gameplay`（#2）有 `Movement`（#1027）、`CombatAction`（#1045）等；`CombatAction` 會靠 `ForceBlendOut`（#3569）、`ForceAlertToNormalTransition`（#1892）等離開
+  - `Movement` 成為目前狀態時呼叫 `OnCombatActionEndComplete` → `SetBIsInCombatAction(false)`（`r4Player.ws:13357-13372`）；卡住時 `inCombatAction=false` → 主動畫圖在 `Movement`
+  - `combatActionType` 的值：從 `editor.exe` 讀出的列舉字串順序 `CAT_Attack`、`CAT_SpecialAttack`、`CAT_Dodge`、`CAT_Roll`、`CAT_ItemThrow`、`CAT_LayItem`、`CAT_CastSign`、`CAT_Pirouette`、`CAT_PreAttack`、`CAT_Parry`、`CAT_Crossbow`…；`combat.ws:1999` 用數字 8 做「攻擊前接近」（`PreAttack_Rotation`）→ 從 0 數起吻合 → **2 = `CAT_Dodge`**（卡住時的 2 只是最後一次的戰鬥動作）
+- **上半身動畫圖選姿勢的邏輯**（`pc_overlay.w2beh` #18960，§17.9 的「站著／走路且…」）：
+  - 全身瞄準 ＝ `isInCombatAction` ≥ 1（#18971）
+  - 或（曲線 #18994 換算的 `playerCombatStance` = 1（#18983、#18987）**而且** 移動類型 ≤ 1（站著、走路：#19002））
+  - 否則才用 `fullBodyAnimWeight`（#18949）
+  - 移動類型那個輸入（#19006）接的是變數節點 #17129 **`playerMoveTypeForOverlay`**；上半身動畫圖裡沒有叫 `playerMoveType` 的變數（8 個變數節點都是 `playerMoveTypeForOverlay`）
+  - 曲線 #18994 的點存在自訂資料，工具解不出來；卡住時一律是 `PCS_AlertNear`
+- → 附近有敵人時，移動控制器只給「走路」（`locomotionDirectController.ws:1061-1071`），移動類型 = 1 → 強制全身瞄準 → 腿沒有走路的動作 → 卡住
+  - §20.5 改 `fullBodyAnimWeight` 沒用：這條路根本不看它
+  - 衝刺時移動類型 3 → 條件不成立 → 能動（使用者觀察）
+- 修法（延續使用者選的「推移動鍵時改上半身」；wcc_lite 編譯通過，**未實測**）：
+  - `@wrapMethod(CR4LocomotionPlayerControllerScript) CalculateMoveSpeed`：原版算完後，速度 > 0、移動類型 ≤ 走路、AK 拿著、不在游泳、不在中鍵瞄準 → `playerMoveTypeForOverlay` 設成 `PMT_Run`（設定方式同原版 `:1094-1095`）
+  - 只改給上半身看的值，實際移動照原版（戰鬥中慢走）
+  - §20.5 的 `ProcessFullBodyAnimWeight` 包裝保留（上半身改看 `fullBodyAnimWeight` 時要是 0）
+  - `stuck detail:` 加 `overlayMoveType=`
+
+### 20.11 實測：能動了，但走路姿勢是拳頭的防禦姿勢 → 改成照野外的規則跑（2026-10-14）
+
+- 使用者回報：**解決了**（能走）；但按 W 邊走邊射時是防禦姿勢（截圖：雙手護在胸前），不是野外邊走邊射的姿勢
+- 原因（§20.6 的移動狀態機）：附近有敵人時走路的狀態 `WalkAlertNear` 底下只有劍、拳頭版本；沒拔劍時 Geralt 是 `CombatFists` → 拳頭的戰鬥走路，上半身瞄準疊在上面
+  - 有十字弩版本的走路／跑步動畫在 `Walk_Run_Cycles`（#25090，直接在移動狀態機 #15146 底下）→ `WalkAndRun`（§17.10）
+  - 附近有敵人時要跑：`DirectionalStart → DirectionalStartRun → Run`（例：`runInputPressed ≥ 1`，或 `latchedWalkOrRun ≥ 1`）；`WalkAlertNear → DirectionalStart` 在 `playerCombatStance ≠ 0 AND playerMoveType ≥ 2`
+  - 原版附近有敵人只能走：`CalculateMoveSpeed` 的跑步條件只有 `PCS_Normal`、`PCS_AlertFar`（`locomotionDirectController.ws:933-941`）
+- 使用者選「照野外的規則跑」（速度會變快；CS2 也是全速移動、靠散布懲罰）
+- 實作（wcc_lite 編譯通過，**未實測**）：`CalculateMoveSpeed` 包裝改成
+  - 原版算完是走路、AK 拿著、不在游泳或中鍵瞄準時：
+    - 附近有敵人（`PCS_AlertNear`）而且照原版野外的條件可以跑（推的幅度 > `GetInputModuleNeededToRun()`、允許跑步或有戰鬥音樂、沒切換成慢走）→ 改成 `PMT_Run`、速度 `MinF( 推的幅度, speedRunning )`，並照原版跑步分支設 `forceWalkSpeed` 0、`playerMoveType`、`ikWeight`（`:1056-1059`、`:1094-1097`）
+    - 推的幅度照原版取（`:805-814`：`_inputMagLastCached` 或 `m_InputO.GetModuleF()`）
+  - 不論走或跑，`playerMoveTypeForOverlay` 設成跑步（§20.10）
+  - 包裝裡讀寫移動控制器的私有欄位（`_inputLocoEnabled`、`_inputMagLastCached`）、寫 `player.playerMoveType`：wcc_lite 編譯通過
+
+### 20.12 實測：戰鬥中照野外規則跑 OK；Z 鎖定改成可用（2026-10-14）
+
+- 使用者回報：**完美解決，現在就是我要的**（附近有敵人時跑步、舉槍姿勢和野外一樣）
+- 使用者回報：血條已經會跟著準心對到的怪物（§20.9 的「血條卡住」這次沒有出現；原因沒查）
+- 使用者回報：Z 還是不能鎖定 → 選「只解除 Z 鎖定」（其他 17 個動作和存檔鎖維持原版）
+- 實作（wcc_lite 編譯通過，**未實測**）：`OnGameCameraTick` 包裝裡，AK 拿著時每格 `UnblockAction( EIAB_HardLock, 'RangedWeapon' )`（`player.ws:327`；沒有這個鎖時直接返回：`playerInput.ws:251-254`）
+  - 可能的交互作用（未驗證）：硬鎖定時鏡頭由鎖定控制，後座力轉鏡頭、子彈飛向準心的效果可能不同；原版「鎖定敵人且有戰鬥音樂時箭射向敵人身體」（`playerBoltProjectile.ws:353-377`）也會發生
+
+### 20.13 鎖定時準心移到被鎖定的怪物身上（2026-10-14）
+
+- 使用者實測：**Z 可以鎖定了**；後座力晃鏡頭還在（算正常）；子彈打到準心；但鎖定時滑鼠不能轉鏡頭，準心固定在畫面中央，**不在鎖定的怪物身上**
+- `editor.log`（01:50～01:54，鎖定時的射擊多數 `hardLock=true combatMusic=true`）：箭大多打在準心射線碰到的地面（`Terrain`，距離和 `aim: distance` 一致）
+  - 原版「鎖定時箭飛向敵人身體」對狼沒有作用：原版沒有虛擬控制器目標時找 `torso2` 骨頭（`playerBoltProjectile.ws:364-367`），狼可能沒有這根骨頭（未查證），骨頭索引 < 0 就改用位置（`:374-377`）
+- 使用者要的：**準心鎖定被鎖定的怪物，其他照舊**
+- 參考的原版寫法：
+  - 目標身上的點：`ProcessLookAtTargetPosition`（`r4Player.ws:2887-2963`）：虛擬控制器骨頭 → 拿著十字弩時用軀幹骨頭 `GetTorsoBoneIndex()`（`actor.ws:712`）→ 碰撞膠囊一半高度（`movingAgentComponent.ws:275`）；之後 +0.2 公尺（`:2875-2876`）
+    - `GetLookAtPosition()` 不能直接用：沒有滑動目標時會改成玩家前方 100 公尺（`:2867-2873`）
+  - 世界座標 → HUD：`GetBaseScreenPosition`（`hud.ws:1737-`）的 `theCamera.WorldVectorToViewRatio` → `(x+1)/2`、`(y+1)/2` → `hud.GetScaleformPoint`（`:1864-1878`、`:306-312`）
+  - 原版敵人標記直接用這個座標定位（`hudModuleEnemyFocus.ws:396-422`）；模組的 Flash 根節點用 `GetModuleFlash()`（`CHudModule`，`flashScriptImports.ws:16-20`）
+- 實作（wcc_lite 編譯通過，**未實測**）：
+  - `CR4Player.GfgLockPoint`：硬鎖定、目標活著時，取軀幹骨頭（沒有就膠囊一半高度）+0.2 公尺；不取虛擬控制器骨頭（原版那個函式會改玩家的狀態）
+  - `GfgUpdateCrosshair`：AK 拿著而且鎖定時，每格把準心模組設到那一點的 HUD 座標；解除鎖定時 `SnapToAnchorPosition()` 放回錨點；紀錄 `crosshair on lock target`／`crosshair back to anchor`
+  - `GfgAimPoint`：鎖定時，射線的基準方向改成「鏡頭 → 那一點」，散布照算
+  - 後座力照舊轉鏡頭；鎖定時準心每格跟著目標，所以後座力只晃鏡頭、不會把子彈推離目標

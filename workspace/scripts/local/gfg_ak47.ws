@@ -118,10 +118,33 @@ function GfgSetTrigger( pressed : bool )
 	{
 		RemoveTimer( 'GfgAutoFire' );
 		// 放開：瞄準與射擊狀態都設回 false，同原版 Crossbow.ResetOwnerAndWeapon（rangedWeapon.ws:750-758）
-		SetBehaviorGraphVariables( 'isAimingWeapon', false );
+		// 例外：換彈中（或還沒裝上箭）先不把瞄準設回 false，等回到瞄準狀態再設（OnWeaponAimStart 的包裝）。
+		// 換彈結束時，動畫圖依「瞄準中」寫入 shootWeaponComplete：瞄準中 0（舉槍）、沒瞄準 1（垂手）；
+		// AK 開火不經過射擊狀態，這個值會一直保留到下次換彈（docs/findings.md §19）→ 換彈一律走瞄準中那條路（使用者 2026-10-13 選定：一律舉槍）
+		if ( GetCurrentStateName() != 'State_WeaponReload' && deployedEnt )
+			SetBehaviorGraphVariables( 'isAimingWeapon', false );
 		SetBehaviorGraphVariables( 'isShootingWeapon', false );
 		thePlayer.SetIsAimingCrossbow( false );
 	}
+}
+
+// 回到瞄準狀態（動畫圖進入 WeaponAim：r4Player.ws:14738 → rangedWeapon.ws:98-103）：
+// 換彈中放開扳機時保留的「瞄準中」，在這裡設回 false（GfgSetTrigger）；寫法同 OnSprintHolster 的包裝
+@wrapMethod(RangedWeapon)
+function OnWeaponAimStart()
+{
+	var crossbow : Crossbow;
+	var result : bool;
+
+	result = wrappedMethod();
+	crossbow = (Crossbow)this;
+	if ( crossbow && crossbow.GfgIsAk() )
+	{
+		LogChannel( 'GFG', "aim start: trigger=" + crossbow.gfgTriggerHeld );
+		if ( !crossbow.gfgTriggerHeld )
+			SetBehaviorGraphVariables( 'isAimingWeapon', false );
+	}
+	return result;
 }
 
 @addMethod(Crossbow)
@@ -140,6 +163,62 @@ function GfgCancelAutoHolster()
 	RemoveTimer( 'HolsterWhenMovingTimer' );
 	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelay', 0.f );
 	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelayHorse', 0.f );
+}
+
+// 附近有敵人時也能邊走邊射（使用者 2026-10-14 回報生成怪物後卡住不能動，選「推移動鍵時改上半身」；docs/findings.md §20.4）
+// 原版附近有敵人（PCS_AlertNear）時一律全身瞄準（rangedWeapon.ws:916-920），全身瞄準沒有走路的動作，推移動鍵也不動；
+// 原版靠放開扳機就收槍脫困（:1417-1418），AK 不自動收槍（GfgCancelAutoHolster）→ 卡死。
+// AK 拿著、推著移動鍵時改成上半身瞄準，同原版在探索時推移動鍵（:940-943）；游泳（:931-938）、中鍵瞄準（:963-964）照原版
+@wrapMethod(Crossbow)
+function ProcessFullBodyAnimWeight( optional forceUpperBodyAnim : bool ) : bool
+{
+	var result : bool;
+
+	result = wrappedMethod( forceUpperBodyAnim );
+	if ( result && GfgIsAkDrawn() && !ownerPlayer.bLAxisReleased
+		&& !ownerPlayer.IsSwimming() && ownerPlayer.GetCurrentStateName() != 'AimThrow' )
+	{
+		setFullWeight = false;
+		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 0.f );
+		result = false;
+	}
+	return result;
+}
+
+// 上半身動畫圖（pc_overlay.w2beh）的瞄準姿勢：「在戰鬥動作中」或「戰鬥姿態（經曲線 #18994）= 1 而且移動類型 ≤ 1（站著、走路）」時強制全身瞄準，
+// 否則才看 fullBodyAnimWeight（#18960 → #18956 → #18979、#19002）；這裡的移動類型讀的是 playerMoveTypeForOverlay（#19006 → #17129）。
+// 附近有敵人時移動控制器只給走路（locomotionDirectController.ws:1061-1071）→ 強制全身瞄準 → 腿沒有走路的動作，卡住（docs/findings.md §20.10）。
+// AK 拿著、推著移動鍵時，給上半身看的移動類型改成跑步。設定的方式同原版（:1094-1095）
+// 另外，附近有敵人時原版只能走（:933-941 只有 PCS_Normal、PCS_AlertFar 能跑），走路用的 WalkAlertNear 只有劍、拳頭的動作（§20.6）；
+// 拿著 AK 時照野外的規則跑（使用者 2026-10-14 選定），才會用到有十字弩版本的跑步動作（Walk_Run_Cycles：§17.10）
+@wrapMethod(CR4LocomotionPlayerControllerScript)
+function CalculateMoveSpeed() : float
+{
+	var speed, inputMag : float;
+
+	speed = wrappedMethod();
+	if ( speed <= 0.f || player.playerMoveType > PMT_Walk || !player.rangedWeapon || !player.rangedWeapon.GfgIsAkDrawn()
+		|| player.IsSwimming() || player.GetCurrentStateName() == 'AimThrow' )
+		return speed;
+
+	// 跑步的條件照原版野外（:933-941）；推的幅度的取法同原版（:805-814）
+	if ( _inputLocoEnabled )
+		inputMag = _inputMagLastCached;
+	else
+		inputMag = thePlayer.substateManager.m_InputO.GetModuleF();
+	if ( player.GetPlayerCombatStance() == PCS_AlertNear && inputMag > thePlayer.GetInputModuleNeededToRun()
+		&& ( thePlayer.IsActionAllowed( EIAB_RunAndSprint ) || thePlayer.IsCombatMusicEnabled() ) && !thePlayer.GetIsWalkToggled() )
+	{
+		speed = MinF( inputMag, speedRunning );
+		player.playerMoveType = PMT_Run;
+		// 原版跑步分支結束時設定的值（:1056-1059、:1094-1097）
+		player.SetBehaviorVariable( 'forceWalkSpeed', 0 );
+		player.SetBehaviorVariable( 'playerMoveType', (int)PMT_Run );
+		player.substateManager.SetBehaviorParamBool( 'ikWeight', false );
+	}
+
+	player.SetBehaviorVariable( 'playerMoveTypeForOverlay', (int)PMT_Run );
+	return speed;
 }
 
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
@@ -418,7 +497,7 @@ function GfgKickTime() : float
 	return GfgCycleTime();
 }
 
-// 射線長度：CS2 m_flRange 8192 單位 ≈ 208 公尺（docs/ak47_params.md §6）
+// 射程：瞄準射線的長度，也是箭的飛行距離；CS2 m_flRange 8192 單位 ≈ 208 公尺（docs/ak47_params.md §6）
 @addMethod(Crossbow)
 function GfgRange() : float
 {
@@ -619,12 +698,12 @@ function GfgRotateDirection( dir : Vector, up : float, right : float ) : Vector
 	return result;
 }
 
-// 子彈的目標點：從鏡頭沿著視線方向（畫面中央＝準心）加上散布打射線，取最近的命中點；後座力已經轉到鏡頭上
+// 子彈的目標點：從鏡頭沿著準心的方向（平常是畫面中央；鎖定時是鎖定目標身上）加上散布打射線，取最近的命中點；後座力已經轉到鏡頭上
 // 寫法照原版 CalculateAimPosition（playerAiming.ws:553-616，碰撞群組 :33-49）；原版那個是 private，不能直接呼叫
 @addMethod(Crossbow)
 function GfgAimPoint() : Vector
 {
-	var dir, start, end, hit : Vector;
+	var dir, start, end, hit, lockPoint, aimDir : Vector;
 	var results : array<SRaycastHitResult>;
 	var groups : array<name>;
 	var i : int;
@@ -638,7 +717,12 @@ function GfgAimPoint() : Vector
 	// 散布：隨機方向，偏離角度 = 均勻亂數 × 圓錐半角，越靠中心越密（CSGODOT weapon.gd:853-870）
 	angle = RandF() * 2.f * Pi();
 	radius = RandF() * GfgSpreadCone();
-	dir = GfgRotateDirection( GfgViewDirection(), radius * SinF( angle ), radius * CosF( angle ) );
+	// 準心的方向：平常是畫面中央；鎖定（Z）時準心在鎖定目標身上，改朝那一點（GfgLockPoint、GfgUpdateCrosshair）
+	if ( thePlayer.GfgLockPoint( lockPoint ) )
+		aimDir = VecNormalize( lockPoint - GfgEyePosition() );
+	else
+		aimDir = GfgViewDirection();
+	dir = GfgRotateDirection( aimDir, radius * SinF( angle ), radius * CosF( angle ) );
 	start = GfgEyePosition() + dir * 0.5;	// 原版也從鏡頭前 0.5 公尺開始（playerAiming.ws:324）
 	end = start + dir * GfgRange();
 	hit = end;
@@ -699,14 +783,50 @@ var gfgCrosshairShown : bool;	// 準心是不是我們打開的
 @addField(CR4Player)
 var gfgAimingState : name;		// 上一格畫面 playerAiming 的狀態（'Waiting'／'Aiming'）
 
+@addField(CR4Player)
+var gfgCrosshairOnLock : bool;	// 準心是不是被移到鎖定目標身上（GfgUpdateCrosshair）
+
+// 鎖定（Z）的目標身上要瞄準的點；沒有鎖定、目標不在或死了回傳 false
+// 取法同原版拿著十字弩時的 ProcessLookAtTargetPosition（r4Player.ws:2887-2963、:2875-2876）：軀幹骨頭，沒有就用碰撞膠囊一半高度，再往上 0.2 公尺；
+// 不取原版先找的虛擬控制器骨頭（:2909，那個函式會改到玩家的狀態）
+@addMethod(CR4Player)
+function GfgLockPoint( out point : Vector ) : bool
+{
+	var target : CActor;
+	var boneIdx : int;
+	var mac : CMovingPhysicalAgentComponent;
+
+	if ( !IsHardLockEnabled() )
+		return false;
+	target = GetTarget();
+	if ( !target || !target.IsAlive() )
+		return false;
+
+	point = target.GetWorldPosition();
+	boneIdx = target.GetTorsoBoneIndex();
+	if ( boneIdx >= 0 )
+		point = MatrixGetTranslation( target.GetBoneWorldMatrixByIndex( boneIdx ) );
+	else
+	{
+		mac = (CMovingPhysicalAgentComponent)target.GetMovingAgentComponent();
+		if ( mac )
+			point.Z += mac.GetCapsuleHeight() * 0.5;
+	}
+	point.Z += 0.2f;
+	return true;
+}
+
 // 原版的準心只在中鍵瞄準時顯示（playerAiming.ws:187 打開、:683-686 AimCleanup 關掉）；
 // 左鍵扳機不會進入瞄準（CheckGotoAimThrow 只看中鍵 ThrowItem：rangedWeapon.ws:1362），所以要自己打開
+// 鎖定（Z）時準心移到被鎖定的目標身上（使用者 2026-10-14 選定；docs/findings.md §20.13）
 @addMethod(CR4Player)
 function GfgUpdateCrosshair( drawn : bool )
 {
 	var hud : CR4ScriptedHud;
 	var module : CR4HudModuleCrosshair;
 	var aimingState : name;
+	var lockPoint, screen : Vector;
+	var x, y : float;
 
 	// 取得準心模組的方式同原版 playerAiming.ws:213-215
 	hud = (CR4ScriptedHud)theGame.GetHud();
@@ -736,6 +856,24 @@ function GfgUpdateCrosshair( drawn : bool )
 	}
 	gfgCrosshairShown = drawn;
 	gfgAimingState = aimingState;
+
+	// 鎖定時：每格把準心移到鎖定目標的瞄準點；換算同原版 GetBaseScreenPosition（hud.ws:1864-1878），
+	// 位置直接設給模組（原版敵人標記也是直接用這個座標：hudModuleEnemyFocus.ws:396-422）
+	if ( drawn && GfgLockPoint( lockPoint ) && theCamera.WorldVectorToViewRatio( lockPoint, x, y ) )
+	{
+		screen = hud.GetScaleformPoint( ( x + 1 ) / 2, ( y + 1 ) / 2 );
+		module.GetModuleFlash().SetX( screen.X );
+		module.GetModuleFlash().SetY( screen.Y );
+		if ( !gfgCrosshairOnLock )
+			LogChannel( 'GFG', "crosshair on lock target: screen=(" + FloatToString( screen.X ) + "," + FloatToString( screen.Y ) + ")" );
+		gfgCrosshairOnLock = true;
+	}
+	else if ( gfgCrosshairOnLock )
+	{
+		module.SnapToAnchorPosition();	// 解除鎖定：放回原本的錨點（hudModuleBase.ws:72-112）
+		LogChannel( 'GFG', "crosshair back to anchor" );
+		gfgCrosshairOnLock = false;
+	}
 }
 
 // 玩家鏡頭的每格更新：把後座力轉到鏡頭上、更新準心
@@ -759,10 +897,122 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 		moveData.pivotRotationValue.Yaw -= right;
 		akDrawn = rangedWeapon.GfgIsAkDrawn();
 		if ( akDrawn )
+		{
 			rangedWeapon.GfgCancelAutoHolster();
+			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
+			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
+			UnblockAction( EIAB_HardLock, 'RangedWeapon' );
+		}
 	}
 	GfgUpdateCrosshair( akDrawn );
+	GfgCheckStuck( dt );
 	return result;
+}
+
+// ===== 偵測：推著移動鍵卻沒移動（使用者 2026-10-13 回報：生成怪物後有時完全不能動，直到殺死怪物或被攻擊）=====
+// 只寫紀錄、不改行為；不管有沒有拿 AK 都偵測。卡住超過 1 秒記一次，恢復時記卡了多久（docs/findings.md §20）
+// 移動鍵：直接讀移動軸（同原版 HandleMovement：player.ws:588-589），也看 bLAxisReleased（:631-684）
+
+@addField(CR4Player)
+var gfgStuckTime : float;		// 推著移動鍵卻沒移動的累計時間（秒）
+
+@addField(CR4Player)
+var gfgStuckLogged : bool;		// 這次卡住記過了沒
+
+@addMethod(CR4Player)
+function GfgCheckStuck( dt : float )
+{
+	var locks : array<SInputActionLock>;
+	var sources, weaponState : string;
+	var axisX, axisY, speed : float;
+	var i : int;
+	var actors : array<CActor>;
+	var nearCount, aroundCount : int;
+	var nearest, dist : float;
+	var adjustor : CMovementAdjustor;
+	var targetText, displayText : string;
+
+	axisX = theInput.GetActionValue( 'GI_AxisLeftX' );
+	axisY = theInput.GetActionValue( 'GI_AxisLeftY' );
+	speed = VecLength2D( GetMovingAgentComponent().GetVelocity() );
+
+	// 沒推移動鍵，或有在移動：不算卡住
+	if ( ( axisX == 0.f && axisY == 0.f && bLAxisReleased ) || speed > 0.1f )
+	{
+		if ( gfgStuckLogged )
+			LogChannel( 'GFG', "stuck end: " + FloatToString( gfgStuckTime ) + "s speed=" + FloatToString( speed ) );
+		gfgStuckTime = 0.f;
+		gfgStuckLogged = false;
+		return;
+	}
+
+	gfgStuckTime += dt;
+	if ( gfgStuckLogged || gfgStuckTime < 1.f )
+		return;
+	gfgStuckLogged = true;
+
+	// 誰鎖住了移動（GetActionLocks：player.ws:360；SInputActionLock：playerTypes.ws:1148）
+	locks = GetActionLocks( EIAB_Movement );
+	for ( i = 0; i < locks.Size(); i += 1 )
+		sources += NameToString( locks[i].sourceName ) + " ";
+	weaponState = "none";
+	if ( rangedWeapon )
+		weaponState = NameToString( rangedWeapon.GetCurrentStateName() );
+
+	// 可能的原因：戰鬥動作開始時不允許輸入（r4Player.ws:13056），結束時才恢復（:13154）；CombatActionFriendly 鎖移動（:13186-13196）
+	LogChannel( 'GFG', "stuck: axis=(" + FloatToString( axisX ) + "," + FloatToString( axisY ) + ") axisReleased=" + bLAxisReleased
+		+ " movementAllowed=" + IsActionAllowed( EIAB_Movement ) + " locks=" + sources
+		+ " inputAllowed=" + GetBIsInputAllowed() + " combatActionAllowed=" + GetBIsCombatActionAllowed()
+		+ " inCombatAction=" + IsInCombatAction() + " friendly=" + IsInCombatActionFriendly()
+		+ " combatActionType=" + FloatToString( GetBehaviorVariable( 'combatActionType' ) )
+		+ " state=" + GetCurrentStateName() + " substate=" + substateManager.GetStateCur() + " context=" + theInput.GetContext()
+		+ " stance=" + GetPlayerCombatStance() + " weapon=" + weaponState
+		+ " fullBody=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) );
+
+	// 移動控制器只有在 GetIsMovable() 時才算速度（locomotionDirectController.ws:168、:260-266），IsUITakeInput() 時整個跳過（:122）；
+	// 動畫圖的移動狀態機要 moveSpeed > 0 才離開 Idle（pc_gameplay.w2beh #15146；docs/findings.md §20.6）
+	LogChannel( 'GFG', "stuck detail: movable=" + GetIsMovable() + " uiTakesInput=" + IsUITakeInput()
+		+ " moveType=" + playerMoveType + " rawSpeed=" + FloatToString( rawPlayerSpeed )
+		+ " relSpeed=" + FloatToString( GetMovingAgentComponent().GetRelativeMoveSpeed() )
+		+ " behMoveType=" + FloatToString( GetBehaviorVariable( 'playerMoveType' ) )
+		+ " overlayMoveType=" + FloatToString( GetBehaviorVariable( 'playerMoveTypeForOverlay' ) )
+		+ " inputNotReady=" + FloatToString( GetBehaviorVariable( 'inputDirectionIsNotReady' ) )
+		+ " sprinting=" + GetIsSprinting() + " inCombat=" + IsInCombat() );
+
+	// 身邊的角色（被包圍時，身體會不會擋住移動）：5 公尺內幾隻、1.5 公尺內幾隻、最近的多遠
+	// （GetActorsInRange：actorsStorage.ws:44；VecDistance2D：math.ws:368）
+	actors = GetActorsInRange( this, 5.f, , , true );
+	nearest = 5.f;
+	for ( i = 0; i < actors.Size(); i += 1 )
+	{
+		if ( actors[i] == this )
+			continue;
+		aroundCount += 1;
+		dist = VecDistance2D( actors[i].GetWorldPosition(), GetWorldPosition() );
+		if ( dist < 1.5f )
+			nearCount += 1;
+		if ( dist < nearest )
+			nearest = dist;
+	}
+	LogChannel( 'GFG', "stuck around: actors5m=" + aroundCount + " actors1.5m=" + nearCount + " nearest=" + FloatToString( nearest ) );
+
+	// 移動調整：動畫事件 RotateToTarget 會建立「不使用動畫位移」的請求，轉向滑動目標（r4Player.ws:3913-3971、:2712-2729）；
+	// 十字弩拿著時畫面上的目標＝滑動目標（:6749-6753）（docs/findings.md §20.9）
+	adjustor = GetMovingAgentComponent().GetMovementAdjustor();
+	targetText = "none";
+	if ( slideTarget )
+	{
+		targetText = slideTarget.GetReadableName();
+		if ( (CActor)slideTarget && !( (CActor)slideTarget ).IsAlive() )
+			targetText += "(dead)";
+	}
+	displayText = "none";
+	if ( GetDisplayTarget() )
+		displayText = GetDisplayTarget().GetReadableName();
+	LogChannel( 'GFG', "stuck adjust: any=" + adjustor.HasAnyActiveRequest() + " rotation=" + adjustor.HasAnyActiveRotationRequests()
+		+ " translation=" + adjustor.HasAnyActiveTranslationRequests()
+		+ " rotateToTarget=" + adjustor.IsRequestActive( adjustor.GetRequest( 'RotateToTarget' ) )
+		+ " slideTarget=" + targetText + " displayTarget=" + displayText + " orientation=" + GetOrientationTarget() );
 }
 
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
@@ -782,6 +1032,9 @@ function ThrowProjectile( targetPosIn : Vector )
 		LogChannel( 'GFG', "spread: cone=" + FloatToString( player.rangedWeapon.GfgSpreadCone() ) + " penalty=" + FloatToString( player.rangedWeapon.gfgSpreadPenalty )
 			+ " speed=" + FloatToString( VecLength2D( player.GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + player.playerMoveType );
 		target = player.rangedWeapon.GfgAimPoint();
+		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
+		if ( !player.IsDiving() )
+			gfgAkRange = player.rangedWeapon.GfgRange();
 		// 診斷：目標點投影到畫面的位置（畫面中央是 0,0：hud.ws:1864-1874）；
 		// 原版自動瞄準的條件：鎖定的目標是 NPC、有戰鬥音樂、沒在中鍵瞄準（playerBoltProjectile.ws:353-354），成立時箭會改射向那個 NPC 的身體
 		theCamera.WorldVectorToViewRatio( target, rx, ry );
@@ -793,6 +1046,135 @@ function ThrowProjectile( targetPosIn : Vector )
 			+ " displayTarget=" + displayTarget + " hardLock=" + player.IsHardLockEnabled() + " combatMusic=" + player.IsCombatMusicEnabled() );
 	}
 	wrappedMethod( target );
+}
+
+// ===== 射程：AK 的箭飛到 208 公尺（GfgRange）（M2；使用者 2026-10-13 選定）=====
+// 原版弩箭的射程是 MAX_THROW_RANGE 25 公尺（const，炸彈、飛刀也用：gameParams.ws:105），
+// 在 ReleaseProjectiles2 傳給 ShootProjectileAtPosition／ShootProjectileAtBone（playerBoltProjectile.ws:341-349、:374-377）。
+// 飛到射程時引擎呼叫 OnRangeReached：箭關掉特效，2 秒後刪掉（arrowProjectile.ws:36-45）。
+// 這裡只換射程，其他參數照原版；鎖定時打骨骼的那條路（自動瞄準）也換
+// （CCO 是整個 ReleaseProjectiles2 覆寫，射程乘上倍率：CCO playerBoltProjectile.ws:589-595）
+
+@addField(W3AdvancedProjectile)
+var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
+
+@addField(W3AdvancedProjectile)
+var gfgShotFrom : Vector;	// 發射的位置（寫 log 用）
+
+@addField(W3AdvancedProjectile)
+var gfgShotTime : float;	// 發射的時間（引擎時間，秒；寫 log 用）
+
+// 發射時：回傳要用的射程；AK 的箭記下發射的位置與時間
+@addMethod(W3AdvancedProjectile)
+function GfgShotRange( range : float, target : Vector ) : float
+{
+	if ( gfgAkRange <= 0.f )
+		return range;
+	gfgShotFrom = GetWorldPosition();
+	gfgShotTime = theGame.GetEngineTimeAsSeconds();
+	LogChannel( 'GFG', "bolt shot: range " + FloatToString( range ) + " -> " + FloatToString( gfgAkRange ) + " target distance=" + FloatToString( VecDistance( gfgShotFrom, target ) ) );
+	return gfgAkRange;
+}
+
+// 這兩個是 final 函式（advancedProjectile.ws:60-78）；包 final 函式有作用（StateEnter：docs/findings.md §17.8、§17.9）
+@wrapMethod(W3AdvancedProjectile)
+function ShootProjectileAtPosition( angle : float, velocity : float, target : Vector, optional range : float, optional collisionGroups : array<name> )
+{
+	wrappedMethod( angle, velocity, target, GfgShotRange( range, target ), collisionGroups );
+}
+
+@wrapMethod(W3AdvancedProjectile)
+function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
+{
+	wrappedMethod( angle, velocity, target, targetBone, GfgShotRange( range, target.GetWorldPosition() ), collisionGroups );
+}
+
+// 診斷：飛到射程時飛了多遠、多久（驗證射程有沒有生效）
+// 到射程後每一格都會再呼叫（docs/findings.md §18.4），只記第一次：原版第一次就把 isScheduledForDestruction 設成 true（arrowProjectile.ws:40-44）
+@wrapMethod(W3ArrowProjectile)
+function OnRangeReached()
+{
+	if ( gfgAkRange > 0.f && !isScheduledForDestruction )
+		LogChannel( 'GFG', "bolt range reached: flown=" + FloatToString( VecDistance( gfgShotFrom, GetWorldPosition() ) ) + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgShotTime ) );
+	return wrappedMethod();
+}
+
+// 碰撞：AK 的箭插在牆壁、地面上時改成不限時間（GfgAddStuckBolt）
+// 診斷：碰撞時飛了多遠、多久、碰到什麼（飛行中才記：原版停下來後 isActive 是 false，碰撞直接忽略：playerBoltProjectile.ws:159-160）
+@wrapMethod(W3BoltProjectile)
+function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
+{
+	var what, groups : string;
+	var i : int;
+	var wasScheduled, result : bool;
+	var player : CR4Player;
+
+	if ( gfgAkRange > 0.f && isActive )
+	{
+		what = "none";
+		if ( collidingComponent )
+			what = collidingComponent.GetEntity().GetReadableName();
+		for ( i = 0; i < hitCollisionsGroups.Size(); i += 1 )
+			groups += NameToString( hitCollisionsGroups[i] ) + " ";
+		LogChannel( 'GFG', "bolt collision: flown=" + FloatToString( VecDistance( gfgShotFrom, pos ) ) + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgShotTime )
+			+ " entity=" + what + " groups=" + groups );
+	}
+
+	wasScheduled = isScheduledForDestruction;
+	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
+
+	// 插在牆壁、地面上：原版停下來、排 5 秒後刪掉（arrowProjectile.ws:98-114、playerBoltProjectile.ws:182-203）；
+	// AK 的箭取消這個刪除，交給玩家身上的清單管數量（使用者 2026-10-13 選定）；打在角色身上的照原版
+	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
+		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
+	{
+		player = (CR4Player)GetOwner();
+		if ( player )
+		{
+			RemoveTimer( 'TimeDestroy' );
+			player.GfgAddStuckBolt( this );
+		}
+	}
+	return result;
+}
+
+// ===== 插在牆壁、地面上的 AK 箭：不限時間，最多 GfgMaxStuckBolts() 支，超過就從最舊的開始刪（使用者 2026-10-13 選定）=====
+
+@addField(CR4Player)
+var gfgStuckBolts : array<W3BoltProjectile>;	// 插在牆壁、地面上的 AK 箭，舊的在前面
+
+// 最多幾支（可調）
+@addMethod(CR4Player)
+function GfgMaxStuckBolts() : int
+{
+	return 100;
+}
+
+// 寫法照原版 RemoveDroppedItem（actor.ws:4758-4779）：邊走訪邊 Erase，刪實體前先確認還在
+@addMethod(CR4Player)
+function GfgAddStuckBolt( bolt : W3BoltProjectile )
+{
+	var i, removed : int;
+
+	// 已經不在的先移出清單
+	i = 0;
+	while ( i < gfgStuckBolts.Size() )
+	{
+		if ( gfgStuckBolts[i] )
+			i += 1;
+		else
+			gfgStuckBolts.Erase( i );
+	}
+
+	gfgStuckBolts.PushBack( bolt );
+	removed = 0;
+	while ( gfgStuckBolts.Size() > GfgMaxStuckBolts() )
+	{
+		gfgStuckBolts[0].Destroy();
+		gfgStuckBolts.Erase( 0 );
+		removed += 1;
+	}
+	LogChannel( 'GFG', "bolt stuck: kept=" + gfgStuckBolts.Size() + " removed=" + removed );
 }
 
 // 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生
