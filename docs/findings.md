@@ -1486,3 +1486,25 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 跳躍中 E、R、選單鍵等探索情境的鍵也有作用
 - 相關：拿著 AK 時有存檔鎖（`RangedWeapon.Lock` 的 `CreateNoSaveLock`：`rangedWeapon.ws:421`；拿出時加：`:1182`），收槍才解除（`:429`）；原版每發射完會解除（`State_WeaponShoot`：`:1585-1586`），AK 不經過這個狀態
   - 現在 Shift、換彈後都不收 AK；手動收起的方法之一：快捷選單選別的道具（`playerWitcher.ws:1872-1876`）
+
+### 17.9 實測與動畫圖分析：衝刺、跳躍沒舉槍（2026-10-13）
+
+- 實測（`editor.log` 21:55～21:58，§17.8 的版本）：
+  - 使用者：跑步會舉槍並能射；空中能射；「換成其他道具才收槍」也不錯（→ 維持）
+  - 使用者：**衝刺（Shift）沒有舉槍**，是跑步動作；**跳躍時沒有維持舉槍**，是跳躍姿勢
+  - log：空中有連射（`auto fire … inAir=true context=Exploration`）；起跳後按鍵情境維持 `Exploration`
+- 讀動畫圖的工具：`tools\cr2w_dump.py`（使用者 2026-10-13 同意寫；用法見檔頭）
+  - `pc_overlay.w2beh`：25477 個物件全部讀得出屬性串列（只有 2 個 `TagList` 沒解）
+- `gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh`（上半身動畫圖）：
+  - 一層層疊：…→ `HorseSummon` → `Parry` → **`Crossbow`**（#15467，最上層的區塊）→ `CombatActionFriendly` → `Right` →…
+  - 十字弩狀態機 #17015：狀態 `WeaponDraw`、`WeaponHolster`、`WeaponToNormalTrans`、`WeaponAim`、`WeaponReload`、`WeaponShoot`、`WeaponWait`，子區塊 `AimAnimation`（#17460）、`CrossbowMovement`（#20524，`man_geralt_gabriel_strafe_*`）
+  - 狀態機讀的值：輸入姿勢、`isAimingWeapon`、`isShootingWeapon`、`isWeaponLoaded`、`playerMoveTypeForOverlay`、`playerSpeedForOverlay`（`fullStop` 時改用另一個值）、`fullBodyAnimWeight`、`inAimThrowForOverlay`、`isInCombatActionForOverlay`、`canHolsterAfterDelay`、`isSwimmingForOverlay` 等
+  - 狀態之間的切換條件**沒有用到移動類型**（用的是上面這些值和 `Crossbow_Draw`／`Crossbow_AimShoot`／`Crossbow_Reload` 等事件）
+  - `WeaponAim` 的輸出：`AimAnimation` 的姿勢上再疊 `swordoverride`（#21346 `BlendOverride`）
+  - `AimAnimation` 選姿勢：在戰鬥動作中 → 1；否則「移動類型 ≤ 1（站著、走路）且 …」→ 1；否則用 `fullBodyAnimWeight`（#19002 → #18979 → #18956 → #18960，接到 #18501、#18497 的切換）
+    - → 站著、走路和跑步、衝刺走不同分支；**跑步和衝刺在這裡沒有分開**
+  - 自訂軌道 `IsInWalkRun`（#5142）用在別的區塊（#4012 一帶），不在十字弩區塊
+- `pc_gameplay.w2beh`（主動畫圖，7.7 MB）：工具也讀得出來；裡面沒有名稱含 overlay 的節點類別
+- 實作（wcc_lite 編譯通過，**未實測**）：
+  - `UpdateLocomotion` 的改寫，條件從「衝刺」擴大成「衝刺或在空中」（空中是同一個做法的實驗）
+  - 每發的 `spread:` 紀錄加上 `overlaySpeed=`、`fullBody=`、`inAir=`，比對跑步（有舉槍）和空中（沒舉槍）時的值
