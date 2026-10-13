@@ -1536,4 +1536,7 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 拿掉 `ProcessFullBodyAnimWeight` 的改寫（空中全身瞄準）；`spread:` 紀錄拿掉 `fullBody=`、`inAir=`
   - `GfgTryFire`：`GetIsSprinting() || IsInAir()` 時不開火；扳機狀態保留，衝刺結束、落地時還按著就接著射
   - 保留：起跳不收 AK（§17.6）；跳躍時維持探索按鍵情境（§17.8）→ 扳機在起跳時不會被放開，落地後能接著射
-- wcc_lite 編譯通過；**未實測**
+- 實測（`editor.log` 22:49:27 Reload scripts 之後；使用者回報「OK」）：
+  - 749 發，空中 0 發（`auto fire … inAir=true` 0 筆）；5 次跳躍都 `jump: AK kept`
+  - `moveType=PMT_Sprint` 的 2 發（22:50:11、22:50:24）都在停火 1.6～1.7 秒後、速度 7.0：放開 Shift、衝刺剛結束那一格就接著射（`GetIsSprinting()` 已是 false，`playerMoveType` 還沒更新），下一發就是跑步速度 → 符合設計
+- commit `f8b6756`
