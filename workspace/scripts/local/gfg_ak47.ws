@@ -176,6 +176,9 @@ function GfgTryFire()
 	// 後座力：這一發開完，鏡頭開始轉向下一發的位置（之後每格轉一部分：GfgUpdateRecoil）
 	GfgAddRecoil( now );
 
+	// 散布：這一發開完，開火累積量增加（之後每格衰減：GfgDecaySpread）；先算散布再累積，同 CSGODOT weapon.gd:703、:738-742
+	gfgSpreadPenalty += GfgSpreadPerShot();
+
 	// 彈匣打空（PlayOwnerReloadAnim 回傳 true，不會立刻裝箭）：觸發換彈動畫，同 rangedWeapon.ws:1690-1691
 	if ( !deployedEnt )
 	{
@@ -364,6 +367,8 @@ function GfgUpdateRecoil( dt : float, out stepUp : float, out stepRight : float 
 	gfgTicksSinceShot += 1;
 	if ( stepUp != 0.f || stepRight != 0.f )
 		gfgTicksMoved += 1;
+
+	GfgDecaySpread( dt );
 }
 
 // AK 是不是拿在手上（裝備中，而且不是收起、收槍中）
@@ -391,7 +396,102 @@ function GfgViewDirection() : Vector
 	return VecNormalize( RotForward( theGame.GetGameCamera().GetCameraWorldRotation() ) );
 }
 
-// 子彈的目標點：從鏡頭沿著視線方向（畫面中央＝準心）打射線，取最近的命中點；後座力已經轉到鏡頭上
+// ===== 散布：子彈在以準心為中心的圓錐內隨機偏移（M2）=====
+// 做法照 CSGODOT（Godot 重製的 CS2：https://github.com/sidcarrollworks/CSGODOT，使用者 2026-10-13 選定；docs/findings.md §16.2）
+// - 圓錐半角 = 姿勢的基礎值 + 開火累積量；每發累積，停火後指數衰減；子彈方向在圓錐內隨機
+// - vdata 的不準度是正切值，角度 = atan(值)（CSGODOT weapon_vdata.gd:131-139）
+// - Geralt 不能蹲，所以只分站立／移動（跳躍：docs/findings.md §16.2）
+
+@addField(Crossbow)
+var gfgSpreadPenalty : float;	// 開火累積的不準度（度）
+
+// 站著不動：atan(m_flInaccuracyStand 0.00641 + m_flSpread 0.0006)（weapon_vdata.gd:88）
+@addMethod(Crossbow)
+function GfgSpreadStand() : float
+{
+	return 0.4016;
+}
+
+// 全速移動：atan(m_flInaccuracyMove 0.17506 + Stand 0.00641 + Spread 0.0006)（weapon_vdata.gd:90）
+@addMethod(Crossbow)
+function GfgSpreadMove() : float
+{
+	return 10.3188;
+}
+
+// 每發累積：atan(m_flInaccuracyFire 0.0078)（weapon_vdata.gd:92）
+@addMethod(Crossbow)
+function GfgSpreadPerShot() : float
+{
+	return 0.4469;
+}
+
+// AK 的最高移動速度：m_flMaxSpeed 215 單位/秒 ≈ 5.46 公尺/秒（docs/ak47_params.md §6）
+// Geralt 的速度直接和它比（推測；每發的 aim 紀錄會寫 speed，之後可調）
+@addMethod(Crossbow)
+function GfgMaxMoveSpeed() : float
+{
+	return 5.46;
+}
+
+// 移動占多少：速度在最高速的 34%～95% 之間從 0 到 1，再開四次方根（CSGODOT weapon.gd:118-126、:613-619，註明是 CS:GO 的 0.34、0.95）
+// CS 按住慢走鍵時改成線性；這裡不分（推測）
+@addMethod(Crossbow)
+function GfgMoveShare() : float
+{
+	var speed, from, full : float;
+
+	speed = VecLength2D( ownerPlayer.GetMovingAgentComponent().GetVelocity() );
+	from = GfgMaxMoveSpeed() * 0.34;
+	full = GfgMaxMoveSpeed() * 0.95;
+	if ( speed <= from )
+		return 0.f;
+	return PowF( MinF( 1.f, ( speed - from ) / ( full - from ) ), 0.25 );
+}
+
+// 目前的圓錐半角（度）：站立值 + 移動多出來的部分 × 移動比例 + 開火累積量（weapon.gd:593-621）
+@addMethod(Crossbow)
+function GfgSpreadCone() : float
+{
+	return GfgSpreadStand() + ( GfgSpreadMove() - GfgSpreadStand() ) * GfgMoveShare() + gfgSpreadPenalty;
+}
+
+// 恢復時間（秒，降到十分之一的時間）：連射第 2～5 發之間從 0.368 變成 0.506
+// （m_flRecoveryTimeStand／StandFinal、m_nRecoveryTransitionStartBullet／EndBullet：docs/ak47_params.md §4.2；混合方式照 weapon_data.gd 的 recovery_time）
+// CSGODOT 用的是 recoil index，這裡用這一輪連射的發數（推測）
+@addMethod(Crossbow)
+function GfgSpreadRecoveryTime() : float
+{
+	return 0.368 + ( 0.506 - 0.368 ) * ClampF( ( gfgBurstShots - 2.f ) / ( 5.f - 2.f ), 0.f, 1.f );
+}
+
+// 每格畫面：開火累積量指數衰減，時間常數 = 恢復時間 ÷ ln 10；低於每發值的 1% 就歸零
+// （weapon.gd:535-540；weapon_data.gd 的 accuracy_time_constant、accuracy_reset_threshold、SETTLE_FRACTION 0.01）
+@addMethod(Crossbow)
+function GfgDecaySpread( dt : float )
+{
+	if ( gfgSpreadPenalty <= 0.f )
+		return;
+	gfgSpreadPenalty *= ExpF( -dt * 2.302585 / GfgSpreadRecoveryTime() );
+	if ( gfgSpreadPenalty < GfgSpreadPerShot() * 0.01 )
+		gfgSpreadPenalty = 0.f;
+}
+
+// 把方向往上轉 up 度、往右轉 right 度（heading 變小是往右：r4Player.ws:16144-16145）
+@addMethod(Crossbow)
+function GfgRotateDirection( dir : Vector, up : float, right : float ) : Vector
+{
+	var pitch : float;
+	var result : Vector;
+
+	pitch = Deg2Rad( Rad2Deg( AsinF( dir.Z ) ) + up );
+	result = VecFromHeading( VecHeading( dir ) - right ) * CosF( pitch );
+	result.Z = SinF( pitch );
+	result.W = 0.f;
+	return result;
+}
+
+// 子彈的目標點：從鏡頭沿著視線方向（畫面中央＝準心）加上散布打射線，取最近的命中點；後座力已經轉到鏡頭上
 // 寫法照原版 CalculateAimPosition（playerAiming.ws:553-616，碰撞群組 :33-49）；原版那個是 private，不能直接呼叫
 @addMethod(Crossbow)
 function GfgAimPoint() : Vector
@@ -405,8 +505,12 @@ function GfgAimPoint() : Vector
 	var ent : CEntity;
 	var actor : CActor;
 	var item : CItemEntity;
+	var angle, radius : float;
 
-	dir = GfgViewDirection();
+	// 散布：隨機方向，偏離角度 = 均勻亂數 × 圓錐半角，越靠中心越密（CSGODOT weapon.gd:853-870）
+	angle = RandF() * 2.f * Pi();
+	radius = RandF() * GfgSpreadCone();
+	dir = GfgRotateDirection( GfgViewDirection(), radius * SinF( angle ), radius * CosF( angle ) );
 	start = GfgEyePosition() + dir * 0.5;	// 原版也從鏡頭前 0.5 公尺開始（playerAiming.ws:324）
 	end = start + dir * GfgRange();
 	hit = end;
@@ -544,6 +648,9 @@ function ThrowProjectile( targetPosIn : Vector )
 	player = (CR4Player)GetOwner();
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
 	{
+		// 這一發的圓錐半角、玩家速度（GfgAimPoint 用的是同一個值）
+		LogChannel( 'GFG', "spread: cone=" + FloatToString( player.rangedWeapon.GfgSpreadCone() ) + " penalty=" + FloatToString( player.rangedWeapon.gfgSpreadPenalty )
+			+ " speed=" + FloatToString( VecLength2D( player.GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + player.playerMoveType );
 		target = player.rangedWeapon.GfgAimPoint();
 		// 診斷：目標點投影到畫面的位置（畫面中央是 0,0：hud.ws:1864-1874）；
 		// 原版自動瞄準的條件：鎖定的目標是 NPC、有戰鬥音樂、沒在中鍵瞄準（playerBoltProjectile.ws:353-354），成立時箭會改射向那個 NPC 的身體
