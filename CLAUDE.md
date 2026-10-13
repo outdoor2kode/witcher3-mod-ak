@@ -65,7 +65,6 @@
 <REDKIT_PROJECT>\                 ← Claude 的工作目錄（可修改）
   CLAUDE.md
   .claude\settings.local.json
-  .claude\hooks\                  ← hook 腳本（/clear 時自動更新交接檔，見 §11）；logs\ 不納入 git
   docs\                           ← 調查筆記、決策紀錄
   data\cs2\weapons.vdata          ← CS2 武器數值（文字檔，納入 git）
   tools\                          ← 遊戲外驗證用腳本（後座力模擬、Blender 腳本）
@@ -292,9 +291,6 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - **每次 commit 時一起更新**：session 可能被用量上限突然切斷（2026-10-13 發生過），不能等結束才寫
   - 只寫還在變動的：現在做到哪、還沒寫進本檔的決定、沒 commit 的檔案與測試進度、下一步、試過放棄的做法、相關的 `docs\findings.md` 章節
   - 已定案的寫進本檔，查證過的事實寫進 `docs\findings.md`
-  - **`/clear` 時 hook 會自動更新並 commit**（`.claude\hooks\handoff_on_clear.py`，設定在 `.claude\settings.local.json`）
-    - 子程序用 `claude -p --resume` 接回舊對話更新交接檔；只能改 `docs\handoff.md`、跑唯讀的 git 指令（2026-10-13 實測）
-    - commit 由腳本做，只 commit 交接檔；結果顯示在畫面上，紀錄在 `.claude\hooks\logs\handoff_on_clear.log`
 - 確認了新的重要事實（路徑、API、格式）就更新本檔
 
 ---

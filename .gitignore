@@ -1,6 +1,5 @@
 # Claude Code 本機設定
 .claude/settings.local.json
-.claude/hooks/logs/
 
 # 模型
 *.fbx
