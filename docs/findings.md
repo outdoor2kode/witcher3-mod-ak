@@ -1448,3 +1448,26 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 起跳：不再出現 `crosshair hidden`；空中能不能繼續射、扳機會不會被放開，看 `context=`、`inAir=`
   - 不確定：衝刺、跳躍時的上半身動畫；空中彈匣打空時的換彈
 - 參考：其他會收槍的動作（開始墜落、攀爬、翻滾：§17.4）這次沒改
+
+### 17.7 實測：衝刺開槍、起跳不收槍（2026-10-13；`editor.log` 21:32～21:37）
+
+- 21:32:01 Reload scripts 後測試；使用者回報「跑步可以射，跳起來不行」
+- **衝刺開槍：可以**。`PMT_Sprint` 7.0 公尺/秒連射（21:33:00 26 發、21:33:18 39 發、21:33:32 後半段約 45 發）
+- **跑步開槍：可以**。`PMT_Run` 5.1 公尺/秒（21:33:24、21:34:28、21:34:59 前 37 發）
+  - 同一次也有走路 2.0 的連射；之前沒有 `PMT_Run` 的原因（§17.3）：使用者有沒有按 Alt 沒有回報，未確認
+- **跑步、衝刺時沒有舉起 AK**（使用者回報）：手照跑步姿勢擺動，但箭照常射出；站著、走路時有舉起
+  - 動畫圖 `gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh`（REDkit depot）的字串：
+    - 十字弩的移動狀態有兩個：`CrossbowMovement`、`CrossbowAimMovement`
+    - 跑步動畫兩種都有：拿著跑 `ex_man_gabriel_run_cycle_fast_forward_01`；瞄準姿勢跑 `ex_man_geralt_gabriel_aim_run`、`ex_man_geralt_gabriel_run_aimpose_*`
+    - 讀取的變數（腳本會設定）：`isAimingWeapon`、`isShootingWeapon`、`inAimThrowForOverlay`、`playerMoveTypeForOverlay`、`playerSpeedForOverlay`、`fullBodyAnimWeight` 等
+  - 哪個狀態、哪個動畫由動畫圖的轉換條件決定；檔案是二進位，從字串看不出條件
+  - AK 的扳機只有「從收著的狀態按下」那一輪會設 `isAimingWeapon` = 1（`SetupCombatAction` → `OnRangedWeaponPress`：`rangedWeapon.ws:44-48`），之後的連射都是 0
+- **跳躍**：
+  - 起跳不收槍有作用：`jump: AK kept (holster skipped)` 共 7 次
+  - 但**起跳那一格扳機就被放開**：21:33:13 第 7 發 `t=497.64` → `Jump: StateEnter` → `trigger=false t=497.64 … context=JumpClimb inAir=false`（同一個引擎時間）；21:33:10 也是 `context=JumpClimb`
+    - → 切換到跳躍用的按鍵情境 `JumpClimb` 時，左鍵被放開（`JumpClimb` 沒有綁左鍵：使用者的 `input.settings:2352-2450`）
+  - `JumpClimb` 和 `Exploration` 的差別（使用者的 `input.settings`，不含手把）：`JumpClimb` 少了左鍵、中鍵、R、Q、E（互動）、3～7（選法印）、X（叫馬）、Z（鎖定）、Alt（走路切換）、面板鍵（I、K、M、Enter、F1～F11、Home）；只多了 C（`DiveDown`）
+  - **空中換彈完成後被收槍**：21:33:09 打空 → 21:33:10 起跳（換彈中）→ 換彈完成、進入 `State_WeaponAim` → 同一秒 `crosshair hidden` → 21:33:11 收槍完成
+    - 換彈後進入 `State_WeaponAim`，0.2 秒後原版加上收槍計時器（`rangedWeapon.ws:1413-1428`）；`HolsterWhenMovingTimer` 在跳躍中就讓它收槍（`:649-671` 的 `stateCur == 'Jump'`）
+  - 地上換彈後也收過一次：21:33:50 換彈 → 21:33:52 收槍；時間上和同一組計時器相符（`:656-657`：開始移動時），沒有直接證據
+- 其他：21:34:16～17 有兩發不是 `auto fire`（`AK reload check` 由原版流程呼叫）→ 中鍵（原版十字弩）射的；之後 21:34:19 照原版收槍
