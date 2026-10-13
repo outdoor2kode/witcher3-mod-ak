@@ -302,6 +302,11 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
+- **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）
+  - 開著世界、在 Scene 面板雙擊圖層使它變粗體（啟用）→ Asset Browser（Ctrl+A）選模型或實體 → 點一下畫面 → 按 **C** 放在滑鼠位置；也可以直接拖進畫面
+  - 放模型時選 Static Mesh 才有碰撞（搜尋結果引用的同一頁內容）
+  - 怪物：放遭遇區域、生成點、守衛區域，用 spawn tree 生成（Wiki「HOW-TO: Create a monster encounter」，頁面 6326170）
+  - ⚠️ 放進原版世界的圖層等於修改原版檔案；測完不要存檔（§13.4 的原則）
 - **測試用靶子**（原版主控台指令；2026-10-13 查程式碼，**未實測**，見 `docs\findings.md` §15）
   - `spawnPath('characters\npc_entities\monsters\wolf_lvl1.w2ent', true)`：在面前生成**敵對**的狼（`temp.ws:6790-6813`）；不加 `true` 會設成友善
   - ⚠️ **友善的角色打不到**：玩家射出的投射物碰到友善角色不算命中（`throwable.ws:126-128`）
