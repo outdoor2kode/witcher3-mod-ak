@@ -1335,3 +1335,15 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - Geralt 不能蹲下 → 蹲下的數值用不到
   - 跳躍會強制收起十字弩（`explorationStateJump.ws:408` 呼叫 `OnRangedForceHolster`；§13.18，**未實測**）→ 若屬實，跳躍、落地的數值用不到
   - → 實際只剩「站立／移動」兩種基礎值＋連發累積＋停火回復
+
+### 16.3 實作（2026-10-13，使用者選 CSGODOT 的做法；wcc_lite 編譯通過，**未實測**）
+
+- `gfg_ak47.ws`：
+  - `GfgAimPoint`：射線方向 = 鏡頭正前方再偏移「隨機角度、均勻亂數 × 圓錐半角」（`GfgRotateDirection`）
+  - `GfgSpreadCone` = 0.4016 +（10.3188 − 0.4016）× 移動比例 + 開火累積量
+    - 移動比例：`VecLength2D( GetMovingAgentComponent().GetVelocity() )`（`player.ws:1285` 的取法）和 5.46 公尺/秒比，34%～95% 之間 0→1，再開四次方根
+  - 每發開完：累積量 += 0.4469（`GfgTryFire`）；每格畫面：衰減（`GfgDecaySpread`，由 `GfgUpdateRecoil` 呼叫）
+  - 每發多一行紀錄：`spread: cone=… penalty=… speed=… moveType=…`
+- 遊戲外估算（600 RPM、站著）：各發圓錐 0.40、0.64、0.77、0.87、0.96、1.04 … 第 30 發 1.18°；停火後 1.13 秒累積量歸零
+  - 移動：每秒 1.5 公尺 → 0.40°（低於 34%）；3.0 → 7.99°；4.5 → 9.76°；5.46 → 10.32°
+- 推測的部分：Geralt 的速度直接和 5.46 公尺/秒比；不分慢走鍵；恢復時間用這一輪連射的發數混合
