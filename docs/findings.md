@@ -1528,3 +1528,12 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `GfgTryFire`：`GetIsSprinting()` 而且不在空中時不開火（扳機狀態保留，衝刺結束還按著就接著射）
   - `@wrapMethod(Crossbow) ProcessFullBodyAnimWeight`：AK 拿著、扣著扳機、在空中時設 `fullBodyAnimWeight` = 1（原版空中一律是 0：`rangedWeapon.ws:949-950`；計時器每 0.1 秒呼叫：`:1285`）；空中每發也呼叫一次，不等計時器
   - 預期：空中開火時整個身體換成瞄準姿勢（腿也是）；落地或放開扳機後 0.1 秒內恢復
+
+### 17.11 跳躍也不開火（2026-10-13）
+
+- 實測（§17.10 的版本）：使用者回報空中全身瞄準「超奇怪」→ 決定：**跳躍也先不射**，之後（或許 M5）再處理持槍跳躍
+- `gfg_ak47.ws`：
+  - 拿掉 `ProcessFullBodyAnimWeight` 的改寫（空中全身瞄準）；`spread:` 紀錄拿掉 `fullBody=`、`inAir=`
+  - `GfgTryFire`：`GetIsSprinting() || IsInAir()` 時不開火；扳機狀態保留，衝刺結束、落地時還按著就接著射
+  - 保留：起跳不收 AK（§17.6）；跳躍時維持探索按鍵情境（§17.8）→ 扳機在起跳時不會被放開，落地後能接著射
+- wcc_lite 編譯通過；**未實測**
