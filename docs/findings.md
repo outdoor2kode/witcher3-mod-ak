@@ -185,6 +185,9 @@
 **準心**
 
 - `ShowCrosshair()`（`playerAiming.ws:208–219`），使用 `CR4HudModuleCrosshair`
+- 原版只在 `PlayerAiming` 進入 `Aiming` 狀態時打開（`playerAiming.ws:187`），結束時由 `AimCleanup` 關掉（`:683-686`）
+  - `hud.ws` 沒有其他單獨開關準心模組的程式（只有整個 HUD 的 `ForceShow`）
+  - 另有主控台指令 `testcrosshair( true／false )`（`hudModuleCrosshair.ws:15-23`）
 
 ---
 
@@ -238,6 +241,8 @@
 | `RotateHorizontal` / `RotateVertical` / `minPitch` / `maxPitch` | `customCameraControllers.ws:31–32`、`25–26` | |
 | `CCustomCamera.GetActivePivotRotationController()` | `customCamera.ws:74` | |
 | `CCustomCamera.GetCameraWorldRotation()` / `SetCameraWorldRotation( rot )` | `customCamera.ws:111` / `114` | |
+| `CCustomCamera.GetCameraWorldOffset()` | `customCamera.ws:112` | 原版拍照模式取遊戲鏡頭的位置：`GetCameraWorldPosition() + GetCameraWorldOffset()`（`photomodeManager.ws:98-99`） |
+| 每格直接改 `moveData.pivotRotationValue` | 用例 `explorationStateClimb.ws:2111-2135` | 爬牆鏡頭在 `OnGameCameraTick` 裡每格平滑後寫回（經 `r4Player.ws:4255`） |
 | `CCustomCamera.fov` / `SetFov()` | `customCamera.ws:69`、`124–127` | 開鏡縮放用 |
 | `CCamera.Rotate( leftRightDelta, upDownDelta )` | `camera.ws:77` | 🔶 另一個後座力候選；`CCamera` 和遊戲鏡頭的關係未確認 |
 | `GCameraShake( strength, ... )`（全域函式） | `camera.ws:287–353` | 播放疊加的鏡頭動畫 `'camera_shake_hit_lvl3_1'`（339） |
@@ -1157,6 +1162,48 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 位置與方向改取遊戲鏡頭本身：`theGame.GetGameCamera().GetCameraWorldPosition()／GetCameraWorldRotation()`（`r4Game.ws:261`、`customCamera.ws:110-111`），方向用 `RotForward`（`math.ws:459`）
   - 投影改取 1000 公尺外的點，準心位移 = 帶偏移的點 − 不帶偏移的點
   - 診斷 log：`crosshair check` 同時記錄兩種鏡頭位置離 Geralt 的距離、兩種方向的內積
+- 這個修正版有沒有進遊戲測試，沒有紀錄：`editor.log` 在 2026-10-13 12:47 REDkit 重開時被覆寫，現在的內容（12:47～12:51）沒有 `GFG` 的行
+
+### 14.6 回到鏡頭版：修正一頓一頓、準心一直顯示（2026-10-13）
+
+- 使用者決定：「還是要螢幕動，像是 GTA5 那樣」；之前「一頓一頓的要修正」；「準心還是要存在，不要因為射擊就消失」
+- **一頓一頓的原因**（§14.4 的 log）：
+  - 每發的位移在開火那一格整個加到 `pivotRotationValue`（例：第 2 發 -14.2219 → -12.8203）
+  - 下一發開火前的角度等於上一發之後的角度 → 兩發之間鏡頭完全不動
+- **修正**：每發的位移在 0.1 秒（＝射擊間隔，`GfgKickTime`）內等速轉完；下一發開火時還沒轉完的部分，併入下一發一起轉
+  - 遊戲外模擬（暫存腳本，未納入專案；射擊時機照 `GfgTryFire`，位移表照 `tools/recoil_pattern.py`，30 發）：
+
+| 做法 | 畫面更新率 | 連射中鏡頭完全不動的格數 | 單格最大轉動 | 子彈方向和彈道的誤差 |
+|---|---|---|---|---|
+| 舊：開火那一格一次轉完 | 60 FPS | 135／162（83.3%） | 2.787° | 0 |
+| 新：0.1 秒內等速轉完 | 30 FPS | 1／81（1.2%） | 0.929° | 最大 0.521°、平均 0.017° |
+| 新 | 60 FPS | 1／162（0.6%） | 0.464° | 最大 0.260°、平均 0.009° |
+| 新 | 144 FPS | 0／389 | 0.197° | 最大 0.063°、平均 0.018° |
+| 新（每格時間 ±30% 隨機） | 60 FPS | 1／163 | 0.550° | 最大 0.257°、平均 0.042° |
+
+  - 「開火」和「鏡頭更新」在同一格的先後順序互換，結果相同
+  - 60 FPS 時第 3 發起每格轉動：舊 `1.62 0 0 0 0 0 1.72 0 0 0 0 0 1.90 …`；新 `0.27 ×6 → 0.29 ×6 → 0.32 ×6 …`
+- 改鏡頭角度的方式同 §14.4：包 `CR4Player.OnGameCameraTick`，改 `moveData.pivotRotationValue`
+  - 原版先例：爬牆鏡頭每格改 `pivotRotationValue`（`explorationStateClimb.ws:2111-2135`）
+  - 中鍵瞄準（`AimThrow`）的鏡頭更新不會呼叫到這裡：`aimThrow.ws:161-394` 沒有呼叫上層，直接 `return true`
+  - 那時左鍵也不是扳機：`[ThrowHold]` 情境沒有 `BASE_ATTACK_LIGHT`（`input_qwerty.ini:466-484`）→ 這次不處理 `AimThrow`
+- 停火後轉回原位：沿用 §14.4 的衰減（推測的公式），沒有改
+- **準心**：
+  - 左鍵扳機不會進入原版瞄準：`CheckGotoAimThrow` 只看中鍵 `ThrowItem`（`rangedWeapon.ws:1362`）→ 原版不會打開準心；§14.4 鏡頭版沒有準心就是這個原因
+  - 做法：AK 拿在手上（不是 `State_WeaponWait`／`State_WeaponHolster`）就打開，固定在原本的錨點（`SnapToAnchorPosition`），不移動
+  - `playerAiming` 的狀態一變就再打開一次：原版唯一會關準心的地方是中鍵瞄準結束時的 `AimCleanup`（`playerAiming.ws:683-686`）；不重開的話，用中鍵射完一發，準心會跟著消失
+  - 收起 AK 時，只關我們打開的準心（不影響原版丟炸彈、其他十字弩瞄準時的準心）
+  - 開關的狀態記在玩家身上（`@addField(CR4Player)`），換十字弩時也能關掉
+  - 弩箭在 `Aiming` 狀態開火時只呼叫 `RemoveAimingSloMo`，不會呼叫 `StopAiming`（`throwable.ws:175-193`）
+  - 準心錨點的位置寫在 Flash 裡，腳本看不到；原版瞄準模式也是「準心在錨點、箭沿鏡頭正前方的射線飛」（`playerAiming.ws:316-326`）
+- **子彈**：從鏡頭沿鏡頭正前方打射線（後座力已經轉到鏡頭上，所以就是畫面中央的準心）
+  - 鏡頭位置改成 `GetCameraWorldPosition() + GetCameraWorldOffset()`：原版拍照模式取遊戲鏡頭的位置就是這樣寫（`photomodeManager.ws:98-99`）
+- 診斷 log（`editor.log` 的 `[Script_GFG]`）：
+  - `recoil: burst=… camera pitch=… applied up=… ticks=… moved=…`：每發開火時鏡頭的角度、後座力已經轉了多少；`ticks`＝上一發之後經過幾格、`moved`＝其中鏡頭有轉的格數
+  - `aim: distance=… screen=(x,y) camOffset=… theCamera-gameCam=…`：目標點投影到畫面的位置（畫面中央是 0,0，`hud.ws:1864-1874`）、鏡頭位移的長度、`theCamera` 和遊戲鏡頭位置的距離
+  - `crosshair shown: aiming state=…`／`crosshair hidden`
+- wcc_lite 編譯通過（第一次就通過），**未進遊戲測試**
+- 沒有處理（同 §14.4）：戰鬥中鎖定目標時的自動瞄準（`playerBoltProjectile.ws:353-377`）、弩箭飛行距離上限 25 公尺（`:348`）
 
 ---
 
