@@ -1363,5 +1363,68 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | `PMT_Sprint` | 29 | 7.00／7.00 | 10.54／10.68 |
 
 - 邊走邊射的速度約 2.0 公尺/秒，剛好高過門檻 1.86（5.46 × 34%）；四次方根讓它變成移動比例約 0.46 → 圓錐約 5.6°
-- 開槍會減速、跳不起來的原因還沒查（跳躍會收槍的出處見 §13.18，未實測）
-- 腳本已 commit（散布有作用）；要不要依「開槍只能走路」調整移動散布，等使用者決定
+- 開槍會減速、跳不起來的原因：見 §17
+- 腳本已 commit（散布有作用）；移動散布要不要調：使用者 2026-10-13 選「先不調」（能跑射之後，開槍時的速度會變）
+
+---
+
+## 17. M2 跑射、跳射：原因調查（2026-10-13；只查，沒有改程式）
+
+- 使用者選「查跑射、跳射的原因」：查到後說明做法，同意再改
+- 資料：§16.4 同一次實測的 `editor.log`（17:42～17:53）；REDkit 重開會覆寫，所以下面直接引用原文
+
+### 17.1 測試時 Geralt 一直在探索狀態
+
+- 17:42:25 `Changed SuperState from : CombatFists to Exploration` 之後，到 17:53 沒有再切換
+  - 這行在玩家狀態改變時寫入（`explorationStateManager.ws:428-434` 每次更新先比對，`:804-828` 寫 log）
+- 按鍵情境只有 `Exploration` ↔ `JumpClimb`（`INPUT CONTEXT CHANGED`）
+- 每發的 `aim:` 紀錄都是 `combatMusic=false`
+- 探索狀態一進入就把戰鬥姿態設成 `PCS_Normal`（`exploration.ws:43`）
+
+### 17.2 衝刺：十字弩拿在手上就不能衝刺（原版規則；已確認）
+
+- `W3PlayerWitcher.CanSprint`（`playerWitcher.ws:10695-10718`）：十字弩不在 `State_WeaponWait`（＝拿在手上）時
+  - 戰鬥姿態不是 `PCS_AlertNear` → 回傳 false
+  - 是 `PCS_AlertNear` 而且按著衝刺 → `OnRangedForceHolster` 收槍
+- 不能衝刺之後 0.25 秒取消衝刺（`locomotionDirectController.ws:834-867` 的 `DisableSprintingTimer`）
+- log：收著 AK、邊衝刺邊按扳機，都是前 2～3 發 `PMT_Sprint`（7.0 公尺/秒），接著變 `PMT_Walk`，速度約 1 秒內降到 2.0
+  - 例：17:42:33（`Sp7.0 Sp7.0 Sp7.0 Wa6.9 Wa6.5 Wa6.0 … Wa2.0`）、17:42:40、17:42:54、17:51:39、17:52:58、17:53:12
+- AK 拿在手上、沒在開火時按 Shift：`OnSprintHolster` 收槍（§13.18）
+- 參考 mod（Firearms、FirearmsNextGen、CCO）的 `CanSprint`、`OnSprintHolster` 和原版相同；網路搜尋 2 次，沒找到「拿著十字弩衝刺」的 mod
+
+### 17.3 一般跑步：這次沒有任何一發是 `PMT_Run`（原因未確定）
+
+- 723 發：Walk 620、Idle 74、Sprint 29、**Run 0**（§16.4）
+- 整份 `editor.log`（13:36～21:06）的跳躍類型也沒有 `EJT_Run`：`EJT_Walk` 5、`EJT_IdleToWalk` 2、`EJT_Sprint` 1、`EJT_Fall` 1
+  - `EJT_Walk`：起跳時 `GetIsRunning()` 是 false（`explorationStateJump.ws:923-949`）；`moveSpeed > 0.85` 才算跑（`locomotionDirectController.ws:369`）
+- 走路／跑步的判斷：`CalculateMoveSpeed`（`locomotionDirectController.ws:789-1107`），沒在衝刺時
+  - 跑步要同時符合（`:933-938`）：
+    - 輸入大小 > `GetInputModuleNeededToRun()`：預設 0.7（`bin\config\platform\pc\platformgameplay.ini` 的 `LeftStickSensitivity=0.7`；`player.ws:1764-1775`）；鍵盤 W 是 1（使用者的 `input.settings:1787`）
+    - 沒禁止 `EIAB_RunAndSprint`，或有戰鬥音樂
+    - 戰鬥姿態 `PCS_Normal` 且**沒開走路切換**，或 `PCS_AlertFar`
+  - 不符合 → `PMT_Walk`（`:1061-1065`）
+  - 另一條路：禁止了 `EIAB_Sprint`、沒禁止 `EIAB_RunAndSprint`、沒戰鬥音樂 → 沒按衝刺就走路（`:881-912`）
+- 十字弩自己的封鎖（`RangedWeapon.Lock`，`rangedWeapon.ws:374-423`）把 `EIAB_RunAndSprint`、`EIAB_Sprint` 列為例外，不會禁止跑步
+- 拿著 AK 移動時，十字弩動畫只蓋上半身：`fullBodyAnimWeight` = false（`rangedWeapon.ws:940-944`）
+  - log：移動中的連射全是 `setFullWeight : FALSE`（17:42:33～36 共 61 次、17:43:15～19 共 56 次、17:51:27～29 共 50 次）；站著連射是 TRUE（17:43:05～09 共 45 次）
+  - → 腿照一般移動，速度由上面的 `CalculateMoveSpeed` 決定
+- 走路切換：探索情境的 Alt（使用者的 `input.settings:1539` `IK_Alt=(Action=WalkToggle)`），每按一次切換（`playerInput.ws:676-682`），不寫 log
+- **未確定**：拿 AK 時是哪個條件不成立。log 沒有記錄這些值
+  - 不改程式的驗證：不拿 AK、只按 W 看是跑還是走；是走的話按一次 Alt；再只按 W 跑著開槍 → 看 log 每發的 `moveType`
+
+### 17.4 跳躍：起跳就收槍（原版規則；已確認）
+
+- `CExplorationStateJump.StateEnterSpecific`（`explorationStateJump.ws:389-408`）：起跳時 `thePlayer.OnRangedForceHolster( true, true )` → 立即收起（`r4Player.ws:14762-14766` → `rangedWeapon.ws:713-727`、`:204-235`）
+- 跳躍中禁止 `EIAB_Crossbow`（`explorationStateJump.ws:261-271`）
+- 跳躍中的按鍵情境是 `JumpClimb`（`explorationStateJump.ws:255`；`explorationStateManager.ws:1456` 切換），裡面**沒有綁滑鼠左鍵、中鍵**（使用者的 `input.settings:2352-2450`）
+- log：8 次跳躍中有 6 次 AK 拿在手上，都在起跳的同一秒內收槍；其中 4 次正在連射，起跳後馬上記到 `trigger=false`（和最後一發相隔 0.02～0.05 秒）
+  - 例：17:53:03，`editor.log` 75657 `Jump: StateEnter` → 75663 `NoSave unlock 'RangedWeapon'` → 75668 `trigger=false … state=State_WeaponWait` → 75673 `crosshair hidden`
+  - 其他：17:42:57（63225～63241）、17:51:47、17:52:44（73358～73373）、17:52:50、17:53:26
+  - `trigger=false` 是使用者放開，還是按鍵情境切換造成的，log 分不出來
+- 其他會收槍的：開始墜落（`explorationStateStartFalling.ws:78`）、攀爬（`explorationStateClimb.ws:448`）、翻滾（`explorationStateRoll.ws:105`）
+- 參考 mod 沒有改這段；網路搜尋 2 次，沒找到「空中射十字弩」的 mod
+
+### 17.5 對照 CS2
+
+- CS2 拿 AK 的最高移動速度：215 單位/秒 ≈ 5.46 公尺/秒（`m_flMaxSpeed`：`CLAUDE.md` §8、`docs\ak47_params.md` §6）
+- Geralt：衝刺 7.0、走路約 2.0 公尺/秒（log）；跑步速度這次沒有量到
