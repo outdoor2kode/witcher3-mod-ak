@@ -94,10 +94,16 @@ function GfgSetTrigger( pressed : bool )
 
 	now = theGame.GetEngineTimeAsSeconds();
 	gfgTriggerHeld = pressed;
-	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( now ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount );
+	// context、inAir：看跳躍時扳機的放開是不是按鍵情境切換造成的（docs/findings.md §17.4）
+	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( now ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount
+		+ " context=" + theInput.GetContext() + " inAir=" + ownerPlayer.IsInAir() );
 
 	if ( pressed )
 	{
+		// 按住時當作「瞄準中」，同原版按下十字弩鍵（rangedWeapon.ws:44-48）：
+		// 跑步、衝刺時原本只有拿著跑的動作、沒舉槍，試試動畫會不會換成舉槍跑（使用者 2026-10-13 選定；docs/findings.md §17.7）
+		SetBehaviorGraphVariables( 'isAimingWeapon', true );
+		SetBehaviorGraphVariables( 'isShootingWeapon', false );
 		// 新的一次按下不沿用上次累計的時間，否則快速連點時兩發間隔會小於 0.1 秒
 		// （實測最短 0.065 秒：docs/findings.md §13.15）
 		if ( gfgNextShotTime < now )
@@ -122,6 +128,18 @@ function GfgSetTrigger( pressed : bool )
 timer function GfgAutoFire( dt : float, id : int )
 {
 	GfgTryFire();
+}
+
+// 移除原版的自動收槍計時器（同 rangedWeapon.ws:1367-1370）
+// AK 停火後不自動收槍（docs/findings.md §13.18）；換彈完成後原版會再加上計時器（:1413-1428），
+// 一移動或在空中就收槍（:649-671），所以除了每發之外，拿著 AK 時每格畫面也呼叫（使用者 2026-10-13 選定：§17.7）
+@addMethod(Crossbow)
+function GfgCancelAutoHolster()
+{
+	RemoveTimer( 'HolsterAfterDelay' );
+	RemoveTimer( 'HolsterWhenMovingTimer' );
+	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelay', 0.f );
+	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelayHorse', 0.f );
 }
 
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
@@ -153,6 +171,12 @@ function GfgTryFire()
 	if ( !deployedEnt )
 		return;
 
+	// 衝刺中、在空中（跳躍等）不開火，手維持原本的動作（使用者 2026-10-13 選定；docs/findings.md §17.10、§17.11）：
+	// 主動畫的衝刺、跳躍沒有十字弩版本（pc_gameplay.w2beh #27906、#19915），舉不了槍。
+	// 扳機狀態保留：衝刺結束、落地時還按著就接著射
+	if ( ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() )
+		return;
+
 	// 射速：下一發的時間由上一發的預定時間累加，不從實際開火的那一格畫面起算
 	// （從實際時間起算，實測只有 540 RPM：docs/findings.md §13.13）
 	if ( now < gfgNextShotTime )
@@ -164,14 +188,12 @@ function GfgTryFire()
 		gfgNextShotTime = now;
 	gfgNextShotTime += GfgCycleTime();
 
-	// 連射時不收槍：移除原版的收槍計時器（同 rangedWeapon.ws:1367-1370）
-	RemoveTimer( 'HolsterAfterDelay' );
-	RemoveTimer( 'HolsterWhenMovingTimer' );
-	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelay', 0.f );
-	ownerPlayer.SetBehaviorVariable( 'canHolsterAfterDelayHorse', 0.f );
+	// 連射時不收槍
+	GfgCancelAutoHolster();
 
 	OnProcessThrowEvent( 'ProjectileThrow' );
-	LogChannel( 'GFG', "auto fire: t=" + FloatToString( now ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() );
+	LogChannel( 'GFG', "auto fire: t=" + FloatToString( now ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText()
+		+ " inAir=" + ownerPlayer.IsInAir() + " context=" + theInput.GetContext() );
 
 	// 後座力：這一發開完，鏡頭開始轉向下一發的位置（之後每格轉一部分：GfgUpdateRecoil）
 	GfgAddRecoil( now );
@@ -233,6 +255,112 @@ function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
 	if ( GfgSelectedAk() )
 		return true;
 	return wrappedMethod( action );
+}
+
+// ===== 衝刺：拿著 AK 可以衝刺、邊衝刺邊開槍（使用者 2026-10-13 選定；docs/findings.md §17.2）=====
+
+// 原版規定十字弩拿在手上就不能衝刺，戰鬥中按衝刺會收槍（playerWitcher.ws:10701-10710）
+// AK 的衝刺條件改成和沒拿十字弩時一樣：呼叫原版時暫時把 rangedWeapon 設成空的。
+// 原版判斷衝刺時用到 rangedWeapon 的只有上面那段和 IsGuarded（r4Player.ws:13949-13952）
+// （不用 super.CanSprint：官方文件沒寫 annotation 裡能不能用 super，Wiki 頁面 36241598）
+// （wrappedMethod 在同一個函式裡只能寫一次，第二次會編譯錯誤：docs/findings.md §17.6）
+@wrapMethod(W3PlayerWitcher)
+function CanSprint( speed : float ) : bool
+{
+	var weapon : Crossbow;
+	var isAk, result : bool;
+
+	weapon = rangedWeapon;
+	isAk = weapon && weapon.GfgIsAk();
+	if ( isAk )
+		rangedWeapon = NULL;
+	result = wrappedMethod( speed );
+	if ( isAk )
+		rangedWeapon = weapon;
+	return result;
+}
+
+// 按衝刺鍵時，原版在探索狀態會收起十字弩（rangedWeapon.ws:491-507；呼叫處 playerInput.ws:607-610、:629-630）；AK 不收
+@wrapMethod(RangedWeapon)
+function OnSprintHolster()
+{
+	var crossbow : Crossbow;
+
+	crossbow = (Crossbow)this;
+	if ( crossbow && crossbow.GfgIsAk() )
+		return;
+	wrappedMethod();
+}
+
+// 戰鬥中衝刺時，原版不拿出十字弩（rangedWeapon.ws:800-806）；AK 照常拿出
+// 只處理沒騎乘的情況（騎乘時原版會換成載具用的事件名稱：:808-823）；送出事件的寫法同 rangedWeapon.ws:328-334
+@wrapMethod(Crossbow)
+function RaiseOwnerGraphEvents( eventName : name, force : bool ) : bool
+{
+	if ( eventName == 'Crossbow_Draw' && GfgIsAk() && !ownerPlayer.IsUsingVehicle() )
+	{
+		if ( force )
+			return ownerPlayer.RaiseForceEvent( eventName );
+		return ownerPlayer.RaiseEvent( eventName );
+	}
+	return wrappedMethod( eventName, force );
+}
+
+// ===== 跳躍：起跳時不收 AK，扳機狀態保留到落地（使用者 2026-10-13 選定；docs/findings.md §17.4、§17.7、§17.11）=====
+// 空中不開火（GfgTryFire）；按鍵情境不切換，扳機才不會在起跳時被放開，落地時還按著就接著射
+
+// 跳躍的這幾個狀態原版會把按鍵情境切到 JumpClimb：沒有左鍵，切換的那一格扳機就被放開（§17.7）。
+// 拿著 AK 時改成維持平常的探索情境，空中也能按、放左鍵（扳機狀態跟著變）；副作用：E、R 等探索情境的鍵在空中也有作用。
+// 按鍵情境在狀態進入之後才切換（explorationStateManager.ws:1398-1422 → :1448-1464），所以在進入時改
+@wrapMethod(CExplorationStateAbstract)
+function StateEnter( prevStateName : name )
+{
+	var stateName : name;
+
+	stateName = GetStateName();
+	if ( stateName == 'Jump' || stateName == 'Land' || stateName == 'AirCollision' || stateName == 'IdleJump' )
+	{
+		if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+			m_InputContextE = EGCI_Exploration;
+		else
+			// 原版的設定：explorationStateJump.ws:255、explorationStateLand.ws:119、explorationStateAirCollision.ws:79、explorationStateIdleJump.ws:29
+			m_InputContextE = EGCI_JumpClimb;
+	}
+	wrappedMethod( prevStateName );
+}
+
+@addField(CR4Player)
+var gfgKeepAkOnJump : bool;		// 起跳的這段程式執行中為 true：OnRangedForceHolster 不收 AK
+
+// 從其他類別不能直接寫入這個欄位（wcc_lite：Left hand side is const），所以用函式設定
+@addMethod(CR4Player)
+function GfgSetKeepAkOnJump( keep : bool )
+{
+	gfgKeepAkOnJump = keep;
+}
+
+// 起跳時原版強制收起十字弩（explorationStateJump.ws:408）
+// 跳進水裡照原版收槍（:822-842）：游泳時十字弩拿在手上就不能移動（locomotionDirectController.ws:817-825）
+@wrapMethod(CExplorationStateJump)
+function StateEnterSpecific( prevStateName : name )
+{
+	thePlayer.GfgSetKeepAkOnJump( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() );
+	wrappedMethod( prevStateName );
+	thePlayer.GfgSetKeepAkOnJump( false );
+
+	if ( m_JumpParmsS.m_JumpTypeE == EJT_ToWater && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+		thePlayer.OnRangedForceHolster( true, true );
+}
+
+@wrapMethod(CR4Player)
+function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
+{
+	if ( gfgKeepAkOnJump )
+	{
+		LogChannel( 'GFG', "jump: AK kept (holster skipped)" );
+		return true;
+	}
+	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
 
 // ===== 後座力：鏡頭照 AK-47 的彈道轉動，準心固定在畫面中央，子彈飛向準心，停火後鏡頭轉回原位（M2）=====
@@ -630,6 +758,8 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 		moveData.pivotRotationValue.Pitch += up;
 		moveData.pivotRotationValue.Yaw -= right;
 		akDrawn = rangedWeapon.GfgIsAkDrawn();
+		if ( akDrawn )
+			rangedWeapon.GfgCancelAutoHolster();
 	}
 	GfgUpdateCrosshair( akDrawn );
 	return result;
