@@ -1508,3 +1508,23 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 實作（wcc_lite 編譯通過，**未實測**）：
   - `UpdateLocomotion` 的改寫，條件從「衝刺」擴大成「衝刺或在空中」（空中是同一個做法的實驗）
   - 每發的 `spread:` 紀錄加上 `overlaySpeed=`、`fullBody=`、`inAir=`，比對跑步（有舉槍）和空中（沒舉槍）時的值
+
+### 17.10 衝刺、跳躍沒舉槍的原因（2026-10-13 確定）與處理
+
+- 實測（`editor.log` 22:28 之後，§17.9 的版本）：使用者回報衝刺、跳躍**還是沒舉槍**
+  - log：衝刺、空中時上半身動畫讀到的值和跑步一樣（`playerMoveTypeForOverlay` = 2、`playerSpeedForOverlay` = 1、`fullBodyAnimWeight` = 0）→ 改寫有生效，但沒有效果
+- 原因（`tools\cr2w_dump.py` 讀動畫圖）：
+  - Geralt 的實體 `characters\player_entities\geralt\geralt_player.w2ent`：`runtimeBehaviorInstanceSlots` 有 `Gameplay`（`pc_gameplay.w2beh`）和 `PlayerOverlay`（`pc_overlay.w2beh`，**`alwaysOnTopOfStack = True`**）→ 上半身動畫圖疊在主動畫圖的輸出上
+  - 舉槍的手臂姿勢來自**主動畫**：`Gameplay` → `Movement`（#1027）→ 移動狀態機（#15146）→ `WalkAndRun`（#25095）裡，走路、跑步的動畫前面都有 `hasCrossbowHeld` 的切換（9 處，例：#25948 換成 `ex_man_geralt_gabriel_aim_run`）
+  - 前進的混合（#27906，`modifiedSpeedBasedOnSlope` 控制，0.8／1.0／1.5）：0.8、1.0 是跑步（有十字弩版本），**1.5 是衝刺（`locomotion_sprint_cycle_*`，沒有十字弩版本）**
+  - 移動狀態機的 `Jump`（#19915）、`Land`（#19892）、`IdleJump`（#30988）沒有用到 `hasCrossbowHeld`；原版跳躍會收十字弩（§17.4），沒有持弩跳躍的動畫
+  - 上半身動畫圖在跑步／衝刺這一支只是在輸入姿勢上疊加瞄準方向的附加動畫（#18587 `LookAtUsingAnimations`）→ 輸入是衝刺、跳躍姿勢時，手不會舉起來
+  - 上半身動畫圖另有「整套瞄準動畫」的路線：#18960 ≥ 1（在戰鬥動作中、站著／走路且…、或 `fullBodyAnimWeight` ≥ 1）→ #18497 → #18493；`pc_gameplay.w2beh` 沒有用到 `fullBodyAnimWeight`（0 處），`pc_overlay.w2beh` 有 26 處
+- 使用者選（2026-10-13）：
+  - **衝刺**：「改成純衝刺，手為衝刺的動作，然後不會開火」
+  - **跳躍**：試空中開火用全身瞄準
+- 實作（wcc_lite 編譯通過，**未實測**）：
+  - 拿掉 §17.9 的 `UpdateLocomotion` 改寫（沒效果）；`spread:` 紀錄保留 `fullBody=`、`inAir=`
+  - `GfgTryFire`：`GetIsSprinting()` 而且不在空中時不開火（扳機狀態保留，衝刺結束還按著就接著射）
+  - `@wrapMethod(Crossbow) ProcessFullBodyAnimWeight`：AK 拿著、扣著扳機、在空中時設 `fullBodyAnimWeight` = 1（原版空中一律是 0：`rangedWeapon.ws:949-950`；計時器每 0.1 秒呼叫：`:1285`）；空中每發也呼叫一次，不等計時器
+  - 預期：空中開火時整個身體換成瞄準姿勢（腿也是）；落地或放開扳機後 0.1 秒內恢復
