@@ -1261,3 +1261,34 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `attack_changes_demo\attack_changes_demo.w2l`：一個 `CNewNPC`、圖層引用 `characters\npc_entities\monsters\fogling_lvl1.w2ent`、三條移動路徑 `combat_dummy_*_wp`（繞圈、直線、慢速直線）、Quen／Igni／Aard 的測試物件 → 次世代版攻擊改動的示範區；NPC 的敵我與 AI 設定從字串看不出來
   - `skills_demo\skills_demo.w2l`：只有觸發區域 `skills_demo_trigger`
   - `quest\`：只有開場與功能測試圖層，沒有生成 NPC
+
+### 15.2 測試指令 `gfgwall()`、`gfgtarget()`（2026-10-13 寫好，wcc_lite 編譯通過，**未實測**）
+
+- 檔案：`workspace\scripts\local\gfg_test.ws`；兩個指令都可以指定距離（公尺），不指定是 8 公尺
+- 位置：玩家前方（鏡頭的水平方向），用 `StaticTrace` 貼地（同原版 `spawn`：`temp.ws:6895-6902`）；朝向玩家（同 `spawnPath` 的 `Yaw + 180`：`temp.ws:6797-6798`）
+- **牆**：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（關卡打樣用的素面磚牆）
+  - 模板內容（CR2W 的 `flatCompiledData` 裡嵌著另一份 CR2W）：三個 `CStaticMeshComponent`
+    - `support_big.w2mesh`、`wall_super_wide.w2mesh` 在 x = -0.68；`trim_super_long_01.w2mesh` 在 (-0.68, 0, 4.75) → 牆高約 4.75 公尺
+    - 模板裡的 `boundingBox` 沒有存尺寸（Min 是浮點數最大值、Max 是 NaN）
+  - 碰撞：三個模型的路徑都在 `<W3_GAME_DIR>\content\content0\collision.cache`（890 MB，檔頭 `CC3W`）的名稱表裡
+    - 對照：`engine\meshes\editor\plane.w2mesh` 不在裡面
+    - `<REDKIT_DEPOT>\collision.cache` 是 0 bytes；5.x 的 ep1、bob 都併進 `content0`
+  - REDkit depot 只有 110 個 `.w2mesh` 散檔，其他模型執行時從遊戲的封存檔載入（uncook 紀錄有 `Extracting ...wall_wide.w2mesh (1.72 KB)`，但 depot 裡沒有這個檔）
+  - 🔶 朝向（推論）：模板裡的縮圖（CThumbnail）攝影機在 (-1.73, 5.68, 6.58)、pitch -30°、yaw 210°（往 -Y 拍），縮圖看到的是長的那一面、柱子在近的一端
+    - → 牆沿著自己的 X 軸延伸、牆面朝 ±Y，原點在柱子那一端；由縮圖取景推估牆寬約 5 公尺
+    - 做法：牆的 +Y 朝向玩家，原點往右移 1.5 公尺
+    - 驗證：生成 1 秒後把每個模型的外框寫進 log（`test wall box N: min=… max=…`；`GetBoundingBox()` 是世界座標：`staringPortrait.ws:66-71` 拿它和玩家的世界座標比較）
+- **靶子**：`characters\npc_entities\crowd_npc\bandit\bandit_lvl1.w2ent`
+  - 敵對：`SetTemporaryAttitudeGroup( 'hostile_to_player', AGP_Default )`（同 `spawnPath`：`temp.ws:6805-6808`）；友善角色打不到（`throwable.ws:126-128`）
+  - 鎖定：Z 鍵（`CameraLock`，`input_qwerty.ini:53`）要在玩家「被威脅」時才有作用（`playerInput.ws:3497-3525`）
+    - 被威脅：附近有 `IsThreat` 的角色（`r4Player.ws:6040-6085`）；敵對、而且距離小於 `findMoveTargetDist + 5` 就算（`:12728` 起），不必進入戰鬥
+    - `findMoveTargetDist` = `findMoveTargetDistMax` = 18（`:337`、`:601`）→ 23 公尺內
+  - 不反擊：`new CAIDoNothingAction in npc` → `OnCreated()` → `ForceAIBehavior( tree, BTAP_AboveCombat )`（同原版狗被摸時：`DogNPC.ws:186-195`；`CAIDoNothingAction`：`actionParams.ws:192-195`）
+  - 不會死：`SetImmortalityMode( AIM_Immortal, AIC_Default )`（同 `npc.ws:456`）→ 傷害最多扣到剩 1 點血（`damageManagerProcessor.ws:498-504`、`539-543`）
+    - 生成時只有帶 `isImmortal` 等旗標的 NPC 才會設定不死模式（`npc.ws:446-467`），不會蓋掉
+    - 為什麼要不死：AK 的需求等級 31（§13.12），1 級盜賊很快就會被打倒
+- 寫法注意（wcc_lite 實測）：
+  - 從外面經由 `thePlayer` 寫入欄位會錯誤 `Left hand side is const` → 改成在 `CR4Player` 自己的方法裡寫
+  - 物件不能和 `NULL` 用 `!=` 比較（`Unable to find suitable operator 'OperatorNotEqual'`）→ 用 `if ( 物件 )`
+- 同時把 `gfg_ak47.ws` 的 `aim:` 紀錄改成記錄原版自動瞄準的條件（`playerBoltProjectile.ws:353-354`）：`displayTarget=`（鎖定的目標）、`hardLock=`、`combatMusic=`
+  - 原本的 `camOffset`、`theCamera-gameCam` 兩欄已經在 §14.7 驗證完，拿掉
