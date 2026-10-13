@@ -1299,3 +1299,39 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 物件不能和 `NULL` 用 `!=` 比較（`Unable to find suitable operator 'OperatorNotEqual'`）→ 用 `if ( 物件 )`
 - 同時把 `gfg_ak47.ws` 的 `aim:` 紀錄改成記錄原版自動瞄準的條件（`playerBoltProjectile.ws:353-354`）：`displayTarget=`（鎖定的目標）、`hardLock=`、`combatMusic=`
   - 原本的 `camOffset`、`theCamera-gameCam` 兩欄已經在 §14.7 驗證完，拿掉
+
+---
+
+## 16. M2 散布：現成做法調查（2026-10-13）
+
+- 使用者選定下一步做「M2 散布」；照 `CLAUDE.md` §11 先找現成的做法
+- 網路搜尋「CS2 inaccuracy formula」沒有找到官方或逆向的公開公式
+
+### 16.1 CCO（巫師3 mod，`findings.md` §8.1）
+
+- 目標點的 X／Y／Z 各加 `RandRangeF( spread, -spread )`，偏移量依距離放大（CCO `playerBoltProjectile.ws:614-629`）
+- 方盒狀分布，散布值固定（XML 屬性 `Spread`），不分站立、移動，也沒有連發累積、停火回復
+
+### 16.2 CSGODOT（Godot 重製 CS2，https://github.com/sidcarrollworks/CSGODOT ，沒有授權條款；2026-10-13 讀 `main`）
+
+- **單位**：vdata 的不準度是「子彈偏離瞄準方向的最大角度的正切值」，角度 = atan(值)
+  - `weapon_vdata.gd:131-139`（`_cone`）、`weapon_sheet.gd:83-87`（`cone_degrees`）
+  - 佐證（作者寫的）：CS2 武器表的 AK 精準距離——7.01／1000 在 21.74 公尺偏 15.24 公分
+- **換算**（`weapon_vdata.gd:86-94`）：都是「總量」
+  - 站立 = atan(Stand + Spread)；蹲下 = atan(Crouch + Spread)
+  - 移動 = atan(Move + Stand + Spread)；跳躍 = atan(Jump + Stand + Spread)
+  - 每發 = atan(Fire)
+  - AK（本專案 `data\cs2\weapons.vdata` 的值）：站立 0.4016°、蹲下 0.3100°、移動 10.32°、跳躍 8.41°、每發 0.447°（和 CSGODOT `weapon_data.gd:490-506` 的預設值一致）
+- **模型**（`weapon.gd`）：
+  - 圓錐半角 = 姿勢的基礎值 + 開火累積量（`current_inaccuracy`，:593-598）
+  - 基礎值（`_cone_for`，:603-621）：站立或蹲下；離地加（跳躍 − 站立）；移動加（移動 − 站立）× 比例
+    - 比例：速度在最高速的 34%～95% 之間線性 0→1，沒按慢走鍵時再開四次方根（:118-126、:613-619；作者註明是 CS:GO 的 0.34、0.95）
+  - 每發：累積量 += 每發值（:738-742）
+  - 衰減：累積量 ×= exp(−dt ÷ τ)，τ = 恢復時間 ÷ ln 10（恢復時間＝降到十分之一的時間；`weapon_data.gd` 的 `accuracy_time_constant`）；低於「每發值 × 一個比例」就歸零（`accuracy_reset_threshold`）
+    - 恢復時間：連射第 2～5 發之間從 0.368 秒線性變成 0.506 秒（`recovery_time`；作者註明是從欄位名稱和 Valve 2016 年的更新說明推論）
+  - 落地：累積量 = max(累積量, 落地 − 站立)（:455-461；落地值取自 CS2 武器表，不是 vdata）
+  - 子彈方向（`_spread_direction`，:853-870）：隨機角度 0～360°、隨機半徑 = 均勻亂數 × 圓錐半角（越靠中心越密）
+- 套到巫師3 時要注意（原版行為）：
+  - Geralt 不能蹲下 → 蹲下的數值用不到
+  - 跳躍會強制收起十字弩（`explorationStateJump.ws:408` 呼叫 `OnRangedForceHolster`；§13.18，**未實測**）→ 若屬實，跳躍、落地的數值用不到
+  - → 實際只剩「站立／移動」兩種基礎值＋連發累積＋停火回復
