@@ -1815,3 +1815,106 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `GfgUpdateCrosshair`：AK 拿著而且鎖定時，每格把準心模組設到那一點的 HUD 座標；解除鎖定時 `SnapToAnchorPosition()` 放回錨點；紀錄 `crosshair on lock target`／`crosshair back to anchor`
   - `GfgAimPoint`：鎖定時，射線的基準方向改成「鏡頭 → 那一點」，散布照算
   - 後座力照舊轉鏡頭；鎖定時準心每格跟著目標，所以後座力只晃鏡頭、不會把子彈推離目標
+- 實測（2026-10-14）：使用者回報「完美」→ commit `5ccbcb3`（§18～§20 的改動一起）
+
+---
+
+## 21. 背對怪物跑時上半身左右快速切換（2026-10-14）
+
+### 21.1 現象（使用者回報）
+
+- 按 S 往鏡頭方向跑（背對怪物）同時射擊：上半身轉身射擊，有時往右、有時往左，**在兩者間快速切換**，看起來不順
+
+### 21.2 原因
+
+- 上半身瞄準：`pc_overlay.w2beh` #18587 `CBehaviorGraphLookAtUsingAnimationsNode`（§17.10 的 `LookAtUsingAnimations`）
+  - 骨頭 `l_shoulderRoll`；`Angle limit` X=180、Y=90；`Animation angle range` X=180、Y=90；`Angle to stop looking` 180
+  - 瞄準點讀父輸入 `lookAtTarget`（#18654）；姿勢動畫 `man_geralt_gabriel_walk_aimpose_horizontal`（#18640，`playbackSpeed=0`）
+- 原版每格在 `UpdateLookAtVariables`（`actor.ws:3592-3607`）設 `lookAtTarget`、`lookAtTarget2`、`lookatToHeadingDiffYaw`（角度差 ÷180：`:3602`）；呼叫的地方：`UpdateLookAtTarget`（`r4Player.ws:2883-2884`）
+- 背對怪物跑時，瞄準點在身體正後方，水平角度在 +179°、-179° 之間跳 → 姿勢在「往左扭到底」和「往右扭到底」之間切換
+  - 沒有讀 `editor.log` 證實角度的數值；是由節點設定與現象對應出來的（🔶 推論）
+
+### 21.3 修法（使用者選「固定往左轉」；wcc_lite 編譯通過，**未實測**）
+
+- `@wrapMethod(CActor) UpdateLookAtVariables`：是玩家、AK 拿著時，先用 `CR4Player.GfgFixBackAim` 改瞄準點，再交給原版
+- `GfgFixBackAim`：角度差（同原版 `:3602` 的算法，沒除以 180）落在右邊、而且超過 165° → 改成左邊 179°（距離、高度不變）；回到 150° 以內或落在左邊就放開
+  - `GfgBackAimSide()` = +1（左）；heading 往左為正（`r4Player.ws:16144-16145`）
+  - 紀錄：`back aim: forced to side 1 (diff=…)`（開始強制時記一次）
+- 只影響上半身的姿勢和頭的朝向；子彈照舊飛向準心
+- 代價：瞄準點從右後方繞回前方時，身體會在約 150° 那裡扭回右邊一次
+
+### 21.4 實測與修正（2026-10-14；`editor.log` 02:16:42 Reload scripts 之後）
+
+- 使用者回報：其實想要**往右**；目前 90% 都固定往左，但**剛開始射擊或換完子彈時**會右、左、右、左閃幾下才固定
+- 紀錄：`back aim: forced to side 1` 47 筆，`diff` 全部在 -177.6°～-179.996°（右後方）；扳機按下、`aim start`（換彈後回到瞄準）之後也一樣
+  - 我們算出來的結果一直是左邊；頻繁出現是因為角度在 ±180° 之間跳、跳回左邊時先放開再重新強制
+  - → 閃動來自動畫圖那端。🔶 推論：#18587 以肩膀骨頭 `l_shoulderRoll` 算角度、`Angle to stop looking=180`；給 179° 太接近 180°，剛拿出槍、換完子彈姿勢還在轉換時可能超過 180° → 停止瞄準 → 回正 → 又開始瞄準
+- 修正（wcc_lite 編譯通過，**未實測**）：
+  - 固定邊改成右邊（`GfgBackAimSide()` = -1）
+  - 背後最多扭到 `GfgBackAimMaxAngle()` = 150°（兩邊都限制），留 30° 餘裕
+  - 強制只在角度回到 150° 以內時放開（不再因為跳回固定邊而放開）→ 紀錄只在真正開始強制時寫一次
+- 實測（2026-10-14）：使用者回報「固定往右邊了，完美」
+
+---
+
+## 22. 不能下馬（2026-10-14，調查中）
+
+### 22.1 現象與紀錄
+
+- 使用者回報：出現了無法下馬的狀況
+- `editor.log`（02:09～02:11）：
+  - 02:09:34 上馬（`Changed SuperState from : Exploration to MountHorse`，按鍵情境 `Horse`）
+  - 02:09:42 在馬上拿出 AK（存檔鎖 `RangedWeapon`；`aim start: trigger=false`）；02:09:43 射一發（`shotCount=1`，沒換彈）；02:09:44 收起（`Couldn't find item 'holster' anim action`）
+  - **02:10:13～16 使用者在馬上重新載入腳本**（`State machine 'RangedWeapon' has no autostate` 等編譯警告、`Goto target state … is already current`）
+  - 02:10:18 `IsDynamicDismountPositionValid(): Index 0 is out of array bounds`（`horse/states/exploration.ws:3130`，是畫除錯球的陣列，不是失敗原因）
+  - 02:10:38 開過快捷輪盤
+
+### 22.2 原版會擋下馬的地方
+
+- `DismountHorse`（`horse/states/exploration.ws:3044-3053`）的條件：`EIAB_DismountVehicle` 允許、沒有對話或過場、按鍵情境不是 `Scene`、沒在淡出或黑畫面、騎手不在戰鬥動作、不在跳躍、沒有已發出的下馬請求、`canDismount`、不在騎馬動作
+- 鎖 `EIAB_DismountVehicle` 的地方：
+  - 騎馬按十字弩鍵：`ShootingCrossbow`（`useVehicle.ws:744-758`）→ 放開時 `WaitForShootingComplete`（`:2049-2052`、`:2113-2130`：等 `WeaponShootDeact` 節點、再等十字弩回 `State_WeaponWait` 才解鎖；這是 entry function）
+  - 十字弩拿出時在馬上：`ShootingCrossbow`（`rangedWeapon.ws:1145`）；`OnWeaponWait` 解（`:56-61`）
+  - 十字弩瞄準時的 `Lock()`（來源 `RangedWeapon`，§20.7）
+- 可能的原因（都沒證實）：重載腳本中斷了等待解鎖的流程；AK 改過的流程（30 發彈匣、不自動收槍）讓解鎖沒發生；其他條件不成立
+
+### 22.3 偵測紀錄（使用者同意；wcc_lite 編譯通過，**未實測**）
+
+- `@wrapMethod(W3HorseComponentStateExploration) OnHorseDismountKeyboard`：記 `dismount key: pressed=… released=…`（有沒有收到按鍵）
+- `@wrapMethod(W3HorseComponentStateExploration) DismountHorse`：在原版判斷**之前**記 `dismount check:`：`allowed`、鎖的來源、`riderInCombatAction`、`jumpAnim`、`dismountRequest`、`canDismount`、`horseAction`、對話、按鍵情境、淡出、黑畫面、十字弩狀態
+- 包 state 的 private 函式、讀 state 的 private 欄位（`dismountRequest`、`isInJumpAnim`）：wcc_lite 編譯通過
+
+### 22.4 實測：可以正常上下馬（2026-10-14）
+
+- 使用者回報：可以正常上下馬（這次在地面上重載、騎馬時沒有重載）
+- 紀錄：
+  - 02:26:25 `dismount check: allowed=true locks= … weapon=State_WeaponWait` → 下馬
+  - 02:28:45 AK 正在收（`weapon=State_WeaponHolster`）：`allowed=false locks=ShootingCrossbow riderInCombatAction=true` → 不能下；02:28:46 收好（`State_WeaponWait`）→ `allowed=true` → 下馬
+  - → 原版行為：騎馬用十字弩時，收好之前不能下馬（§22.2）；收好約 1 秒內就解鎖
+- 🔶 推論：§22.1 那次下不了馬，是在馬上重新載入腳本、中斷了等待解鎖的流程（`useVehicle.ws:2113-2130` 是 entry function）；沒有重現
+- 下馬偵測（`dismount key:`、`dismount check:`）先留著
+
+---
+
+## 23. 主動收槍：C 鍵（2026-10-14）
+
+- 使用者回報：好像沒有辦法主動按鍵收槍
+  - 原因：照使用者的選擇，Shift、換彈、起跳都不收 AK，只有換成其他道具才收（§17.8）；原版沒有專門收十字弩的鍵（平常會自動收）
+- 原版的「收武器」：`SwordSheathe`，鍵盤 **C**（`bin\config\r4game\legacy\base\input_qwerty.ini:709-715`，`BASE_DRAW_SWORDS_KEYBOARD`）；按住 1／2 0.3 秒是收鋼劍／銀劍
+  - 在 `Exploration`、`JumpClimb`、`Combat`、`Horse`、`ThrowHold`、`ThrowHoldChain` 情境都有（`DERIVED_FROM=BASE_DRAW_SWORDS`：`:31`、`:112`、`:180`、`:266`、`:470`、`:492`）
+  - 處理：`OnCommSheatheAny`（`playerInput.ws:1197-1220`）只收劍；按住 1／2 的 `OnCommSheatheSteel`／`Silver` 也會呼叫它（`:1240`、`:1263`）
+- 使用者選「C 鍵」（其他鍵要新增按鍵設定，5.x 的合併方式還沒查：§11 #6）
+- 實作：`@wrapMethod(CPlayerInput) OnCommSheatheAny`：按下、AK 拿著 → `thePlayer.OnRangedForceHolster( true, false )`（原版潛水時收十字弩也是這樣呼叫：`playerInput.ws:1823`、`:1837`）→ 再照原版處理收劍；紀錄 `sheathe key: holster AK`
+- 實測（2026-10-14）：使用者回報全部通過（按 C 收起、再按左鍵拿出、附近有敵人、騎馬）
+
+---
+
+## 24. 騎馬時左鍵不能開槍（2026-10-14 記錄，**還沒做**）
+
+- 使用者回報：騎在馬上時，拿著 AK 按左鍵不會開槍，和沒騎馬時不一樣；**要讓騎馬時的行為和沒騎馬時一樣**；指定在新的 session 做
+- 已知（只查、沒改）：
+  - 騎馬的按鍵情境 `[Horse]`（`bin\config\r4game\legacy\base\input_qwerty.ini:261-327`）沒有 `BASE_ATTACK_LIGHT`（`:654-656`，左鍵 = `AttackWithAlternateLight`，我們的扳機）；左鍵是 **`VehicleAttack`**（`:313`），中鍵是 `VehicleItemAction`／`VehicleItemActionHold`（`:277-278`）
+  - 原版騎馬射十字弩：`StartItemAction`（`useVehicle.ws:744-758`）→ 鎖下馬（`ShootingCrossbow`）→ `ShootCrossbow` 狀態（`:2037-`）；放開時 `WaitForShootingComplete`（`:2113-2130`）等十字弩回 `State_WeaponWait` 才解鎖
+  - 騎馬時十字弩送的動畫事件會換成 `VehicleCrossbow_*`（`rangedWeapon.ws:808-823`）；我們的 `RaiseOwnerGraphEvents` 包裝在騎馬時照原版（`gfg_ak47.ws`）
+  - 騎馬時 AK 會自動收起（02:09:44 紀錄）；`OnGameCameraTick`（我們每格取消自動收槍的地方）騎馬時有沒有被呼叫，沒查
+  - 騎馬用十字弩時，收好之前不能下馬（§22.4）

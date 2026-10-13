@@ -221,6 +221,78 @@ function CalculateMoveSpeed() : float
 	return speed;
 }
 
+// 背後的瞄準點固定往右轉（使用者 2026-10-14 回報：背對怪物跑（S）邊射時，上半身一下往右、一下往左快速切換；要「固定一邊」，後來改成右邊）
+// 上半身瞄準（pc_overlay.w2beh #18587 LookAtUsingAnimations）依瞄準點相對身體的水平角度擺姿勢，範圍 ±180°；
+// 瞄準點在正後方時角度在 +179°、-179° 之間跳 → 左右切換（docs/findings.md §21）。
+// 原版每格在 UpdateLookAtVariables 把瞄準點交給動畫圖（actor.ws:3592-3607；呼叫：r4Player.ws:2884）；
+// AK 拿著時：背後的角度最多扭到 GfgBackAimMaxAngle()；瞄準點在另一邊超過 165° 就改到固定的那一邊，回到最大角度以內才放開。
+// 最大角度不用 179°：179° 時剛開槍、換完子彈還是會閃幾下（使用者 2026-10-14），推論是節點以肩膀骨頭算角度、超過 180° 停止瞄準（#18587 的 Angle to stop looking=180）
+
+@addField(CR4Player)
+var gfgBackAimForced : bool;	// 背後的瞄準點正被改到固定的那一邊
+
+// 背後的瞄準點固定往哪一邊轉：+1 左、-1 右（heading 往左為正：r4Player.ws:16144-16145）
+@addMethod(CR4Player)
+function GfgBackAimSide() : float
+{
+	return -1.f;
+}
+
+// 背後最多扭幾度（離 180° 留餘裕；可調）
+@addMethod(CR4Player)
+function GfgBackAimMaxAngle() : float
+{
+	return 150.f;
+}
+
+@addMethod(CR4Player)
+function GfgFixBackAim( target : Vector ) : Vector
+{
+	var pos, result : Vector;
+	var diff, side, maxAngle, outAngle : float;
+
+	pos = GetWorldPosition();
+	diff = AngleDistance( VecHeading( target - pos ), GetHeading() );	// 同原版 actor.ws:3602（沒有除以 180）
+	side = GfgBackAimSide();
+	maxAngle = GfgBackAimMaxAngle();
+	if ( AbsF( diff ) < maxAngle )
+		gfgBackAimForced = false;
+	else if ( diff * side < 0.f && AbsF( diff ) > 165.f )
+	{
+		if ( !gfgBackAimForced )
+			LogChannel( 'GFG', "back aim: forced to side " + FloatToString( side ) + " (diff=" + FloatToString( diff ) + ")" );
+		gfgBackAimForced = true;
+	}
+
+	if ( gfgBackAimForced )
+		outAngle = side * maxAngle;
+	else if ( AbsF( diff ) > maxAngle )
+	{
+		if ( diff > 0.f )
+			outAngle = maxAngle;
+		else
+			outAngle = -maxAngle;
+	}
+	else
+		return target;
+
+	result = pos + VecFromHeading( GetHeading() + outAngle ) * VecDistance2D( target, pos );
+	result.Z = target.Z;
+	result.W = target.W;
+	return result;
+}
+
+@wrapMethod(CActor)
+function UpdateLookAtVariables( lookAtTargetActive : float, lookAtTarget : Vector )
+{
+	var player : CR4Player;
+
+	player = (CR4Player)this;
+	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAkDrawn() )
+		lookAtTarget = player.GfgFixBackAim( lookAtTarget );
+	wrappedMethod( lookAtTargetActive, lookAtTarget );
+}
+
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
 // 直接觸發射擊，不等動畫事件（CCO 的作法，docs/findings.md §8.1）
 @addMethod(Crossbow)
@@ -333,6 +405,20 @@ function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
 {
 	if ( GfgSelectedAk() )
 		return true;
+	return wrappedMethod( action );
+}
+
+// 主動收槍：C 鍵（原版「收武器」SwordSheathe：legacy\base\input_qwerty.ini:709-715；處理：playerInput.ws:1197-1220）（使用者 2026-10-14 選定）
+// 拿著 AK 時先收起 AK，走原版收十字弩的流程（同原版潛水時：playerInput.ws:1823、:1837 → r4Player.ws:14764-14765 → Crossbow.OnForceHolster：rangedWeapon.ws:713-727）；
+// 之後照原版處理收劍。按住 1／2 收劍（OnCommSheatheSteel／Silver）也會呼叫到這裡（playerInput.ws:1240、:1263）
+@wrapMethod(CPlayerInput)
+function OnCommSheatheAny( action : SInputAction )
+{
+	if ( IsPressed( action ) && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+	{
+		LogChannel( 'GFG', "sheathe key: holster AK" );
+		thePlayer.OnRangedForceHolster( true, false );
+	}
 	return wrappedMethod( action );
 }
 
@@ -1013,6 +1099,38 @@ function GfgCheckStuck( dt : float )
 		+ " translation=" + adjustor.HasAnyActiveTranslationRequests()
 		+ " rotateToTarget=" + adjustor.IsRequestActive( adjustor.GetRequest( 'RotateToTarget' ) )
 		+ " slideTarget=" + targetText + " displayTarget=" + displayText + " orientation=" + GetOrientationTarget() );
+}
+
+// ===== 偵測：按下馬鍵時記下原版下馬的條件（使用者 2026-10-14 回報：不能下馬；docs/findings.md §22）=====
+// 只寫紀錄、不改行為。按鍵：OnHorseDismountKeyboard（horse/states/exploration.ws:3017-3030）；
+// 條件照原版 DismountHorse（:3044-3053）；騎馬拿十字弩時會鎖下馬（ShootingCrossbow：useVehicle.ws:755-756、rangedWeapon.ws:1145）
+
+@wrapMethod(W3HorseComponentStateExploration)
+function OnHorseDismountKeyboard( action : SInputAction )
+{
+	LogChannel( 'GFG', "dismount key: pressed=" + IsPressed( action ) + " released=" + IsReleased( action ) );
+	return wrappedMethod( action );
+}
+
+@wrapMethod(W3HorseComponentStateExploration)
+function DismountHorse() : bool
+{
+	var locks : array<SInputActionLock>;
+	var sources, weaponState : string;
+	var i : int;
+
+	locks = thePlayer.GetActionLocks( EIAB_DismountVehicle );
+	for ( i = 0; i < locks.Size(); i += 1 )
+		sources += NameToString( locks[i].sourceName ) + " ";
+	weaponState = "none";
+	if ( thePlayer.rangedWeapon )
+		weaponState = NameToString( thePlayer.rangedWeapon.GetCurrentStateName() );
+	LogChannel( 'GFG', "dismount check: allowed=" + thePlayer.IsActionAllowed( EIAB_DismountVehicle ) + " locks=" + sources
+		+ " riderInCombatAction=" + IsRiderInCombatAction() + " jumpAnim=" + isInJumpAnim + " dismountRequest=" + dismountRequest
+		+ " canDismount=" + parent.canDismount + " horseAction=" + parent.IsInHorseAction()
+		+ " dialog=" + theGame.IsDialogOrCutscenePlaying() + " context=" + theInput.GetContext()
+		+ " fading=" + theGame.IsFading() + " blackscreen=" + theGame.IsBlackscreen() + " weapon=" + weaponState );
+	return wrappedMethod();
 }
 
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
