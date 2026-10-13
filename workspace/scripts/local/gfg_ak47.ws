@@ -538,18 +538,22 @@ function ThrowProjectile( targetPosIn : Vector )
 	var player : CR4Player;
 	var target : Vector;
 	var rx, ry : float;
+	var displayTarget : string;
 
 	target = targetPosIn;
 	player = (CR4Player)GetOwner();
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
 	{
 		target = player.rangedWeapon.GfgAimPoint();
-		// 診斷：目標點投影到畫面的位置（畫面中央是 0,0：hud.ws:1864-1874）、鏡頭的位移長度、theCamera 和遊戲鏡頭的位置相差多遠
+		// 診斷：目標點投影到畫面的位置（畫面中央是 0,0：hud.ws:1864-1874）；
+		// 原版自動瞄準的條件：鎖定的目標是 NPC、有戰鬥音樂、沒在中鍵瞄準（playerBoltProjectile.ws:353-354），成立時箭會改射向那個 NPC 的身體
 		theCamera.WorldVectorToViewRatio( target, rx, ry );
+		displayTarget = "none";
+		if ( player.GetDisplayTarget() )
+			displayTarget = player.GetDisplayTarget().GetReadableName();
 		LogChannel( 'GFG', "aim: distance=" + FloatToString( VecDistance( player.rangedWeapon.GfgEyePosition(), target ) )
 			+ " screen=(" + FloatToString( rx ) + "," + FloatToString( ry ) + ")"
-			+ " camOffset=" + FloatToString( VecLength( theGame.GetGameCamera().GetCameraWorldOffset() ) )
-			+ " theCamera-gameCam=" + FloatToString( VecDistance( theCamera.GetCameraPosition(), player.rangedWeapon.GfgEyePosition() ) ) );
+			+ " displayTarget=" + displayTarget + " hardLock=" + player.IsHardLockEnabled() + " combatMusic=" + player.IsCombatMusicEnabled() );
 	}
 	wrappedMethod( target );
 }

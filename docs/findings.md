@@ -1262,8 +1262,15 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `skills_demo\skills_demo.w2l`：只有觸發區域 `skills_demo_trigger`
   - `quest\`：只有開場與功能測試圖層，沒有生成 NPC
 
-### 15.2 測試指令 `gfgwall()`、`gfgtarget()`（2026-10-13 寫好，wcc_lite 編譯通過，**未實測**）
+### 15.2 測試指令 `gfgwall()`、`gfgtarget()`（2026-10-13；**已刪除**）
 
+- **使用者 2026-10-13 要求刪除**：測試用的牆、靶子用原版指令（`spawnPath` 等，`CLAUDE.md` §12）就好，不另外寫；`gfg_test.ws` 已刪除
+- 實測結果（`editor.log` 17:00～17:05），留給之後做 AK 參考：
+  - 牆實際寬 8.0 公尺（外框 X 從 -487.61 到 -479.60）、高 4.75 公尺；朝向推論正確（牆面朝向玩家），寬度推估錯（不是 5 公尺）
+  - 打牆時射線距離 10.0～10.3 公尺（射線打到牆），但**箭沒有插在牆上**（使用者回報）；這段 log 沒有腳本錯誤
+  - 盜賊生成時 `hostile=true immortal=true`，仍然一發就死；那一發的紀錄：`displayTarget=bandit_lvl2 hardLock=false combatMusic=true` → **原版自動瞄準的條件成立**（`playerBoltProjectile.ws:353-354`），箭射向盜賊的身體、不是準心
+    - 同一發的傷害處理記錄 `action deals no damage and gives no buffs - investigate!`，接著計算擊殺經驗、`NoSave lock 'dudeIsDying'`；死因沒有查完
+- 以下是當時的做法（保留查證紀錄）
 - 檔案：`workspace\scripts\local\gfg_test.ws`；兩個指令都可以指定距離（公尺），不指定是 8 公尺
 - 位置：玩家前方（鏡頭的水平方向），用 `StaticTrace` 貼地（同原版 `spawn`：`temp.ws:6895-6902`）；朝向玩家（同 `spawnPath` 的 `Yaw + 180`：`temp.ws:6797-6798`）
 - **牆**：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（關卡打樣用的素面磚牆）

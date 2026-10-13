@@ -155,6 +155,7 @@
 **系統基礎**
 
 - **借用十字弩系統**（遠程武器、投射物、瞄準模式），不從零寫武器系統
+- **範圍只做 AK 本身**：AK 以外的物理效果照遊戲原本的行為（例：箭打在牆上沒有痕跡就算了），不另外處理（使用者 2026-10-13）
 
 **第三人稱射擊**
 
@@ -277,6 +278,8 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - Claude **不得用其他方式**寫入 REDkit 資料夾（不手動複製、不還原、不刪除），需要時先問
   - `wcc_lite` 一定要用 `<REDKIT_DIR>\bin\x64_RedKit` 當工作目錄，否則紀錄檔會寫到別處（見 `docs\findings.md` §12.5）
   - 暫存檔放 Claude 的 scratchpad，不放專案資料夾外的其他地方
+- **自己寫任何新東西（程式、指令、工具）之前先問使用者**（2026-10-13）
+  - 已經有現成的（遊戲內建、REDkit 功能、網路上別人做過的）就直接用，不要從頭做
 - 不確定的 API、欄位、檔案格式：
   先在原版腳本或參考 mod 搜尋，**引用出處（檔案路徑與行號）**；查不到就明說，**不要臆測**
 - 修改前先說明要改什麼、為什麼
@@ -304,6 +307,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - ⚠️ **友善的角色打不到**：玩家射出的投射物碰到友善角色不算命中（`throwable.ws:126-128`）
   - `spawn(名稱, 數量, 距離, 是否敵對, 等級)`（`temp.ws:6815-6942`）；「不敵對」時保留生物原本的態度，怪物照樣會攻擊
   - 人物也用 `spawnPath`，例：`characters\npc_entities\main_npc\ciri.w2ent`
+  - `spawnPath` 可以生成任何實體模板（`temp.ws:6790-6813` 用 `CreateEntity`），牆也可以，例：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（寬 8 公尺、高 4.75 公尺；箭不會插在上面：`docs\findings.md` §15.2）
   - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
