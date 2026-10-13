@@ -1471,3 +1471,18 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
     - 換彈後進入 `State_WeaponAim`，0.2 秒後原版加上收槍計時器（`rangedWeapon.ws:1413-1428`）；`HolsterWhenMovingTimer` 在跳躍中就讓它收槍（`:649-671` 的 `stateCur == 'Jump'`）
   - 地上換彈後也收過一次：21:33:50 換彈 → 21:33:52 收槍；時間上和同一組計時器相符（`:656-657`：開始移動時），沒有直接證據
 - 其他：21:34:16～17 有兩發不是 `auto fire`（`AK reload check` 由原版流程呼叫）→ 中鍵（原版十字弩）射的；之後 21:34:19 照原版收槍
+
+### 17.8 實作：跑步舉槍（試）、空中扳機、換彈後不收槍（2026-10-13；wcc_lite 編譯通過，**未實測**）
+
+- 使用者選：先試設 `isAimingWeapon`、跳躍時不切換按鍵設定、換彈後也不自動收槍
+- `gfg_ak47.ws`：
+  - 按下扳機：`isAimingWeapon` = 1、`isShootingWeapon` = 0（同原版按下十字弩鍵：`rangedWeapon.ws:44-48`）；放開照舊兩個都設回 0
+  - `@wrapMethod(CExplorationStateAbstract) StateEnter`：狀態是 `Jump`、`Land`、`AirCollision`、`IdleJump` 而且 AK 拿在手上時，`m_InputContextE` 改成 `EGCI_Exploration`；否則設回原版的 `EGCI_JumpClimb`（各狀態的設定：`explorationStateJump.ws:255`、`explorationStateLand.ws:119`、`explorationStateAirCollision.ws:79`、`explorationStateIdleJump.ws:29`）
+    - 按鍵情境在狀態進入之後才切換：`ChangeStateTo` 呼叫 `StateEnter`（`explorationStateManager.ws:1398-1422`），之後 `PostStateChange` 依 `m_InputContextE` 切換（`:1448-1464`）
+    - `StateEnter` 是 `final function`（`explorationStateAbstract.ws:240-250`）；包它編譯會過，執行時有沒有作用看實測（起跳後不該再出現 `INPUT CONTEXT CHANGED JumpClimb`）
+  - `GfgCancelAutoHolster`：移除 `HolsterAfterDelay`、`HolsterWhenMovingTimer`，`canHolsterAfterDelay`／`canHolsterAfterDelayHorse` 設 0；原本每發呼叫，現在拿著 AK 時每格畫面也呼叫（`OnGameCameraTick`）
+- 可能的副作用（實測時看）：
+  - `isAimingWeapon` = 1 時，原版 `InputLockFailsafe` 不會每格重設面向（`rangedWeapon.ws:480-485`）；面向目標（`GetCombatActionOrientationTarget`：`r4Player.ws:5349-5418`）在連射中不會從「移動方向」換成「鏡頭方向」
+  - 跳躍中 E、R、選單鍵等探索情境的鍵也有作用
+- 相關：拿著 AK 時有存檔鎖（`RangedWeapon.Lock` 的 `CreateNoSaveLock`：`rangedWeapon.ws:421`；拿出時加：`:1182`），收槍才解除（`:429`）；原版每發射完會解除（`State_WeaponShoot`：`:1585-1586`），AK 不經過這個狀態
+  - 現在 Shift、換彈後都不收 AK；手動收起的方法之一：快捷選單選別的道具（`playerWitcher.ws:1872-1876`）

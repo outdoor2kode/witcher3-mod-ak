@@ -13,10 +13,10 @@
 - **回到核心目標：做出 AK-47**（使用者 2026-10-13）
 - **跑射、跳射**：原因已查（`findings.md` §17.1～§17.5）；使用者選「讓 AK 能衝刺開槍」「做跳射」
   - 已實作、編譯通過（§17.6）；實測（§17.7）：跑步、衝刺都能連射；起跳不收槍有作用
-  - 實測發現的問題（**改之前先問使用者**，2026-10-13 已提出做法）：
-    - 跑步、衝刺時沒有舉起 AK（手照跑步姿勢擺動），站著、走路有舉起 → 動畫圖決定（`pc_overlay.w2beh`）
-    - 起跳那一格扳機被放開：切到跳躍按鍵情境 `JumpClimb`（沒有左鍵）造成
-    - 空中換彈完成後被原版計時器收槍；地上換彈後開始移動也收過一次
+  - 實測發現的問題（§17.7）與使用者選的做法（§17.8，已實作、編譯通過、**未實測**）：
+    - 跑步、衝刺時沒有舉起 AK → 按下扳機時設 `isAimingWeapon` = 1（試試看）
+    - 起跳那一格扳機被放開（切到 `JumpClimb` 情境）→ 拿著 AK 時跳躍不切換按鍵情境
+    - 換彈後被原版計時器收槍 → 拿著 AK 時每格移除收槍計時器
 - **分工**（另一個 session 負責 M3，2026-10-13 通知）：各自只 commit 自己的檔案（`git commit -- 路徑`，不用 `git add -A`／`.`／`commit -a`）；`docs/m3.md` 是它的；`gunforgeralt_items.xml`、`test.reddlc` 要改時先問使用者
 - 走路散布：使用者選「先不調」（能跑射之後，開槍時的速度會變）
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的（遊戲內建、網路上別人做過的）就直接用
@@ -37,15 +37,16 @@
 
 ## 沒 commit 的檔案
 
-- `workspace/scripts/local/gfg_ak47.ws`：衝刺開槍、起跳不收槍、扳機紀錄（§17.6）；衝刺、跑步實測可以連射，跳射還沒完成 → 等這一輪改完、實測後一起 commit
+- `workspace/scripts/local/gfg_ak47.ws`：§17.6 的衝刺開槍、起跳不收槍（衝刺、跑步實測可以連射）＋ §17.8 的三項（未實測）→ 實測通過後一起 commit
 
 ## 下一步
 
-1. 等使用者選（2026-10-13 已問）：
-   - 跑步姿勢：扣扳機時設 `isAimingWeapon` = 1 試試（原版按十字弩鍵時這樣設：`rangedWeapon.ws:44-48`），或請使用者在 REDkit 看 `pc_overlay.w2beh` 的轉換條件
-   - 空中扳機：(a) 拿 AK 跳躍時不切換按鍵情境（在 Jump、Land 等狀態的 `StateEnterSpecific` 把 `m_InputContextE` 改成 `EGCI_Exploration`；狀態進入後才切換情境：`explorationStateManager.ws:1398-1422`、`:1448-1464`），或 (b) 忽略切換造成的放開、射到落地
-   - 換彈後的收槍：AK 換彈後也不自動收槍（同 §13.18 的決定），或維持原版
-2. 改完編譯 → 給測試步驟
+1. 等使用者實測（已給步驟），看 `editor.log` 的 `[Script_GFG]`：
+   - 跑步、衝刺時有沒有舉槍（使用者目視）；沒用 → 請使用者在 REDkit 看 `pc_overlay.w2beh` 的 `CrossbowMovement`／`CrossbowAimMovement` 轉換條件
+   - 空中：起跳後沒有 `INPUT CONTEXT CHANGED JumpClimb`；`auto fire` 有 `inAir=true`；空中按、放左鍵有 `trigger=`
+   - 換彈後移動、跳躍：沒有 `crosshair hidden`
+   - 副作用：站著連射轉鏡頭時 Geralt 的面向；跳躍中其他鍵
+2. 都正常 → commit `gfg_ak47.ws`（只 commit 這個檔：`git commit -- 路徑`）
 3. 跳射能用之後：空中的散布（CS2 跳躍 8.41°：`findings.md` §16.2）要不要加，問使用者
 4. 之後的候選（使用者還沒選）：鎖定敵人時的原版自動瞄準（`findings.md` §15.2）、M4 聲音（M3 模型由另一個 session 做）
 
@@ -63,6 +64,7 @@
 - 前兩發沒有後座力：彈道資料的前兩發在同一點（`findings.md` §14.3）
 - 每發轉完的時間 `GfgKickTime` 目前 0.1 秒，可調
 - 開始墜落、攀爬、翻滾仍會收槍（`findings.md` §17.4），還沒改
+- 拿著 AK 時不能存檔（存檔鎖到收槍才解除：`findings.md` §17.8）；Shift、換彈後都不收 AK，手動收起要用快捷選單選別的道具
 
 ## 試過、放棄的做法
 
