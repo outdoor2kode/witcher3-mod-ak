@@ -1202,8 +1202,26 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `recoil: burst=… camera pitch=… applied up=… ticks=… moved=…`：每發開火時鏡頭的角度、後座力已經轉了多少；`ticks`＝上一發之後經過幾格、`moved`＝其中鏡頭有轉的格數
   - `aim: distance=… screen=(x,y) camOffset=… theCamera-gameCam=…`：目標點投影到畫面的位置（畫面中央是 0,0，`hud.ws:1864-1874`）、鏡頭位移的長度、`theCamera` 和遊戲鏡頭位置的距離
   - `crosshair shown: aiming state=…`／`crosshair hidden`
-- wcc_lite 編譯通過（第一次就通過），**未進遊戲測試**
+- wcc_lite 編譯通過（第一次就通過）
 - 沒有處理（同 §14.4）：戰鬥中鎖定目標時的自動瞄準（`playerBoltProjectile.ws:353-377`）、弩箭飛行距離上限 25 公尺（`:348`）
+
+### 14.7 鏡頭版實測（2026-10-13）
+
+- 使用者回報：除了「看牆上的箭」（沒有牆可以打），其他項目都符合預期
+  - 鏡頭連續轉動、不再一頓一頓；準心一直在；壓槍有效；放開後轉回原位；換彈中準心還在
+- `editor.log`（REDkit 13:36 重開；13:37:22 開始遊戲；GFG 紀錄 13:42:43～13:44:50）：
+  - 按住 3 次，共 360 發、12 個彈匣（`magazine empty` 12 次）
+  - `crosshair shown: aiming state=Waiting` 1 次（第一次按左鍵時）；沒有 `crosshair hidden`
+    - 收槍、中鍵那兩項是使用者回報，這段 log 裡沒有對應的紀錄
+  - **鏡頭轉動**：每輪第 4 發以後共 323 發，其中 304 發 `ticks` = `moved`（兩發之間每一格都在轉）
+    - 其餘 19 發都是 `ticks=7 moved=6`：那次間隔剛好 7 格，6 格就轉完，最後 1 格不動
+    - 開火時上一發還沒轉完的部分：最大 0.341°、平均 0.015°
+    - 每發的鏡頭 pitch 照位移表增加：2.000 → 3.400（+1.400）→ 5.016（+1.616）→ 6.729（+1.713）…（表：1.4016、1.6146、1.7194）
+    - yaw：`right` 為負時 yaw 增加、為正時減少 → 「yaw 往左為正」正確
+  - **子彈方向**：360 發的目標點投影到畫面，x 在 -0.00001～0.00054、y 在 0～0.00064 → 都在畫面正中央
+    - 167 發打到東西（8.6～45.6 公尺），其餘到射線盡頭 208.5 公尺
+  - **鏡頭位置**：`GetCameraWorldOffset()` 長度固定 2.511 公尺；加上之後和 `theCamera.GetCameraPosition()` 相差中位數 0、最大 0.314 公尺
+    - → §14.5 的修正版只用 `GetCameraWorldPosition()`，會差 2.5 公尺
 
 ---
 
