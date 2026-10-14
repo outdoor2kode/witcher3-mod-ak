@@ -14,7 +14,9 @@
   - 進度、步驟、查證都在 `docs\m3.md`，**接著做就讀那份**
   - 原本做 M3 的另一個 session，使用者 2026-10-14 關掉了 → 同時只有一個 session，分工規則取消
   - 第 1、2 步完成；使用者 2026-10-14 決定：原尺寸（比例 1.0）、用 `body_hd`、第 3 步由 Claude 寫 Blender 腳本
-  - 第 3 步：`tools\m3_build_ak.py` 寫好、跑通（未 commit）；等使用者打開 `assets\ak47\gfg_ak47_m3.blend` 目視方向、上下、握把位置（`docs\m3.md`「第 3 步」）
+  - 第 3 步：`tools\m3_build_ak.py`（未 commit）；第一版上下顛倒，照使用者的遊戲截圖改成 `--up -X` 重跑（2026-10-15）
+    - 等使用者看 `assets\ak47\preview\ak_and_crossbow_side.png` 確認；握把位置、槍托穿不穿手臂要進遊戲看（`docs\m3.md`「第 3 步」）
+    - 使用者不想在 Blender 裡找視角操作：要目視時 Claude 用暫存的渲染腳本出圖給他看
 - **拿掉偵測紀錄：編譯通過、未實測、未 commit**（使用者 2026-10-14 同意；`findings.md` §25）
   - `gfg_ak47.ws` 的 `LogChannel` 42 行全部拿掉；只為記錄而寫的包裝、欄位一起拿掉
   - 使用者進遊戲照常玩一輪，沒有異常就 commit
@@ -53,12 +55,12 @@
 ## 沒 commit 的檔案
 
 - `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未實測）
-- `tools\m3_build_ak.py`：M3 第 3 步的腳本（跑通、匯出讀回比對一致；等使用者目視 `.blend`）
+- `tools\m3_build_ak.py`：M3 第 3 步的腳本（`--up -X` 重跑、匯出讀回比對一致；等使用者看預覽圖確認）
 - `assets\ak47\` 的 `.blend`、`.fbx`：腳本的輸出，`.gitignore` 排除，不 commit
 
 ## 下一步
 
-1. **M3 第 3 步的目視**（使用者）：方向、上下、握把位置；不對就改 `--up`、`--offset` 重跑；對了就 commit `tools\m3_build_ak.py`
+1. **M3 第 3 步的確認**（使用者）：看預覽圖 `assetsk47\previewk_and_crossbow_side.png`；對了就 commit `tools\m3_build_ak.py`
 2. **M3 第 4 步前**（Claude）：查巫師3 材質圖（`pbr_std` 系列 `.w2mg`）要哪些貼圖、通道放什麼，寫匯入用的材質 XML
 3. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
