@@ -61,7 +61,9 @@
 
 ## 下一步
 
-1. **M3 第 4 步 B**：A（貼圖、模型匯入）已完成；B 是實體模板、`.reddlc` 掛載、物品 XML 改 `equip_template`（做法見 `docs\m3.md`「第 4 步」）
+1. **M3 第 4 步 B**：模板已換成 AK 並存檔；第一次匯入的模型沒用到骨頭群組（`docs\m3.md`「第一次匯入的模型沒用到骨頭群組」）
+   - `tools\m3_build_ak.py` 的匯出設定已改（和 Wiki 不同），新 FBX 已產生；等使用者在 REDkit 重新匯入模型，Claude 看 `editor.log` 和模型檔的骨頭名稱
+   - 之後：`test.reddlc` 加掛載（還沒做）、進遊戲
 2. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 3. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
 4. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 REDkit 需要的 Wwise 版本：`CLAUDE.md` §3）
