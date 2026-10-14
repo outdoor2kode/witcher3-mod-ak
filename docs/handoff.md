@@ -56,14 +56,13 @@
 
 - `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未實測）
 - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出，`.gitignore` 排除，不 commit
-- `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent`：從十字弩模板複製，等使用者換模型、進遊戲測過再 commit（同資料夾的 `.w2mesh`、`.xbm` 被 `.gitignore` 排除）
-- `workspace\dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`：`equip_template` 改成 `gfg_ak47`（使用者同意；未實測）
 
 ## 下一步
 
 1. **M3 第 4 步 B**：模板已換成 AK 並存檔；第一次匯入的模型沒用到骨頭群組（`docs\m3.md`「第一次匯入的模型沒用到骨頭群組」）
    - 改成 NODE 模式的做法（`docs\m3.md`「改用 NODE 模式」）：重匯後骨頭是 `handle`，模板預覽看得到 AK（2026-10-15）
-   - 之後：`test.reddlc` 加掛載（還沒做）、進遊戲
+   - `test.reddlc` 已加掛載；**進遊戲 AK 在左手、方向對，但沒有顏色**（`docs\m3.md`「第一次進遊戲」）→ 下一步查顏色：把 AK 材質的 Diffuse 暫時換成原版十字弩的貼圖，分辨是「我們的貼圖檔」還是「材質」的問題
+   - 之後：`bolt` slot 移到槍口
 2. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 3. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
 4. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 REDkit 需要的 Wwise 版本：`CLAUDE.md` §3）

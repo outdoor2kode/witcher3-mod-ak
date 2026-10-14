@@ -16,6 +16,7 @@
 		<items>
 			<!-- M1 placeholder: copied from "Crossbow 1" (def_item_weapons_crossbow.xml:103-127) -->
 			<!-- weight 3.5 (vanilla 1.53) makes it easy to tell this item apart in the tooltip -->
+			<!-- M3: equip_template = file name of dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent (copy of witcher_crossbow_lvl1 with the AK mesh), mounted by test.reddlc -->
 			<item
 				name							="gfg_ak47"
 				category						="crossbow"
@@ -25,7 +26,7 @@
 				ability_slots					="0"
 				grid_size						="2"
 				hold_slot						="l_weapon"
-				equip_template					="witcher_crossbow_lvl1"
+				equip_template					="gfg_ak47"
 				equip_slot						="crossbow_back_slot"
 				localisation_key_name			="gfg_item_name_ak47"
 				localisation_key_description	="item_desc_crossbow_1"
