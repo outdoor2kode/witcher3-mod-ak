@@ -2100,3 +2100,40 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 騎馬拿出 AK：`horse aim camera: true`；收槍（C）：`horse aim camera: false`
   - 騎馬連射時 `recoil: … yaw=` 跟著 `applied right` 變（像地面 20:35:32 那樣）
   - 輪盤一開就關時：`hold indicator on` 在前面；`close requested … PCConfirm=true` 之前有沒有 `activate slot=… tab=false`
+
+### 24.8 第三次實測（2026-10-14；`editor.log` 21:17～21:20）：騎馬開槍通過；輪盤一開就關的原因
+
+- 使用者回報：「測完，完美」；輪盤只剩「在馬上、沒拿 AK」時一按 Tab 出現一下就消失，拿著 AK 時沒問題
+- 紀錄確認：
+  - 拿出、收槍、鎖定都照預期：`horse aim camera: true`（拿出 AK）、`false locked=true`（Z 鎖定）、`false`（C 收槍）
+  - 左右後座力有作用：21:18:46 第 5→8 發，`yaw` -31.0354 → -30.3743 → -29.9212 → -29.2094，`applied right` 0.1856 → -0.4756 → -0.9286 → -1.6405，每發的變化量一樣（往左為正）
+- **輪盤一開就關：和「按住 E 下馬」的提示同時出現、同時消失**
+  - 21:19:24 提示打開（`hold indicator on` t=4352.85）
+    - 打開前的那一次（t=4352.78）正常：按住、放開才關（`PCConfirm=false`）
+    - 之後 8 次都一開就關（`PCConfirm=true`，Tab 還按著；t=4353.39～4357.53）
+  - 21:19:31 拿出 AK、提示關掉（t=4360.15）→ 之後 3 次正常（t=4360.71、4361.97、4362.43）
+  - 21:19:37 收槍、提示打開（t=4364.66）→ 之後 8 次都一開就關（t=4365.45～4369.89）
+  - 一開就關之前都**沒有** `activate slot`
+    - 左鍵點選要先選定格子成功（會寫 `activate slot`）才關閉（`HudModuleRadialMenu.as:605-610`），所以不是點選
+    - 剩下 E、Enter 鍵（`:845-849`）或雙擊（`:619-629`）
+- **原版 Flash 介面的機制**（REDkit 附的原始碼，`<REDKIT_DEPOT>\gameplay\gui_new\actionscript\red\`）：
+  - 下馬提示打開時（`hud\modules\HudModuleInteractions.as:125-136`）：開啟「按住」模擬，並讓整個 HUD 開始收按鍵（`addInputBlocker(false, …)` → `managers\InputManager.as:125-152`）
+  - 「按住」模擬（`InputManager.as`）：
+    - 按下時把那個鍵記成「按著」，放開時刪掉（`:367-402`）
+    - 記成「按著」的鍵，0.5 秒後開始一直重送「按住」，最快每 30 毫秒一次（`:40-43`、`:422-468`）
+  - 提示關掉時（`HudModuleInteractions.as:138-145`）：關掉模擬、HUD 不再收按鍵，但**不清掉「按著」的鍵**
+    - 只有 `reset()` 會清（`InputManager.as:631-643`）：`CoreComponent.resetInput()`（`core\CoreComponent.as:61-64`）、放開畫面上提示的按鍵時（`ModuleInputFeedback.as:983-990`）
+  - 輪盤開著時收到 E 或 Enter 的任何事件（按下、按住、放開）→ 選定並關閉（`:845-849`）
+- **🔶 推論**：用 E 下馬時，Flash 把 E 記成「按著」，之後再也收不到放開
+  - 紀錄：21:17:50 `dismount key: pressed=true` 之後 3 行就是 `hold indicator off`（下馬開始、提示關掉）；E 在 21:17:52 才放開，那時 HUD 已經不收按鍵
+  - 之後每次在馬上、提示打開，Flash 就一直重送「E 按住」→ 輪盤一打開就被當成按 E 而關掉
+  - 拿著 AK 時不能下馬 → 提示關掉 → 不重送 → 輪盤正常（下馬鎖 → 提示：`playerInput.ws:351-358` → `r4guimanager.ws:1507-1519`）
+  - 昨晚也符合：
+    - 02:09:34 上馬後一直在馬上（中間沒有下馬）：02:10:38、02:14:50、02:15:04 輪盤正常
+    - 02:24:50 起多次用 E 下馬、上馬：02:25 開始一直有 `GFX RAD` 串流，02:28:40、02:28:43 一開就關
+  - `GFX RAD bCheckStick false` 的串流就是這些重送的事件（輪盤關著時收到才會寫：`HudModuleRadialMenu.as:708-711`）
+  - 全部是原版的程式（Flash 與腳本），AK 只是在拿著時讓下馬提示關掉
+  - 沒驗證：重送的確定是 E（也可能是 Enter，但沒按過 Enter）；原版遊戲（沒有 mod）是否也會這樣
+- 原版腳本有現成的方法清掉 Flash 的「按著」：`GetMemberFlashFunction( "resetInput" )` 再 `InvokeSelf()`
+  - 例：`tutorialPopup.ws:42`、`:163`；`characterMenu.ws:97`、`:225`
+  - HUD 模組也有這個方法：`HudModuleBase` → `CoreHudModule`（`core\CoreHudModule.as:15`）→ `CoreComponent`

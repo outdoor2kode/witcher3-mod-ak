@@ -149,7 +149,10 @@
     - annotation 裡能不能用 `super.`：官方 Wiki（頁面 36241598）沒寫；編譯會過，但行為沒驗證過，目前不用
     - **`.ws` 和 `.xml` 一律存成 UTF-8 加 BOM**：REDkit 開專案時會檢查，缺 BOM 會跳出 invalid encoding（`docs\findings.md` §12.7）
       - 可以寫繁體中文註解；換行 LF 或 CRLF 都可以
-13. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
+13. **原版 Flash 介面（HUD、選單）的 ActionScript 原始碼在 `<REDKIT_DEPOT>\gameplay\gui_new\actionscript\`**（2026-10-14）
+    - 和遊戲用的是同一版：`editor.log` 裡 Scaleform 錯誤的行號對得上（`docs\findings.md` §24.7）
+    - 腳本呼叫的 Flash 函式（`GetMemberFlashFunction`）、Flash 呼叫的腳本事件（`GameEvent.CALL`）都查得到
+14. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
 

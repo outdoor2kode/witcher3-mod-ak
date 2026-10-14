@@ -125,6 +125,7 @@ function GfgSetTrigger( pressed : bool )
 			SetBehaviorGraphVariables( 'isAimingWeapon', false );
 		SetBehaviorGraphVariables( 'isShootingWeapon', false );
 		thePlayer.SetIsAimingCrossbow( false );
+		GfgKeepRiderAiming();
 	}
 }
 
@@ -142,9 +143,41 @@ function OnWeaponAimStart()
 	{
 		LogChannel( 'GFG', "aim start: trigger=" + crossbow.gfgTriggerHeld );
 		if ( !crossbow.gfgTriggerHeld )
+		{
 			SetBehaviorGraphVariables( 'isAimingWeapon', false );
+			crossbow.GfgKeepRiderAiming();
+		}
 	}
 	return result;
+}
+
+// 騎馬時拿著 AK 不自動收槍，直到按 C 等收槍動作（使用者 2026-10-14 要求；docs/findings.md §24.6）
+// 騎馬的動畫圖 pc_rider.w2beh 的十字弩狀態機：瞄準中（WeaponAim）時 isAimingWeaponRider、isShootingWeaponRider 都是 0 就收槍（#6779 → #6398），
+// 換彈動畫結束時沒在瞄準也收槍（#6390；瞄準中則回到 WeaponAim：#7100）。地面的動畫圖沒有這條規則。
+// → 騎馬拿著 AK 時，isAimingWeaponRider 一直當作 1（只改動畫圖的變數，十字弩自己的 isAimingWeapon 照扳機）；
+//   有人要求收槍（OnForceHolster：C 鍵、換道具、空白鍵等）就放手，讓原版的收槍切換（#6773 → #6398）照常進行
+
+@addField(Crossbow)
+var gfgHolsterRequested : bool;	// 收槍中：不再把騎馬動畫圖當作瞄準中；AK 收好（或沒拿著）時清掉
+
+@wrapMethod(Crossbow)
+function OnForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
+{
+	if ( GfgIsAk() && GetCurrentStateName() != 'State_WeaponWait' )
+		gfgHolsterRequested = true;
+	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
+}
+
+@addMethod(Crossbow)
+function GfgKeepRiderAiming()
+{
+	if ( !GfgIsAkDrawn() )
+	{
+		gfgHolsterRequested = false;
+		return;
+	}
+	if ( ownerPlayer.IsUsingVehicle() && !gfgHolsterRequested )
+		ownerPlayer.SetBehaviorVariable( 'isAimingWeaponRider', 1.f );
 }
 
 @addMethod(Crossbow)
@@ -325,7 +358,8 @@ function GfgTryFire()
 	// 衝刺中、在空中（跳躍等）不開火，手維持原本的動作（使用者 2026-10-13 選定；docs/findings.md §17.10、§17.11）：
 	// 主動畫的衝刺、跳躍沒有十字弩版本（pc_gameplay.w2beh #27906、#19915），舉不了槍。
 	// 扳機狀態保留：衝刺結束、落地時還按著就接著射
-	if ( ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() )
+	// 騎馬時不看：騎馬用的是另一張動畫圖（pc_rider.w2beh，docs/findings.md §24）
+	if ( !ownerPlayer.IsUsingVehicle() && ( ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() ) )
 		return;
 
 	// 射速：下一發的時間由上一發的預定時間累加，不從實際開火的那一格畫面起算
@@ -603,7 +637,7 @@ function GfgAddRecoil( now : float )
 
 	// 這一發開火時：鏡頭的角度、後座力已經轉了多少（＝這一發偏離原本瞄準點多少）、上一發還沒轉完的部分、
 	// 上一發之後鏡頭轉動的格數（ticks 和 moved 相等＝兩發之間每一格都有轉）
-	rot = theGame.GetGameCamera().GetCameraWorldRotation();
+	rot = GfgCamera().GetCameraWorldRotation();
 	LogChannel( 'GFG', "recoil: burst=" + gfgBurstShots + " camera pitch=" + FloatToString( rot.Pitch ) + " yaw=" + FloatToString( rot.Yaw )
 		+ " applied up=" + FloatToString( gfgRecoilUp ) + " right=" + FloatToString( gfgRecoilRight )
 		+ " left up=" + FloatToString( gfgKickUp ) + " right=" + FloatToString( gfgKickRight )
@@ -671,22 +705,34 @@ function GfgIsAkDrawn() : bool
 	return GfgIsAk() && GetCurrentStateName() != 'State_WeaponWait' && GetCurrentStateName() != 'State_WeaponHolster';
 }
 
-// 遊戲鏡頭的位置與視線方向（theGame.GetGameCamera()，r4Game.ws:261；customCamera.ws:110-112）
-// - 位置要加上 GetCameraWorldOffset()：原版拍照模式取遊戲鏡頭的位置就是這樣寫（photomodeManager.ws:98-99）
-// - 不用 theCamera：2026-10-13 實測，用它的位置與方向投影出的畫面中央不是 (0,0)（docs/findings.md §14.5）
+// 畫面上正在用的鏡頭：取法同原版拍照模式（photomodeManager.ws:96-99：GetTopmostCamera，位置加上 GetCameraWorldOffset；customCamera.ws:110-112）
+// - 騎馬時用的是另一台鏡頭（r4Game.ws:83 ActivateHorseCamera）；theGame.GetGameCamera()（r4Game.ws:261，走路用的那台）騎馬時停住不動，
+//   用它算的子彈會飛到畫面外（docs/findings.md §24.6）
+// - 不用 theCamera 的 GetCameraPosition／Direction：2026-10-13 實測，用它的位置與方向投影出的畫面中央不是 (0,0)（docs/findings.md §14.5）
+@addMethod(Crossbow)
+function GfgCamera() : CCustomCamera
+{
+	var cam : CCustomCamera;
+
+	cam = theGame.GetWorld().GetCameraDirector().GetTopmostCamera();
+	if ( !cam )
+		cam = theGame.GetGameCamera();
+	return cam;
+}
+
 @addMethod(Crossbow)
 function GfgEyePosition() : Vector
 {
 	var cam : CCustomCamera;
 
-	cam = theGame.GetGameCamera();
+	cam = GfgCamera();
 	return cam.GetCameraWorldPosition() + cam.GetCameraWorldOffset();
 }
 
 @addMethod(Crossbow)
 function GfgViewDirection() : Vector
 {
-	return VecNormalize( RotForward( theGame.GetGameCamera().GetCameraWorldRotation() ) );
+	return VecNormalize( RotForward( GfgCamera().GetCameraWorldRotation() ) );
 }
 
 // ===== 散布：子彈在以準心為中心的圓錐內隨機偏移（M2）=====
@@ -799,6 +845,7 @@ function GfgAimPoint() : Vector
 	var actor : CActor;
 	var item : CItemEntity;
 	var angle, radius : float;
+	var vehicle : CGameplayEntity;
 
 	// 散布：隨機方向，偏離角度 = 均勻亂數 × 圓錐半角，越靠中心越密（CSGODOT weapon.gd:853-870）
 	angle = RandF() * 2.f * Pi();
@@ -831,17 +878,19 @@ function GfgAimPoint() : Vector
 	groups.PushBack( 'Platforms' );
 	groups.PushBack( 'Corpse' );
 
+	vehicle = thePlayer.GetUsedVehicle();
 	if ( theGame.GetWorld().GetTraceManager().RayCastSync( start, end, results, groups ) )
 	{
 		for ( i = 0; i < results.Size(); i += 1 )
 		{
 			// 排除自己、自己的武器與箭、死亡或昏迷的角色（同 playerAiming.ws:583-585）
+			// 騎馬時也排除自己的馬：原版的箭會穿過自己的馬（throwable.ws:117-118）
 			// 打到地形等沒有元件的東西時 component 是空的（原版 playerAiming.ws:337 也有檢查）
 			if ( results[i].component )
 				ent = results[i].component.GetEntity();
 			else
 				ent = NULL;
-			if ( ent == thePlayer || ent == this || ent == deployedEnt || (W3BoltProjectile)ent )
+			if ( ent == thePlayer || ( vehicle && ent == vehicle ) || ent == this || ent == deployedEnt || (W3BoltProjectile)ent )
 				continue;
 			item = (CItemEntity)ent;
 			if ( item && item.GetParentEntity() == thePlayer )
@@ -962,19 +1011,17 @@ function GfgUpdateCrosshair( drawn : bool )
 	}
 }
 
-// 玩家鏡頭的每格更新：把後座力轉到鏡頭上、更新準心
-// - 腰射時玩家在 Exploration／Combat 狀態，都會經 extendedMovable.ws:123 呼叫到這裡
-//   中鍵瞄準（AimThrow 狀態）不會：aimThrow.ws:161-394 沒有呼叫上層；那時左鍵也不是扳機（input_qwerty.ini:466-484 沒有 BASE_ATTACK_LIGHT）
+// 每格（走路、騎馬共用）：把後座力轉到鏡頭上、不自動收槍、解除 Z 鎖定的鎖、更新準心
 // - 直接改 moveData.pivotRotationValue：原版爬牆的鏡頭也是每格改這個值（explorationStateClimb.ws:2111-2135）；
-//   2026-10-13 實測，改過的角度會保留，不會被拉回（docs/findings.md §14.4）
+//   2026-10-13 實測（走路），改過的角度會保留，不會被拉回（docs/findings.md §14.4）
+//   騎馬時馬的鏡頭每格會把上下角度拉向地形（horseRiding.ws:497、:525），未實測
 // - 方向：pitch 往上為正（swimming.ws:1401-1406：pitch < 0 是往下）；yaw 往左為正（r4Player.ws:16144-16145：右邊的點是 heading - 90）
-@wrapMethod(CR4Player)
-function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
+@addMethod(CR4Player)
+function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 {
-	var result, akDrawn : bool;
+	var akDrawn : bool;
 	var up, right : float;
 
-	result = wrappedMethod( moveData, dt );
 	akDrawn = false;
 	if ( rangedWeapon )
 	{
@@ -991,6 +1038,19 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 		}
 	}
 	GfgUpdateCrosshair( akDrawn );
+}
+
+// 玩家鏡頭的每格更新（走路）
+// - 腰射時玩家在 Exploration／Combat 狀態，都會經 extendedMovable.ws:123 呼叫到這裡
+//   中鍵瞄準（AimThrow 狀態）不會：aimThrow.ws:161-394 沒有呼叫上層；那時左鍵也不是扳機（input_qwerty.ini:466-484 沒有 BASE_ATTACK_LIGHT）
+// - 騎馬時也不會：HorseRiding 有自己的版本（horseRiding.ws:361-426），另外包（下面「騎馬」那一段）
+@wrapMethod(CR4Player)
+function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
+{
+	var result : bool;
+
+	result = wrappedMethod( moveData, dt );
+	GfgCameraTick( moveData, dt );
 	GfgCheckStuck( dt );
 	return result;
 }
@@ -1131,6 +1191,318 @@ function DismountHorse() : bool
 		+ " dialog=" + theGame.IsDialogOrCutscenePlaying() + " context=" + theInput.GetContext()
 		+ " fading=" + theGame.IsFading() + " blackscreen=" + theGame.IsBlackscreen() + " weapon=" + weaponState );
 	return wrappedMethod();
+}
+
+// ===== 騎馬：左鍵開槍，行為和沒騎馬時一樣（使用者 2026-10-14 指定；docs/findings.md §24）=====
+// 騎馬時左鍵是 VehicleAttack（legacy\base\input_qwerty.ini:313），由騎馬戰鬥管理處理：沒拿劍就拔劍、拿劍就揮砍（useVehicle.ws:706-779）。
+// 原版騎馬射十字弩（中鍵）會讓戰鬥管理進入 ShootCrossbow 狀態（:744-758）；戰鬥管理不在閒置狀態時，
+// 馬每格被鎖住速度，也不能跳、不能下馬（horse/states/exploration.ws:519-537、:970-971、:3007、:3047）。
+// 使用者選「拿著 AK 時馬照常操作」（下馬還是要先收槍）：左鍵不進入 ShootCrossbow，戰鬥管理留在閒置狀態；
+// 原本由 ShootCrossbow 做的兩件事改成自己做：手臂瞄準的方向（GfgHorseAimPose）、把動畫事件交給十字弩（OnAnimEvent_Throwable 的包裝）。
+// 騎馬的動畫圖 pc_rider.w2beh：actionType（EVehicleCombatAction）選擇十字弩、炸彈、法印、揮劍哪一組動畫（#2643 → #2639 'Crossbow'），
+// 十字弩那一組用 aimHorizontal、aimVertical 決定瞄準方向
+
+// 閒置時按左鍵（OnAttack：useVehicle.ws:706-718；回到閒置時還按著：ShouldEnterNextState :601-604）：
+// AK 選用時改成扳機，不拔劍、不揮劍（同地面的 OnCbtAttackWithAlternateLight）。船照原版
+@wrapMethod(W3VehicleCombatManagerStateNull)
+function StartAttackAction()
+{
+	var itemId : SItemUniqueId;
+	var ak : Crossbow;
+
+	itemId = rider.GetSelectedItemId();
+	if ( !horseComp || !rider.inv.IsIdValid( itemId ) || !rider.inv.ItemHasTag( itemId, 'gfg_ak47' ) )
+	{
+		wrappedMethod();
+		return;
+	}
+
+	ak = (Crossbow)rider.inv.GetItemEntityUnsafe( itemId );
+	if ( !ak )
+		return;
+	// 還沒拿出來：照原版 StartItemAction 的十字弩分支拿出（:750-756），但不進入 ShootCrossbow、不另外鎖下馬
+	// （拿出時十字弩自己會鎖下馬、上馬，收好才解：rangedWeapon.ws:1145-1146、:56-61）
+	if ( !rider.IsCrossbowHeld() && rider.IsActionAllowed( EIAB_Crossbow ) )
+	{
+		rider.SetBehaviorVariable( 'actionType', (int)EHCA_ShootCrossbow );
+		rider.rangedWeapon = ak;
+		ak.OnRangedWeaponPress();
+		LogChannel( 'GFG', "horse: draw AK" );
+	}
+	ak.GfgSetTrigger( true );
+}
+
+// 騎馬時鏡頭的每格更新（horseRiding.ws:361-426；不會呼叫 CR4Player 的 OnGameCameraTick）
+// 用原版瞄準鏡頭時回傳 true，同原版按住中鍵瞄準時（useVehicle.ws:1754，經 horseRiding.ws:425 傳回）
+@wrapMethod(CR4PlayerStateHorseRiding)
+function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
+{
+	var result : bool;
+
+	result = wrappedMethod( moveData, dt );
+	parent.GfgCameraTick( moveData, dt );
+	if ( parent.GfgHorseTick( vehicleCombatMgr, moveData, dt ) )
+		return true;
+	return result;
+}
+
+// 騎馬時拿著 AK、用原版瞄準鏡頭時（GfgSetHorseAimCam）：上下、左右的目標角度都設成現在的角度，後座力轉的角度才不會被拉回（docs/findings.md §24.6、§24.7）
+// - 第一次實測：上下被拉回「地形角度 - 10」（horseRiding.ws:482-498、:514-526）；用原版瞄準鏡頭時這段整段跳過（useVehicle.ws:431-433 → horseRiding.ws:460-472）
+// - 第二次實測：左右一直停在同一個角度，原因沒查到（🔶推測是自動轉回馬後方：horseRiding.ws:417-422；原版瞄準鏡頭會關掉它：:400-402）
+// - 做法同原版走路時用十字弩瞄準：每格把目標角度設成現在的角度（aimThrow.ws:361、:371）
+// 鎖定目標（Z）時不用瞄準鏡頭，照原版把鏡頭轉向目標（useVehicle.ws:435-466）
+@wrapMethod(CR4PlayerStateHorseRiding)
+function OnGameCameraPostTick( out moveData : SCameraMovementData, dt : float )
+{
+	var result : bool;
+
+	result = wrappedMethod( moveData, dt );
+	if ( parent.gfgHorseAimCam )
+	{
+		moveData.pivotRotationController.SetDesiredHeading( moveData.pivotRotationValue.Yaw );
+		moveData.pivotRotationController.SetDesiredPitch( moveData.pivotRotationValue.Pitch );
+	}
+	return result;
+}
+
+// 騎馬拿著 AK 時用原版按住中鍵瞄準的鏡頭（使用者 2026-10-14 選定；docs/findings.md §24.7）
+// - 原版：按住中鍵時 aiming = true（useVehicle.ws:1660-1671），每格設給 vehicleCbtMgrAiming（:1734）、鏡頭往右 1.4、往上 0.15 公尺（:1749-1752）
+// - vehicleCbtMgrAiming 為 true 時：馬的鏡頭不自動轉回馬的後方（horseRiding.ws:400-402），每格的後段只把距離設成 2.2 公尺就結束
+//   （useVehicle.ws:431-433 → horseRiding.ws:460-472），不拉回上下角度、不跟著馬轉、不把左右偏移拉回 0（:583）
+@addField(CR4Player)
+var gfgHorseAimCam : bool;	// 這一格用原版瞄準鏡頭（vehicleCbtMgrAiming 是我們設的）
+
+// 開的時候每格設（回到閒置時原版會清掉：useVehicle.ws:563）；關的時候只清自己設的。
+// keepVanilla：原版射十字弩、丟炸彈時每格自己設 vehicleCbtMgrAiming（:1734），不去動它
+@addMethod(CR4Player)
+function GfgSetHorseAimCam( on : bool, optional keepVanilla : bool )
+{
+	if ( on )
+		vehicleCbtMgrAiming = true;
+	else if ( gfgHorseAimCam && !keepVanilla )
+		vehicleCbtMgrAiming = false;
+	if ( on != gfgHorseAimCam )
+		LogChannel( 'GFG', "horse aim camera: " + on + " locked=" + IsCameraLockedToTarget() );
+	gfgHorseAimCam = on;
+}
+
+// 騎馬時每格：扳機跟著左鍵、AK 拿著時不自動收槍、中鍵射完回到閒置、手臂瞄準、原版瞄準鏡頭
+// 回傳 true：這一格用原版瞄準鏡頭
+@addMethod(CR4Player)
+function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovementData, dt : float ) : bool
+{
+	var mgrState : name;
+	var pressed : bool;
+	var localOffset : Vector;
+
+	if ( !rangedWeapon || !rangedWeapon.GfgIsAk() )
+	{
+		GfgSetHorseAimCam( false );
+		return false;
+	}
+
+	// 扳機：閒置以外的狀態收不到左鍵的事件（只有 Null、SwordAttack 有 OnAttack：useVehicle.ws:706、:1123），
+	// 所以每格直接讀左鍵（原版也這樣讀：:601）。放開一律放開扳機；按著時要 AK 拿在手上才扣（還沒拿出來時由 StartAttackAction 的包裝拿出）
+	pressed = theInput.IsActionPressed( 'VehicleAttack' ) && inv.ItemHasTag( GetSelectedItemId(), 'gfg_ak47' );
+	if ( rangedWeapon.gfgTriggerHeld && !pressed )
+		rangedWeapon.GfgSetTrigger( false );
+	else if ( !rangedWeapon.gfgTriggerHeld && pressed && rangedWeapon.GfgIsAkDrawn() )
+		rangedWeapon.GfgSetTrigger( true );
+
+	// 騎馬動畫圖一直當作瞄準中，不自動收槍（GfgKeepRiderAiming；原版射擊等也會把它設成 0，所以每格設）
+	rangedWeapon.GfgKeepRiderAiming();
+
+	if ( !rangedWeapon.GfgIsAkDrawn() )
+	{
+		GfgSetHorseAimCam( false );
+		return false;
+	}
+
+	mgrState = mgr.GetCurrentStateName();
+
+	// 中鍵（原版）射完：原版要等十字弩收好才回到閒置（WaitForShootingComplete：useVehicle.ws:2113-2130），AK 不自動收，馬就會一直鎖著。
+	// 射完、沒在用（同原版可以中止的條件：:1784-1788）、中鍵也放開了，就回到閒置（同 :2129）；AK 還拿著，下馬的鎖由十字弩收好時自己解（rangedWeapon.ws:56-61）
+	if ( mgrState == 'ShootCrossbow' )
+	{
+		GfgSetHorseAimCam( false, true );
+		if ( !rangedWeapon.IsWeaponBeingUsed() && !theInput.IsActionPressed( 'VehicleItemAction' ) )
+		{
+			LogChannel( 'GFG', "horse: ShootCrossbow -> idle (AK still drawn)" );
+			mgr.PopState( true );
+		}
+		return false;
+	}
+
+	// 丟炸彈、施法、揮劍時用它們自己的那一組動畫（pc_rider.w2beh #2643）和鏡頭（丟炸彈的鏡頭同十字弩由原版設定：useVehicle.ws:1815、:2013、:1734）
+	if ( mgrState == 'ThrowBomb' )
+	{
+		GfgSetHorseAimCam( false, true );
+		return false;
+	}
+	if ( mgrState == 'CastSign' || mgrState == 'SwordAttack' )
+	{
+		GfgSetHorseAimCam( false );
+		return false;
+	}
+
+	GfgHorseAimPose( moveData );
+
+	// 原版瞄準鏡頭：往右 1.4、往上 0.15 公尺（照抄 useVehicle.ws:1749-1752）
+	GfgSetHorseAimCam( !IsCameraLockedToTarget() );
+	if ( gfgHorseAimCam )
+	{
+		localOffset = Vector( 1.4, 0, 0.15f );
+		DampVectorConst( moveData.cameraLocalSpaceOffset, localOffset, 4.f, dt );
+	}
+	return gfgHorseAimCam;
+}
+
+// 手臂瞄準的方向：照抄原版 ShootCrossbow 每格做的（RangedAttack.OnGameCameraTick 沒有按住中鍵瞄準的那一支：useVehicle.ws:1686-1739；
+// 除錯球 :1698、船的 SailingPassive :1702、:1721、炸彈 :1712-1713 不抄）。
+// 畫面上有目標（不是自己的馬）時朝目標，否則朝鏡頭的方向；actionType 設成十字弩那一組動畫（原版拿出時設定：:752）
+@addMethod(CR4Player)
+function GfgHorseAimPose( moveData : SCameraMovementData )
+{
+	var rot : EulerAngles;
+	var headBoneIdx : int;
+	var headPos : Vector;
+	var horizontalVal, verticalVal : float;
+
+	SetBehaviorVariable( 'actionType', (int)EHCA_ShootCrossbow );
+	if ( GetDisplayTarget() && GetDisplayTarget() != GetUsedVehicle() )
+	{
+		SetOrientationTarget( OT_Actor );
+		headBoneIdx = GetHeadBoneIndex();
+		if ( headBoneIdx >= 0 )
+			headPos = MatrixGetTranslation( GetBoneWorldMatrixByIndex( headBoneIdx ) );
+		rot = VecToRotation( GetLookAtPosition() - headPos );
+		horizontalVal = AngleDistance( GetHeading(), rot.Yaw ) / 180.f;
+		verticalVal = ClampF( rot.Pitch, -90.f, 90.f ) / -90.f;
+	}
+	else
+	{
+		rangedWeapon.ProcessCanAttackWhenNotInCombat();
+		SetOrientationTarget( OT_Camera );
+		horizontalVal = AngleDistance( GetHeading(), moveData.pivotRotationValue.Yaw ) / 180.f;
+		verticalVal = ClampF( moveData.pivotRotationValue.Pitch, -90.f, 90.f ) / 90.f;
+	}
+	SetBehaviorVariable( 'aimHorizontal', horizontalVal );
+	SetBehaviorVariable( 'aimVertical', verticalVal );
+	theGame.GetGameCamera().EnableScreenSpaceCorrection( true );
+}
+
+// 騎馬時的動畫事件只交給戰鬥管理（horseRiding.ws:792-795），只有 ShootCrossbow 會再交給十字弩（useVehicle.ws:1757-1763、:2132-2134），閒置狀態不處理（:525）。
+// AK 拿在左手時，其他狀態也交給十字弩，同地面（playerWitcher.ws:8094-8098）：換彈動畫中段的事件才會裝上新箭（rangedWeapon.ws:150-152）
+@wrapMethod(CR4PlayerStateHorseRiding)
+function OnAnimEvent_Throwable( animEventName : name, animEventType : EAnimationEventType, animInfo : SAnimationEventAnimInfo )
+{
+	var result : bool;
+
+	result = wrappedMethod( animEventName, animEventType, animInfo );
+	if ( vehicleCombatMgr.GetCurrentStateName() != 'ShootCrossbow' && parent.rangedWeapon && parent.rangedWeapon.GfgIsAk()
+		&& parent.inv.IsItemCrossbow( parent.inv.GetItemFromSlot( 'l_weapon' ) ) )
+	{
+		LogChannel( 'GFG', "horse: anim event " + animEventName + " -> AK" );
+		parent.rangedWeapon.OnProcessThrowEvent( animEventName );
+	}
+	return result;
+}
+
+// 離開騎馬時放開扳機：騎馬時扳機是每格讀左鍵（GfgHorseTick），離開後就不讀了，扣著的話下馬後拿出 AK 會自己開火
+// 原版瞄準鏡頭也關掉（正常下馬前 AK 已經收好、已經關了；這裡是被打下馬等其他離開方式）
+@wrapMethod(CR4PlayerStateHorseRiding)
+function OnLeaveState( nextStateName : name )
+{
+	if ( parent.rangedWeapon && parent.rangedWeapon.gfgTriggerHeld )
+		parent.rangedWeapon.GfgSetTrigger( false );
+	parent.GfgSetHorseAimCam( false );
+	return wrappedMethod( nextStateName );
+}
+
+// ===== 偵測：騎馬時法印輪盤（Tab）一開就關（使用者 2026-10-14 回報；docs/findings.md §24.6）=====
+// 只寫紀錄、不改行為。原版關輪盤都經過 HideRadialMenu（hudModuleRadialMenu.ws:455-497），呼叫它的有：
+// Flash 要求關閉 OnRequestCloseRadial（:257-264）、CloseRadialMenu 鍵（:187-201）、ConfirmRadialMenuSelection 鍵（:171-185）、
+// OpenMeditation 鍵（:274-310）；按鍵的註冊：:82-85；開啟：OnRadialMenu（:324-345）
+
+@addMethod(CR4HudModuleRadialMenu)
+function GfgRadialState() : string
+{
+	return "shown=" + m_shown + " tabHeld=" + theInput.IsActionPressed( 'RadialMenu' ) + " context=" + theInput.GetContext()
+		+ " onVehicle=" + thePlayer.IsUsingVehicle() + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnRadialMenu( action : SInputAction )
+{
+	LogChannel( 'GFG', "radial: key pressed=" + IsPressed( action ) + " released=" + IsReleased( action ) + " " + GfgRadialState() );
+	return wrappedMethod( action );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnRequestCloseRadial( PCConfirmControls : bool )
+{
+	LogChannel( 'GFG', "radial: close requested by Flash PCConfirm=" + PCConfirmControls + " " + GfgRadialState() );
+	return wrappedMethod( PCConfirmControls );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnRadialMenuClose( action : SInputAction )
+{
+	LogChannel( 'GFG', "radial: CloseRadialMenu pressed=" + IsPressed( action ) + " " + GfgRadialState() );
+	return wrappedMethod( action );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnRadialMenuConfirmSelection( action : SInputAction )
+{
+	LogChannel( 'GFG', "radial: ConfirmRadialMenuSelection pressed=" + IsPressed( action ) + " " + GfgRadialState() );
+	return wrappedMethod( action );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnOpenMeditation( action : SInputAction )
+{
+	LogChannel( 'GFG', "radial: OpenMeditation pressed=" + IsPressed( action ) + " " + GfgRadialState() );
+	return wrappedMethod( action );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function HideRadialMenu()
+{
+	LogChannel( 'GFG', "radial: hide " + GfgRadialState() );
+	wrappedMethod();
+}
+
+// 第二次實測（docs/findings.md §24.7）：一開就關都是 Flash 要求「選定並關閉」（PCConfirm=true），
+// Flash 只在 E、Enter 鍵（HudModuleRadialMenu.as:845-849）、左鍵點選（:603-611）、雙擊（:619-629）時這樣要求，送出前都會先選定格子
+// （activateSelectedSlot(false)：:653-682 → OnActivateSlot 的 tab=false；放開 Tab 關閉時是 tab=true：:738-744）。
+// 一開就關的期間 Flash 一直收到輸入事件，時間和「可以下馬」一致（下馬的按住提示：playerInput.ws:351-358 → r4guimanager.ws:1507-1519 → 這裡的 EnableHoldIndicator）
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnActivateSlot( slotName : string, isTabOrBumper : bool, swappingItems : bool )
+{
+	LogChannel( 'GFG', "radial: activate slot=" + slotName + " tab=" + isTabOrBumper + " swapping=" + swappingItems + " " + GfgRadialState() );
+	return wrappedMethod( slotName, isTabOrBumper, swappingItems );
+}
+
+@wrapMethod(CR4HudModuleRadialMenu)
+function OnActivateSlotRanged( slotName : string, isTabOrBumper : bool, swappingItems : bool )
+{
+	LogChannel( 'GFG', "radial: activate ranged slot=" + slotName + " tab=" + isTabOrBumper + " swapping=" + swappingItems + " " + GfgRadialState() );
+	return wrappedMethod( slotName, isTabOrBumper, swappingItems );
+}
+
+@wrapMethod(CR4HudModuleInteractions)
+function EnableHoldIndicator( gpadKeyCode : int, kbKeyCode : int, label : string, holdDuration : float, optional intName : name )
+{
+	LogChannel( 'GFG', "radial: hold indicator on label=" + label + " pad=" + gpadKeyCode + " kb=" + kbKeyCode + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) );
+	wrappedMethod( gpadKeyCode, kbKeyCode, label, holdDuration, intName );
+}
+
+@wrapMethod(CR4HudModuleInteractions)
+function DisableHoldIndicator()
+{
+	LogChannel( 'GFG', "radial: hold indicator off t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) );
+	wrappedMethod();
 }
 
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
