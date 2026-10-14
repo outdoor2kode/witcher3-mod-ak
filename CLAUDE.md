@@ -24,7 +24,8 @@
 | `<W3_GAME_DIR>` | `D:\Program Files (x86)\Steam\steamapps\common\The Witcher 3` | 巫師3 安裝資料夾（唯讀）；`bin\x64_dx12\witcher3.exe` 版本 **5.0.0.1048522** |
 | `<W3_VANILLA_SCRIPTS>` | `<W3_GAME_DIR>\content\content0\scripts` | 原版 WitcherScript 原始碼（唯讀）；UTF-8，1525 個 `.ws` |
 | `<REDKIT_DIR>` | `D:\Program Files (x86)\Steam\steamapps\common\The Witcher 3 REDkit` | REDkit 安裝資料夾（唯讀） |
-| `<REDKIT_DEPOT>` | `<REDKIT_DIR>\r4data` | REDkit 的 uncook depot（唯讀）；**原版物品 XML 散檔在 `gameplay\items\`** |
+| `<REDKIT_DEPOT>` | `<REDKIT_DIR>\r4data` | REDkit 自帶的 depot（唯讀；虛擬 depot 的最底層）；**原版物品 XML 散檔在 `gameplay\items\`**；原版實體模板（`.w2ent`）、材質圖（`.w2mg`）也在這 |
+| `<UNCOOK_DEPOT>` | `D:\depot` | REDkit 第一次設定時把遊戲素材 uncook 到這裡（唯讀；虛擬 depot 的中間層）；原版模型（`.w2mesh`）、貼圖（`.xbm`）在這；REDkit 的 Export Asset 會把貼圖（TGA）寫到這裡（2026-10-15，`docs\m3.md`） |
 | `<W3MODS_DIR>` | `D:\OneDrive\Desktop\W3Mods` | 放參考 mod 與 CS2 匯出素材 |
 | `<CS2_VPK>` | `D:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\pak01_dir.vpk` | CS2 素材封存檔的**索引檔**（唯讀）；資料在同資料夾的 `pak01_000`～`pak01_505.vpk` |
 
@@ -73,7 +74,10 @@
   LocalEditorStringDataBaseW3_UTF8_mod_export.csv   ← 字串資料庫的文字版（REDkit 存字串時自動寫出，檔名寫死在 editor.exe）；納入 git 以便看出字串的變更
   workspace\                      ← REDkit 虛擬 depot 的專案層（第一次新增檔案時建立）；路徑和 depot 一一對應
     dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
+      data\items\weapons\gfg_ak47\  ← AK 的實體模板（納入 git）、模型、貼圖（REDkit 匯入的產物，不納入 git）
     scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
+  assets\ak47\                    ← M3 腳本的輸出（.blend、.fbx、.png 不納入 git）、匯入模型用的材質 XML（納入 git）
+  thumbnails\                     ← REDkit Asset Browser 的縮圖（自動產生，不納入 git）
   packed\、publish\               ← REDkit 打包輸出（不納入 git）
 
 <W3MODS_DIR>\reference\                          ← 參考 mod（唯讀；這裡的副本沒有裝進遊戲，但遊戲另外裝了 MCME，見 §12）
@@ -137,6 +141,8 @@
     - **`.reddlc` 一定要填 `id`**（本專案 `gunforgeralt`），否則整個 DLC 被拒絕（`has empty DLC ID`）
     - 新 DLC 第一次被掃描時只登記，**之後再啟動遊戲才會掛載**；改了 XML 也要重新啟動遊戲
     - 本專案：`workspace\dlc\gunforgeralt\test.reddlc` 掛載 `dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`
+    - **實體模板**用 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載資料夾（`entitieTemplatesDirectoryPath`，本專案 `dlc\gunforgeralt\data\items\`）
+      - 物品 XML 的 `equip_template` = 模板的**檔名**（不含 `.w2ent`），放在掛載資料夾往下任何一層都找得到（2026-10-15 遊戲實測，`docs\m3.md`）
     - **腳本放 `workspace\scripts\local\`**，會被從 REDkit 啟動的遊戲載入（2026-10-12 確認）
 12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
     - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
@@ -152,7 +158,11 @@
 13. **原版 Flash 介面（HUD、選單）的 ActionScript 原始碼在 `<REDKIT_DEPOT>\gameplay\gui_new\actionscript\`**（2026-10-14）
     - 和遊戲用的是同一版：`editor.log` 裡 Scaleform 錯誤的行號對得上（`docs\findings.md` §24.7）
     - 腳本呼叫的 Flash 函式（`GetMemberFlashFunction`）、Flash 呼叫的腳本事件（`GameEvent.CALL`）都查得到
-14. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
+14. **REDkit 匯入 Blender 做的蒙皮 FBX 時，不會用 FBX 裡的骨頭權重**（2026-10-15，`docs\m3.md`）
+    - `editor.log` 寫 `HasSkinning: true (NODE '模型名稱')`：整個模型綁在一根「和模型節點同名」的骨頭上，綁定矩陣是單位矩陣
+    - 照 Wiki 的 Blender 匯出設定、照 REDkit 自己匯出的 FBX 結構都試過，結果一樣
+    - → 要掛在既有骨架上的模型：匯出不帶骨架、名稱取成骨頭名的模型，頂點先換到那根骨頭的座標系（`tools\m3_build_ak.py`）
+15. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
 
@@ -328,6 +338,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）
+- **REDkit 的紀錄 `<REDKIT_DIR>\bin\editor.log` 在 REDkit 重開時會被整個重寫**（2026-10-15）→ 遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
   - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
