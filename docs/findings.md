@@ -1978,3 +1978,43 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 騎馬跳躍（戰鬥管理進入 `HorseAction`）時手上拿著 AK 的動作
 - 拿著 AK 施法（Q）：`actionType` 換成法印，之後才換回十字弩，十字弩動畫狀態機可能重新開始（原版拿著十字弩時不能施法：`ShootCrossbow` 沒有 `OnCastSign`）
 - 原版馬的追尾鏡頭（`cameraMode == 1`）在馬移動時會把鏡頭轉回馬的方向（`horseRiding.ws:585-628`），橫向射擊時可能被拉回
+
+### 24.6 第一次實測（2026-10-14；`editor.log` 16:34～16:38）與修正
+
+- 使用者回報：都如預期，只是
+  1. 後座力整體比地面小很多
+  2. 要「按左鍵拿出槍，直到按 C 才收」，現在沒開槍就自動收
+  3. 在馬上按 Tab 開法印輪盤會「閃退」，地面不會 → 使用者確認：是**輪盤一開就關**，遊戲沒關
+- 其他照預期：左鍵拿出、連射、換彈（紀錄有 `horse: anim event OnWeaponReload -> AK`）、上下馬
+- **第 2 點的原因**：騎馬動畫圖 `pc_rider.w2beh` 的十字弩狀態機（#4247，`tools\cr2w_dump.py --tree 4247`）
+  - 讀的變數是 `isAimingWeaponRider`、`isShootingWeaponRider`、`isWeaponLoadedRider`（#2639 底下的變數節點 #5686、#5691 等）
+  - `WeaponAim` 時瞄準、射擊都是 0 → `WaitForBlendablePose`（#6779）→ `ResetValueState` → `WeaponHolster`（#6398：射擊 0、瞄準 0、已裝填）
+  - 換彈動畫結束（`AnimEndAUX`）時沒在瞄準 → `WeaponHolster`（#6390）；瞄準中 → `WeaponAim`（#7100）
+  - 我們放開扳機時把瞄準設成 0 → 一放開就收；紀錄：16:34:54、16:35:27、16:35:30 放開扳機的同一秒 `crosshair hidden`
+  - 地面的動畫圖沒有這條規則
+- **第 1 點的原因 A**：騎馬時畫面用的是另一台鏡頭（`ActivateHorseCamera`：`r4Game.ws:83`），`theGame.GetGameCamera()` 拿到的走路鏡頭停住不動
+  - 紀錄：16:34:39～16:34:50 每發的 `recoil: … camera pitch=-24.8033 yaw=21.9199` 完全沒變（使用者在騎馬、轉視角）
+  - → 子彈沒打向準心：`aim:` 的目標點投影 `screen=(-1.79,0.07)`、`(-2.51,0.18)`、`(0.64,0.28)`（畫面範圍是 -1～1；走路時接近 (0,0)）
+- **第 1 點的原因 B**（🔶 推論：程式碼如此，效果沒有量到，因為上面的鏡頭紀錄是錯的那台）：馬的鏡頭每格把上下角度拉向「地形角度 - 10」（`horseRiding.ws:482-498`、`:514-526`）→ 後座力往上的轉動被拉回
+  - 原版按住中鍵瞄準時整段跳過（`useVehicle.ws:431-433` → `horseRiding.ws:460-473`）
+- **第 3 點**：
+  - 16:34～16:44 沒有遊戲結束或重開（`OnGameEnding` 沒出現；16:44:13 自動存檔）
+  - 在馬上：輪盤打開（`SetTimeScale … 'RadialMenu'`）後、還沒有任何一格的畫面紀錄就關掉（`RemoveTimeScale`），16:36:27～16:36:44 共 13 次；地面上（16:36:35）開著約 1 秒
+  - 昨晚 02:28:40、02:28:43 在馬上也是同樣一開就關（騎馬左鍵的程式還沒寫）；02:10:38、02:14:50、02:15:04 則開著約 1 秒 → 不是 §24.4 的改動造成的，原因未知
+  - 使用者的按鍵設定（`Documents\The Witcher 3\input.settings`）：`[Horse]`、`[RadialMenu]` 的 Tab 都只綁 `RadialMenu`
+  - 原版關輪盤都經過 `HideRadialMenu`（`hudModuleRadialMenu.ws:455-497`）；紀錄看不出是誰呼叫的
+- 另外：每輪連射第 30 發有 `GfgRecoilKickUp(): Value '30' not handled by 'Int32' switch case` 的錯誤紀錄（彈道表只有 1～29 發，回傳 0，不影響；地面也有）
+- **修正**（使用者 2026-10-14 同意；wcc_lite 編譯通過，**未實測**）：
+  - 第 2 點：`GfgKeepRiderAiming`：騎馬拿著 AK 時，`isAimingWeaponRider` 一直設成 1（只改動畫圖的變數，十字弩自己的 `isAimingWeapon` 照扳機）
+    - 每格（`GfgHorseTick`）、放開扳機時、回到瞄準時（`OnWeaponAimStart` 的包裝）都設
+    - 要收槍時放手：`@wrapMethod(Crossbow) OnForceHolster` 記下「收槍中」（C 鍵、空白鍵、換道具等都經過這裡：`r4Player.ws:14762-14766`），讓原版的收槍切換（#6773 → #6398）照常進行；AK 收好（不是拿著）時清掉
+  - 第 1 點 A：子彈的鏡頭改用畫面上正在用的鏡頭：`GfgCamera()` = `theGame.GetWorld().GetCameraDirector().GetTopmostCamera()`，同原版拍照模式（`photomodeManager.ws:96-99`）；走路時預期是同一台
+    - `recoil:` 紀錄的鏡頭角度也改用它
+  - 第 1 點 B（使用者選「不拉回上下角度」）：`@wrapMethod(CR4PlayerStateHorseRiding) OnGameCameraPostTick`：照原版之後，AK 拿著、沒有鎖定目標時，`SetDesiredPitch` 改成現在的角度
+    - 鏡頭距離、左右自動跟隨（追尾鏡頭）照原版；收槍後恢復原版
+  - 第 3 點（使用者同意加偵測紀錄，只記錄、不改行為）：`radial: key …`（`OnRadialMenu`）、`radial: close requested by Flash …`（`OnRequestCloseRadial`）、`radial: CloseRadialMenu …`、`radial: ConfirmRadialMenuSelection …`、`radial: OpenMeditation …`、`radial: hide …`（`HideRadialMenu`）
+    - 每行附 `shown`、`tabHeld`（`IsActionPressed('RadialMenu')`）、按鍵情境、是否騎乘、時間
+- 預期紀錄：
+  - 騎馬開槍時 `aim: … screen=` 接近 (0,0)
+  - 騎馬連射時 `recoil: … camera pitch=` 逐發往上（和 `applied up` 差不多），像地面一樣
+  - 放開左鍵後沒有 `crosshair hidden`；按 C 才有
