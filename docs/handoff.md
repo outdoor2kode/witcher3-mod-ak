@@ -60,7 +60,7 @@
 
 ## 下一步
 
-1. **M3 第 3 步的確認**（使用者）：看預覽圖 `assetsk47\previewk_and_crossbow_side.png`；對了就 commit `tools\m3_build_ak.py`
+1. **M3 第 3 步的確認**（使用者）：看預覽圖 `assets\ak47\preview\ak_and_crossbow_side.png`；對了就 commit `tools\m3_build_ak.py`
 2. **M3 第 4 步前**（Claude）：查巫師3 材質圖（`pbr_std` 系列 `.w2mg`）要哪些貼圖、通道放什麼，寫匯入用的材質 XML
 3. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
