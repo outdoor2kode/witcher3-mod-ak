@@ -1909,12 +1909,72 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 
 ---
 
-## 24. 騎馬時左鍵不能開槍（2026-10-14 記錄，**還沒做**）
+## 24. 騎馬時左鍵開槍（2026-10-14）
 
-- 使用者回報：騎在馬上時，拿著 AK 按左鍵不會開槍，和沒騎馬時不一樣；**要讓騎馬時的行為和沒騎馬時一樣**；指定在新的 session 做
-- 已知（只查、沒改）：
-  - 騎馬的按鍵情境 `[Horse]`（`bin\config\r4game\legacy\base\input_qwerty.ini:261-327`）沒有 `BASE_ATTACK_LIGHT`（`:654-656`，左鍵 = `AttackWithAlternateLight`，我們的扳機）；左鍵是 **`VehicleAttack`**（`:313`），中鍵是 `VehicleItemAction`／`VehicleItemActionHold`（`:277-278`）
-  - 原版騎馬射十字弩：`StartItemAction`（`useVehicle.ws:744-758`）→ 鎖下馬（`ShootingCrossbow`）→ `ShootCrossbow` 狀態（`:2037-`）；放開時 `WaitForShootingComplete`（`:2113-2130`）等十字弩回 `State_WeaponWait` 才解鎖
-  - 騎馬時十字弩送的動畫事件會換成 `VehicleCrossbow_*`（`rangedWeapon.ws:808-823`）；我們的 `RaiseOwnerGraphEvents` 包裝在騎馬時照原版（`gfg_ak47.ws`）
-  - 騎馬時 AK 會自動收起（02:09:44 紀錄）；`OnGameCameraTick`（我們每格取消自動收槍的地方）騎馬時有沒有被呼叫，沒查
-  - 騎馬用十字弩時，收好之前不能下馬（§22.4）
+- 使用者回報：騎在馬上時，拿著 AK 按左鍵不會開槍，和沒騎馬時不一樣；**要讓騎馬時的行為和沒騎馬時一樣**
+
+### 24.1 原因（2026-10-14 查證）
+
+- 騎馬的按鍵情境 `[Horse]`（`bin\config\r4game\legacy\base\input_qwerty.ini:261-327`）沒有 `BASE_ATTACK_LIGHT`（`:654-656`，左鍵 = `AttackWithAlternateLight`，我們的扳機）
+  - 左鍵是 **`VehicleAttack`**（`:313`）；中鍵是 `VehicleItemAction`／`VehicleItemActionHold`（`:277-278`）；空白鍵同時是 `VehicleItemActionAbort` 和 `HorseJump`（`:279`、`:319`）
+- `VehicleAttack` 由騎馬戰鬥管理 `W3VehicleCombatManager` 接收（`useVehicle.ws:503-507`），只有閒置狀態 `Null` 和 `SwordAttack` 有 `OnAttack`（`:706`、`:1123`）
+  - 閒置時：`StartAttackAction`（`:766-779`）→ 拿著劍就揮砍，沒拿就拔劍（`DrawWeapon`：`:786-823`）
+  - 紀錄（`editor.log` 2026-10-14 02:34:09）：騎馬按左鍵 → 拔出鋼劍（`Adding abilities of item Long Steel Sword`）
+- 騎馬時鏡頭的每格更新是 `HorseRiding` 自己的版本（`horseRiding.ws:361-426`），**不呼叫** `CR4Player` 的 `OnGameCameraTick`
+  - → 我們每格做的後座力、準心、取消自動收槍、Z 鎖定解鎖，騎馬時都沒做；騎馬時 AK 會自動收起就是這個原因
+  - 紀錄：02:34:12 騎馬拿出 AK（中鍵）時沒有 `crosshair shown`
+- 騎馬時玩家的動畫事件只交給戰鬥管理（`horseRiding.ws:792-795`）；只有 `ShootCrossbow` 狀態會再交給十字弩（`useVehicle.ws:1757-1763`、`:2132-2134`），閒置狀態不處理（`:525`）
+  - 地面是只要左手拿著遠程武器就交給十字弩（`playerWitcher.ws:8094-8098`）
+
+### 24.2 原版騎馬射十字弩（中鍵）與騎馬規則
+
+- 中鍵按下：`StartItemAction`（`useVehicle.ws:744-758`）→ `actionType` 設成 `EHCA_ShootCrossbow`、`OnRangedWeaponPress`（拿出）、鎖下馬與上馬（`ShootingCrossbow`）→ 戰鬥管理進入 `ShootCrossbow`
+- `ShootCrossbow`（繼承 `RangedAttack`）每格設手臂瞄準（`:1674-1755`）：
+  - 沒按住中鍵瞄準、畫面上有目標（不是自己的馬）：朝目標（`GetLookAtPosition`），`OT_Actor`
+  - 否則朝鏡頭的方向（`pivotRotationValue`），`OT_Camera`；另外呼叫 `ProcessCanAttackWhenNotInCombat`
+  - 寫入 `aimHorizontal`、`aimVertical`
+- 中鍵放開：`OnRangedWeaponRelease` → 射擊動畫 → `ProjectileThrow` → 發射；`WaitForShootingComplete`（`:2113-2130`）等十字弩回 `State_WeaponWait`（收好）才解鎖、回到閒置
+  - 原版射完會自動收（`HolsterAfterDelay`：戰鬥中 0.5 秒、其他 5 秒：`rangedWeapon.ws:1556-1561`）
+- **戰鬥管理不在閒置狀態時（＝騎手在戰鬥動作中：`useVehicle.ws:511-514`、`:580-583`；`horse/states/exploration.ws:3295-3298`）**：
+  - 馬每格被鎖住速度（`exploration.ws:970-971` → `OnCombatAction`：`:519-537`；鎖住時不能用方向鍵加減速：`:881`，也不會自然減速：`:2278`；最高只到 gallop）
+  - 不能跳（`:3007`）、不能下馬（`:3047`）、停下時不能人立（`:2957`）
+  - 回到閒置時解鎖（`HorseNull.OnEnterState` → `OnCombatActionEnd`：`horseRiding.ws:891-897`、`exploration.ws:539-543`）
+- 騎馬的動畫圖 `gameplay\behaviors\pc\behaviorgraph\pc_rider.w2beh`（`tools\cr2w_dump.py` 讀）：
+  - `Horse Combat Action`（#2）裡的 `CBehaviorGraphAnimationEnumSwitchNode`（#2643）用 `actionType`（`EVehicleCombatAction`）選 `Crossbow`（#2639）、`Petard`、`Axii`、`SwordAttack`
+  - `Crossbow` 裡的十字弩狀態機（#4247：`WeaponWait`、`WeaponDraw`、`WeaponAim`、`WeaponReload`、`WeaponShoot`、`WeaponHolster`）
+  - `aimHorizontal`、`aimVertical` 在這張圖用了很多處
+- 同一個來源重複鎖同一個動作不會疊加，解一次就解開（`playerInput.ws:233-234`、`:253-256`）
+- 騎手的 `OnCombatActionEnd`（`r4Player.ws:13128-13182`）不會動到十字弩
+
+### 24.3 做法（使用者 2026-10-14 選「馬照常操作」）
+
+- 選項：照原版鎖住（拿著 AK 時馬鎖速度、不能跳）／**馬照常操作**／照原版自動收
+- 使用者選：**拿著 AK 時馬照常操作（加減速、跳），下馬還是要先收槍**
+  - → 左鍵不進入 `ShootCrossbow`，戰鬥管理留在閒置；手臂瞄準、把動畫事件交給十字弩，改成自己做（照抄原版）
+
+### 24.4 實作（wcc_lite 編譯通過，**未實測**）
+
+- `@wrapMethod(W3VehicleCombatManagerStateNull) StartAttackAction`：騎馬（`horseComp` 不是空的）、AK 選用時：
+  - 還沒拿出來：照 `StartItemAction` 的十字弩分支拿出（`actionType`、`rider.rangedWeapon`、`OnRangedWeaponPress`），但不進入 `ShootCrossbow`、不另外鎖下馬（拿出時十字弩自己會鎖：`rangedWeapon.ws:1145-1146`）
+  - 扣扳機（`GfgSetTrigger(true)`）；不拔劍、不揮劍
+  - 其他情況（船、沒選 AK）照原版
+- `@wrapMethod(CR4PlayerStateHorseRiding) OnGameCameraTick`：照原版之後呼叫
+  - `GfgCameraTick`（新的共用函式：後座力、取消自動收槍、Z 鎖定解鎖、準心；走路的 `OnGameCameraTick` 包裝也改成呼叫它）
+  - `GfgHorseTick`：
+    - 扳機：每格讀 `theInput.IsActionPressed('VehicleAttack')`（原版也這樣讀：`useVehicle.ws:601`）；放開一律放開扳機，按著時要 AK 拿在手上才扣
+    - 戰鬥管理在 `ShootCrossbow`（用過中鍵）：AK 拿著、沒在用（`IsWeaponBeingUsed` = false）、中鍵也放開了 → `PopState(true)` 回到閒置（原版要等收好：AK 不自動收，馬會一直鎖著）
+    - 戰鬥管理在 `ThrowBomb`、`CastSign`、`SwordAttack`：不動（用它們自己的動畫）
+    - 其他：`GfgHorseAimPose`（照抄 `useVehicle.ws:1686-1739`，不抄除錯球、船、炸彈的分支；另外每格設 `actionType` = `EHCA_ShootCrossbow`）
+- `@wrapMethod(CR4PlayerStateHorseRiding) OnAnimEvent_Throwable`：戰鬥管理不在 `ShootCrossbow`、左手拿著 AK 時，把動畫事件交給 AK（換彈動畫中段的 `OnWeaponReload` 才裝得上新箭：`rangedWeapon.ws:150-152`）
+- `@wrapMethod(CR4PlayerStateHorseRiding) OnLeaveState`：離開騎馬時扣著扳機就放開（騎馬時是每格讀左鍵，離開後就不讀了）
+- `GfgTryFire`：騎馬時不看「衝刺、空中不開火」（那是地面動畫圖的限制）
+- `GfgAimPoint`：瞄準射線略過自己的馬（原版的箭會穿過自己的馬：`throwable.ws:117-118`）
+- 散布照地面的規則：用玩家（＝馬）的速度算移動
+- 紀錄：`horse: draw AK`、`horse: ShootCrossbow -> idle (AK still drawn)`、`horse: anim event … -> AK`；扳機、開火照舊（`trigger=`、`auto fire:`）
+
+### 24.5 沒驗證過、可能有問題的地方
+
+- 馬的鏡頭每格把上下角度拉向地形（`horseRiding.ws:497`、`:525`，`SetDesiredPitch`）→ 往上的後座力可能被拉回
+- 騎馬跳躍（戰鬥管理進入 `HorseAction`）時手上拿著 AK 的動作
+- 拿著 AK 施法（Q）：`actionType` 換成法印，之後才換回十字弩，十字弩動畫狀態機可能重新開始（原版拿著十字弩時不能施法：`ShootCrossbow` 沒有 `OnCastSign`）
+- 原版馬的追尾鏡頭（`cameraMode == 1`）在馬移動時會把鏡頭轉回馬的方向（`horseRiding.ws:585-628`），橫向射擊時可能被拉回
