@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-14
+最後更新：2026-10-15
 
 ---
 
@@ -13,8 +13,8 @@
 - **M3 模型**（使用者 2026-10-14：「m2 做完了對嗎？那現在先做 m3 吧」）
   - 進度、步驟、查證都在 `docs\m3.md`，**接著做就讀那份**
   - 原本做 M3 的另一個 session，使用者 2026-10-14 關掉了 → 同時只有一個 session，分工規則取消
-  - 第 1、2 步：AK（含彈匣）和十字弩都匯出了，Claude 已用 Blender 讀過（2026-10-14，`docs\m3.md`「第 1、2 步的結果」「兩把比較」）
-  - 等使用者決定：AK 的比例、用 `body_hd` 還是 `body_legacy`、第 3 步要不要由 Claude 寫 Blender 腳本
+  - 第 1、2 步完成；使用者 2026-10-14 決定：原尺寸（比例 1.0）、用 `body_hd`、第 3 步由 Claude 寫 Blender 腳本
+  - 第 3 步：`tools\m3_build_ak.py` 寫好、跑通（未 commit）；等使用者打開 `assets\ak47\gfg_ak47_m3.blend` 目視方向、上下、握把位置（`docs\m3.md`「第 3 步」）
 - **拿掉偵測紀錄：編譯通過、未實測、未 commit**（使用者 2026-10-14 同意；`findings.md` §25）
   - `gfg_ak47.ws` 的 `LogChannel` 42 行全部拿掉；只為記錄而寫的包裝、欄位一起拿掉
   - 使用者進遊戲照常玩一輪，沒有異常就 commit
@@ -53,11 +53,13 @@
 ## 沒 commit 的檔案
 
 - `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未實測）
+- `tools\m3_build_ak.py`：M3 第 3 步的腳本（跑通、匯出讀回比對一致；等使用者目視 `.blend`）
+- `assets\ak47\` 的 `.blend`、`.fbx`：腳本的輸出，`.gitignore` 排除，不 commit
 
 ## 下一步
 
-1. **M3 第 2 步的決定**（使用者）：AK 的比例、用 `body_hd` 還是 `body_legacy`（`docs\m3.md`「兩把比較」）
-2. **M3 第 3 步**：轉方向、對齊握把、綁十字弩骨架、照 Wiki 匯出 FBX（寫新腳本前先問使用者）
+1. **M3 第 3 步的目視**（使用者）：方向、上下、握把位置；不對就改 `--up`、`--offset` 重跑；對了就 commit `tools\m3_build_ak.py`
+2. **M3 第 4 步前**（Claude）：查巫師3 材質圖（`pbr_std` 系列 `.w2mg`）要哪些貼圖、通道放什麼，寫匯入用的材質 XML
 3. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
 5. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 REDkit 需要的 Wwise 版本：`CLAUDE.md` §3）
