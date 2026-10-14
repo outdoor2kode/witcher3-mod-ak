@@ -2137,3 +2137,16 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 原版腳本有現成的方法清掉 Flash 的「按著」：`GetMemberFlashFunction( "resetInput" )` 再 `InvokeSelf()`
   - 例：`tutorialPopup.ws:42`、`:163`；`characterMenu.ws:97`、`:225`
   - HUD 模組也有這個方法：`HudModuleBase` → `CoreHudModule`（`core\CoreHudModule.as:15`）→ `CoreComponent`
+
+### 24.9 修正：開輪盤前清掉被記成「按著」的鍵（使用者 2026-10-14 選；wcc_lite 編譯通過，**未實測**）
+
+- `@wrapMethod(CR4HudModuleRadialMenu) ShowRadialMenu`：輪盤還沒開時，先呼叫輪盤 Flash 的 `resetInput`，再照原版打開
+  - 呼叫方式同原版 `tutorialPopup.ws:42`、`:163`
+  - 紀錄：`radial: flash input reset …`
+- 清的是 HUD 共用的那一個 `InputManager`：
+  - 每次讀檔，紀錄的 `Initializing InputManager` 只出現兩次（例：16:33:52 的 794 屬於 `CommonMenu`，另一個是 994）
+  - HUD 的十幾個模組沒有各建一個，所以輪盤和下馬提示（`HudModuleInteractions`）用的是同一個
+- 清掉後的影響：被記成「按著」的鍵全部清掉，「按住」模擬的計時器停掉
+  - 下一次按下任何鍵時計時器重新開始（`InputManager.as:372-379`）
+  - 輪盤自己的 400 毫秒規則用的是它自己的計時器（`HudModuleRadialMenu.as:1209-1211`），不受影響
+- 預期：馬上沒拿 AK 時按 Tab，輪盤照原版規則（按住再放開就關、點一下開著）；紀錄有 `radial: flash input reset`，沒有一打開就 `PCConfirm=true`
