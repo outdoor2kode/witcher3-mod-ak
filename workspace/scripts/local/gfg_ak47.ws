@@ -1505,6 +1505,29 @@ function DisableHoldIndicator()
 	wrappedMethod();
 }
 
+// ===== 修正：馬上沒拿 AK 時法印輪盤一開就關（使用者 2026-10-14 選「開輪盤時清掉」；docs/findings.md §24.8、§24.9）=====
+// 原版 Flash 的「按住」模擬：用 E 下馬時下馬提示先關掉、HUD 不再收按鍵，E 的放開收不到，E 一直被記成按著
+// （HudModuleInteractions.as:138-145 不清；只有 InputManager.reset() 會清：InputManager.as:631-643）。
+// 之後在馬上、下馬提示開著時，Flash 一直重送「E 按住」（:422-468），輪盤收到 E 就選定並關閉（HudModuleRadialMenu.as:845-849）。
+// 開輪盤前用原版的 resetInput 清掉被記成按著的鍵（CoreComponent.as:61-64；HUD 模組也有：CoreHudModule.as:15）；
+// 腳本的呼叫方式同原版 tutorialPopup.ws:42、:163。HUD 的模組共用同一個 InputManager（每次讀檔只建兩個：選單、HUD）
+@wrapMethod(CR4HudModuleRadialMenu)
+function ShowRadialMenu()
+{
+	var fxResetInput : CScriptedFlashFunction;
+
+	if ( !m_shown )
+	{
+		fxResetInput = GetModuleFlash().GetMemberFlashFunction( "resetInput" );
+		if ( fxResetInput )
+		{
+			fxResetInput.InvokeSelf();
+			LogChannel( 'GFG', "radial: flash input reset " + GfgRadialState() );
+		}
+	}
+	wrappedMethod();
+}
+
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
 @wrapMethod(W3BoltProjectile)
 function ThrowProjectile( targetPosIn : Vector )
