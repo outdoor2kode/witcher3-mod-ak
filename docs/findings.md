@@ -2159,3 +2159,15 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
     - 上馬、提示打開後沒有 `GFX RAD` 串流（上一輪 21:19:24 提示打開後、下一次按 Tab 前有 22 行）
     - 間接證據：用 E 下馬、再上馬後原本都會出現串流；這次中間清過一次就沒有
   - 待驗證：用 E 下馬 → 再上馬 → 中間不在地面開輪盤 → 直接在馬上按 Tab
+    - 輪盤的偵測紀錄已經拿掉（§25），改成目測：輪盤要照原版規則（點一下開著），不會一開就關
+
+## 25. 拿掉偵測紀錄（2026-10-14）
+
+- 使用者 2026-10-14：「可以拿掉沒有用的紀錄程式碼」
+- `gfg_ak47.ws` 的 `LogChannel( 'GFG', … )` 42 行全部拿掉（wcc_lite 編譯通過，**未實測**）
+  - 追的問題都解決了：卡住（§20）、下馬（§22）、輪盤（§24.8、§24.9）、射程（§18）等
+  - 只為記錄而寫的包裝一起拿掉：卡住偵測 `GfgCheckStuck`、下馬偵測（`OnHorseDismountKeyboard`、`DismountHorse`）、輪盤偵測（`OnRadialMenu` 等 10 個）、`OnRangeReached`
+  - 只給紀錄用的欄位、函式也拿掉：`gfgTicksSinceShot`、`gfgTicksMoved`、`gfgShotFrom`、`gfgShotTime`、`GfgLoadedText`、`GfgRadialState`
+  - 其他功能裡的紀錄只刪那一行，功能不動
+- §13～§24 提到的 `GFG` 紀錄（`trigger=`、`auto fire`、`recoil:`、`stuck*`、`bolt*`、`radial: …` 等）之後不會再出現
+- 還會出現、不是 `GFG` 頻道的兩行：第 30 發的 `Value '30' not handled`（§24.6）、`UpdateLookAtVariables` 的 `Accessing invalid handle`
