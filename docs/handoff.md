@@ -55,13 +55,11 @@
 ## 沒 commit 的檔案
 
 - `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未實測）
-- `tools\m3_textures.py`：M3 貼圖腳本（跑通、讀回比對一致；等 REDkit 裡看到貼圖正常再 commit）
-- `assets\ak47\gfg_ak47.xml`：匯入模型用的材質 XML（等匯入成功再 commit）
 - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出，`.gitignore` 排除，不 commit
 
 ## 下一步
 
-1. **M3 第 4 步 A**（使用者，REDkit）：匯入兩張貼圖、匯入模型（做法見 `docs\m3.md`「第 4 步：準備好的檔案」）；貼圖和材質 XML 已準備好
+1. **M3 第 4 步 B**：A（貼圖、模型匯入）已完成；B 是實體模板、`.reddlc` 掛載、物品 XML 改 `equip_template`（做法見 `docs\m3.md`「第 4 步」）
 2. 拿掉紀錄的測試（下面「測試方式補充」）：可以和 M3 的 REDkit 操作一起做；通過就 commit `gfg_ak47.ws`
 3. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
 4. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 REDkit 需要的 Wwise 版本：`CLAUDE.md` §3）
