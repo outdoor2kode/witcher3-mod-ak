@@ -2018,3 +2018,85 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 騎馬開槍時 `aim: … screen=` 接近 (0,0)
   - 騎馬連射時 `recoil: … camera pitch=` 逐發往上（和 `applied up` 差不多），像地面一樣
   - 放開左鍵後沒有 `crosshair hidden`；按 C 才有
+
+### 24.7 第二次實測（2026-10-14；`editor.log` 20:35～20:40）與修正
+
+- 使用者回報：
+  1. 騎馬時準心直接壓在 Geralt 身上（截圖），希望像地面一樣「中間偏左」
+  2. 後座力的晃動還是比地面小
+  3. 輪盤：地面上變成「按一下開、再按一下關」（使用者以為原版是按著開、放開關）；馬上拿著 AK 時也一樣；沒拿 AK 時（按 C 收槍後、剛上馬）一開就關
+  4. 放開左鍵就收槍：修好了（紀錄：`crosshair hidden` 只出現在 `sheathe key: holster AK` 之後，20:38:23、20:38:35）
+- 子彈方向（§24.6 的原因 A）修好了：騎馬時 `aim: … screen=` 在 ±0.1 以內（例：20:37:05 `(-0.0019,0.0038)`、`(0.034,-0.028)`）
+- **第 2 點：上下有作用，左右沒有**
+  - 上下和地面一樣：20:36:18 第 5→9 發，`camera pitch` -8.26005 → -3.09725（+5.16°），`applied up` 4.7356 → 9.8984（+5.16°）
+  - 左右沒有作用：20:36:26～27 第 12→24 發，`camera yaw` 一直是 -21.4903～-21.4905，`applied right` 卻在 2.06 → 4.52 → … → -2.83 之間變
+    - 20:36:22 第 11→23 發（yaw 一直 -12.8728）、20:36:29～30 第 9→17 發（yaw 一直 3.91525）也一樣
+  - 地面左右有作用：20:35:32 第 9→10 發，yaw -224.936 → -227.201（-2.265），`applied right` -0.733 → 1.532（+2.265）
+  - 原因：🔶 推論，沒有驗證。馬的鏡頭每格依設定 AutoCameraCenter 開「自動轉回馬的後方」（`horseRiding.ws:417-422`；設定預設開：`bin\config\base\gameplay.ini:8`，使用者的設定檔沒有改）
+    - 原版按住中鍵瞄準時會關掉（`horseRiding.ws:400-402`）
+    - 走路的探索狀態也用同一個設定（`extendedMovable.ws:116-121`），但地面左右有作用，所以不一定是它
+  - 視角（FOV）一樣是 60：馬 `horseRiding.ws:17-19`；走路 `r4Player.ws:16264`
+- **第 1 點：馬的鏡頭沒有左右偏移**
+  - 走路的探索鏡頭往右 0.74、往後 0.38、往上 0.345 公尺（`exploration.ws:20` `geraltIdleV`）→ Geralt 在畫面左邊
+  - 馬的鏡頭每格把偏移拉回 0（`horseRiding.ws:583`）→ Geralt 在正中間；距離：停 3.5、小跑 4.9、快跑 4.1 公尺（`horseRiding.ws:13-15`）
+  - 原版騎馬按住中鍵瞄準（`aiming`：`useVehicle.ws:1660-1671`）的鏡頭：
+    - 往右 1.4、往上 0.15 公尺（`useVehicle.ws:1749-1752`）
+    - `vehicleCbtMgrAiming`（`:1734`）為 true 時：
+      - 不自動轉回馬的後方（`horseRiding.ws:400-402`）
+      - 每格的後段只把距離設成 2.2 公尺（鎖定目標時 3.5）就結束（`useVehicle.ws:431-433` → `horseRiding.ws:460-472`）：不拉回上下角度、不跟著馬轉、不把偏移拉回 0
+    - 鏡頭更新回傳 true（`useVehicle.ws:1754`）
+    - `vehicleCbtMgrAiming` 只有這三處用到（`r4Player.ws:67` 宣告；`useVehicle.ws:563` 回到閒置時清掉、`:1734` 射擊狀態每格設定）
+- **第 3 點：輪盤**
+  - 原版的 Flash 介面原始碼在 REDkit：`<REDKIT_DEPOT>\gameplay\gui_new\actionscript\red\game\witcher3\hud\modules\HudModuleRadialMenu.as`
+    - 和遊戲用的是同一版：紀錄裡 Scaleform 錯誤的行號（`SetDesaturated` :1454、`SetSelectionDesaturated` :1474）和這份檔案對得上
+  - **地面上「點一下開著、再點一下才關」是原版的設計**
+    - 打開時開始計時 400 毫秒（`HudModuleRadialMenu.as:139`、`:1209-1211`）
+    - 放開 Tab 時（`:738-750`）：時間到了才放開 → 選定並關閉；400 毫秒內放開 → `OnRadialPauseGame`（腳本是空的：`hudModuleRadialMenu.ws:347`），選單留著
+    - 留著的選單再按一下 Tab，放開時時間早就到了 → 關閉
+    - 紀錄相符：輪盤開著時遊戲時間變成 0.1 倍（`hudModuleRadialMenu.ws:392`），紀錄的 `t=` 要乘 10 才是實際秒數
+      - 例：20:38:31 → 20:38:32 實際約 1 秒，`t=` 只從 4170.60 走到 4170.67
+      - 按住 0.4 秒（`t=` 4201.02→4201.06）、0.8 秒（4203.50→4203.58）的放開就關
+      - 0.1～0.3 秒的（4201.47、4201.96、4204.74、4205.98）都留著，再按一下才關（`PCConfirm=false`）
+    - 馬上拿著 AK 時也一樣（20:38:31～34）
+  - **馬上沒拿 AK 時一開就關**
+    - 都是 Flash 要求「選定並關閉」：`close requested by Flash PCConfirm=true`，Tab 還按著
+      - 20:38:25～28 共 6 次、20:38:37～39 共 4 次、20:39:08～09 共 2 次、20:39:27 共 1 次
+    - Flash 只在這三種情況送 `PCConfirm=true`：
+      - E、Enter 鍵（`:845-849`；按下、按住、放開都算）
+      - 左鍵點選格子（`:603-611`）
+      - 雙擊（`:619-629`）
+      - 送出前都會先選定格子（`activateSelectedSlot(false)`：`:653-682`）
+    - 輸入事件的線索：輪盤關著時收到輸入事件會寫一行 `GFX RAD bCheckStick false`（`:708-711`）
+      - 只在「騎馬、AK 不在手上」時出現，約每秒 120 行
+        - 20:36:14～16、20:37:02～04、20:38:25～28、20:38:37～42、20:39:09～11、20:39:27～34
+        - 16:38～17:26 一直有（約每秒 29 行，遊戲停在馬上沒人操作）
+      - 地面上、拿著 AK 時都沒有
+      - 整份紀錄最早一次在 02:09（第一次騎馬）
+      - 收槍或上馬約 2 秒後開始，拿出 AK 就停
+    - 🔶 推論，沒有驗證：時間和「可以下馬」一致
+      - 拿著 AK 時不能下馬 → 下馬的按住提示關掉（`playerInput.ws:351-358` → `r4guimanager.ws:1507-1519` → `hudModuleInteractions.ws:456-468`）
+    - Flash 的「按住」模擬：收到按下、沒收到放開的鍵，0.5 秒後開始每隔一段時間（最短 30 毫秒）送一次「按住」（`InputManager.as:40-43`、`:367-402`、`:422-468`）
+      - 可能是串流的來源，沒有驗證
+    - 昨晚（騎馬程式還沒寫）02:28:37 上馬，02:28:40、02:28:43 一開就關
+      - 02:28:44 接著 `aim start`、02:28:45 下馬檢查 `locks=ShootingCrossbow`
+      - 🔶 可能是關閉前選定了十字弩那一格（`OnActivateSlot` → `OnRadialMenuItemChoose`：`hudModuleRadialMenu.ws:221-237`）
+    - 還不知道：是哪個鍵或點擊、原版遊戲會不會這樣
+- **修正**（wcc_lite 編譯通過，**未實測**）：
+  - 第 1、2 點（使用者選「原版騎馬瞄準鏡頭」）：騎馬拿著 AK、在閒置狀態、沒鎖定目標時，用原版按住中鍵瞄準的鏡頭（`GfgSetHorseAimCam`）
+    - 每格把 `vehicleCbtMgrAiming` 設成 true；關的時候只清自己設的
+      - 原版射十字弩（中鍵）、丟炸彈時由原版每格設定，不去動它
+      - 施法、揮劍、收槍、鎖定目標、離開騎馬時關掉
+    - 鏡頭偏移：照抄 `useVehicle.ws:1749-1752`（往右 1.4、往上 0.15 公尺）
+    - 鏡頭更新回傳 true，同原版
+    - 每格後段把左右、上下的目標角度都設成現在的角度（同原版走路十字弩瞄準：`aimThrow.ws:361`、`:371`）
+      - 取代 §24.6 只設上下的做法
+    - 拿著 AK 時鏡頭不會自動轉回馬的後方，也不跟著馬轉（同原版按住中鍵瞄準）；收槍後恢復
+  - 第 3 點（使用者選「只加偵測紀錄」，只記錄、不改行為）：
+    - `radial: activate slot=… tab=…`、`radial: activate ranged slot=…`：`OnActivateSlot`、`OnActivateSlotRanged` 的包裝
+      - `tab=false` 是 E、Enter、點選、雙擊；`tab=true` 是放開 Tab 關閉（`:738-744`）
+    - `radial: hold indicator on/off`：`CR4HudModuleInteractions` 的 `EnableHoldIndicator`、`DisableHoldIndicator` 的包裝（下馬按住提示開關的時間）
+  - 紀錄：`horse aim camera: true/false locked=…`
+- 預期紀錄：
+  - 騎馬拿出 AK：`horse aim camera: true`；收槍（C）：`horse aim camera: false`
+  - 騎馬連射時 `recoil: … yaw=` 跟著 `applied right` 變（像地面 20:35:32 那樣）
+  - 輪盤一開就關時：`hold indicator on` 在前面；`close requested … PCConfirm=true` 之前有沒有 `activate slot=… tab=false`
