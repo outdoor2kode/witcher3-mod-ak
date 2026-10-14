@@ -57,6 +57,7 @@
 - `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未實測）
 - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出，`.gitignore` 排除，不 commit
 - `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent`：從十字弩模板複製，等使用者換模型、進遊戲測過再 commit（同資料夾的 `.w2mesh`、`.xbm` 被 `.gitignore` 排除）
+- `workspace\dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`：`equip_template` 改成 `gfg_ak47`（使用者同意；未實測）
 
 ## 下一步
 
