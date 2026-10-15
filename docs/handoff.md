@@ -4,35 +4,52 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 晚上
+最後更新：2026-10-15 晚上（使用者要 /clear）
 
 ---
 
 ## 現在在做
 
-- **M3 模型**：AK 已經出現在遊戲裡 Geralt 的左手，方向、上下都對；**顏色正常**（2026-10-15；沒顏色是「剛匯入模型的那次 REDkit」的狀態問題，重開就好：`docs\m3.md`「結果」）
-  - 詳細的過程、證據、指令都在 `docs\m3.md`，**接著做就讀那份**；重點章節：
-    - 「第 3 步」：`tools\m3_build_ak.py`（AK 轉方向、放到握把、匯出 FBX）
-    - 「第 4 步：準備好的檔案」：`tools\m3_textures.py`、材質 XML、檔案位置
-    - 「第一次匯入的模型沒用到骨頭群組」「改用 NODE 模式」：為什麼 FBX 是現在這樣
-    - 「第一次進遊戲」「顏色測試」「換回 AK 的貼圖再測」：顏色問題的經過（已解決）
-    - **「第 4 步：`bolt` slot 移到槍口」**：要填的值、根據、Slots 分頁在哪（進行中）
-    - **「雙手持槍：初步查詢」**：NPC 十字弩動畫和 Geralt 同一套骨架
-  - 使用者 2026-10-14～15 的決定：原尺寸（比例 1.0）、用 `body_hd`（已含彈匣）、Blender 的部分由 Claude 寫腳本、貼圖腳本、物品 XML 改 `equip_template`（都同意了）
-  - 使用者 2026-10-15 晚上的決定：
-    - 箭：**槍口，箭藏在槍管裡**（slot 掛 `handle`、放在槍口往後一支箭長；只改模板、不寫腳本）
-    - 握槍：**要雙手持槍**；做法另外討論（單手的握把位置不再調）
-- **拿掉偵測紀錄：編譯通過、未實測、未 commit**（使用者 2026-10-14 同意；`findings.md` §25）
-  - `gfg_ak47.ws` 的 `LogChannel` 42 行全部拿掉；只為記錄而寫的包裝、欄位一起拿掉
-  - 2026-10-15 使用者有進遊戲開槍（看 AK 外觀），但沒照下面的清單測 → 還不算通過
+- **下一步（使用者 2026-10-15 晚上選的）：雙手持槍的第一個實驗**
+  - 做法 A「同名替換」：只換「站著瞄準」一段動畫，確認行不行得通
+  - **Claude 先查好每一步，寫成 REDkit 操作步驟給使用者**（REDkit 的介面操作都是使用者做）；還沒開始查
+  - 背景、證據、四種做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「單手姿勢的問題」
+- **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
+  - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
+  - 詳細過程、證據、指令都在 `docs\m3.md`
+- **拿掉偵測紀錄的 `gfg_ak47.ws`：沒 commit**（`findings.md` §25）
+  - 使用者 2026-10-15 用它玩了很多輪（地面開槍、換彈、跑步都正常），但沒照下面「測試方式補充」的清單測完（騎馬沒測）
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的就直接用
 - 範圍（`CLAUDE.md` §7）：只做 AK 本身
+
+### 雙手持槍的第一個實驗（要查、要寫成步驟的內容）
+
+目的：用 DLC 加一個動畫組，裡面放一段**名稱和 Geralt 十字弩瞄準待機相同**的動畫（內容是 NPC 的雙手瞄準），看遊戲會不會改用我們的。
+
+1. 匯出 NPC 動畫：AnimBrowser 開 `animations\man\combat\man_crossbow.w2anims` → 視窗右鍵 **Use selected entity**（先在 Asset Browser 選一個 `man_base` 骨架的角色，例：`gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent`）→ **All animations** → `man_npc_bow_idle_aiming_01` 右鍵 **Export animation** → `.re` 檔
+2. 建立我們的動畫組，新增一段名叫 `man_geralt_gabriel_aim_idle_rp` 的動畫，匯入 `.re`
+   - Wiki 的流程（頁面 6326649，用 REST API 讀到）：對「w2anims container」右鍵 **Create new virtual animation** → AnimBrowser 右上 **Animation** 分頁 **Import file** 選 `.re` → All animations 裡右鍵 **Reimport as simple/plain animation**
+3. `test.reddlc` 加 `CR4EntityTemplateParamDLCMounter`：`entityTemplatePaths` = Geralt 的模板（`characters\player_entities\geralt\geralt_player.w2ent`，或照 bob 掛 `characters\base_entities\man_base\man_base.w2ent`）；`entityTemplateParams` = `CAnimAnimsetsParam`（`componentName` = `man_base`、`animationSets` = 我們的動畫組）
+4. 進遊戲拿 AK 站著瞄準：姿勢有沒有變成 NPC 的雙手抵肩
+
+還不知道、要先查的：
+- 怎麼建立新的 `.w2anims`（Asset Browser 的 Create 選單有沒有；沒有就複製一個小的原版動畫組當容器，例：`animations\items\weapon\crossbow_man.w2anims` 17 KB）
+- 「Create new virtual animation」怎麼設名稱（`editor.exe` 有「Animation name:」「Rename animation」字串）
+- 在 REDkit 的 `.reddlc` 編輯器怎麼加 `CR4EntityTemplateParamDLCMounter`、怎麼在裡面建 `CAnimAnimsetsParam`（使用者之前加過 `CR4DefinitionsEntitieTemplatesDLCMounter`）
+- 匯出時用哪個實體才對（骨架要一樣）
+
+預期與後續：
+- 成功：再擴大到開槍、走路、換彈、上下瞄準（Geralt 的十字弩動畫 `man_geralt_gabriel_*` 的清單在 `docs\m3.md`），並把 AK 改成雙手握的位置
+- 失敗（同名時遊戲用原版的）：改做法 B（改 Geralt 的上半身動畫圖 `pc_overlay.w2beh`），工作量大很多
+- 副作用：原版十字弩的動作也會變成雙手（已跟使用者說過）
+- 哪隻手：NPC 的十字弩掛右手（`r_weapon`）；可以維持左手 `l_weapon`，把 AK 放成左手握護木 → 實驗成功後再決定
 
 ### 跟使用者溝通（2026-10-15 學到的）
 
 - 使用者有軟體工程背景，但不熟 REDkit、3D 模型、Blender，**想學**：解釋時用白話，可以用軟體工程的比喻（例：蒙皮連結像用骨頭名稱做 join、實體模板像 prefab）
 - 使用者不想在 Blender 裡找視角、按快捷鍵：需要目視時，Claude 用 Blender 背景模式渲染成圖片給他看（雙擊就能開）
 - REDkit 的操作請使用者做，步驟要寫到「點哪裡、按哪個按鈕」；沒實測過的介面要說明，請他截圖
+- 使用者會主動截很多圖回報；Claude 用 Read 看圖時要對照描述，不要只看一張就下結論
 
 ## AK 現在怎麼做出來的（重做時照這個順序）
 
@@ -41,13 +58,15 @@
 | 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加 `--pitch -20.5`**） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
-| 4 | REDkit 匯入模型：右鍵 → Import → Mesh；`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel** | 使用者 | `gfg_ak47.w2mesh` |
-| 4' | 只換模型時：**Import > Mesh** 重新匯入（同第 4 步，蓋掉舊檔）；Reimport → Mesh only 會沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false（2026-10-15 因此槍不見）；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | |
-| 4'' | 匯入、重匯之後：**重開 REDkit**（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）再進遊戲；不然遊戲裡沒有顏色（2026-10-15，`docs\m3.md`「結果」） | 使用者 | |
-| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK（已完成、已 commit） | — | |
-| 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已完成、已 commit） | — | |
+| 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
+| 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
+| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`、位置 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90（已 commit） | — | |
+| 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
 
-- 改了 XML、`.reddlc`、模型後，都要從 REDkit 重開遊戲
+- 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍
+- 改了 XML、`.reddlc`、模型、模板後，都要從 REDkit 重開遊戲
+- Mesh editor 換材質貼圖：**Materials** 分頁 → 選 `weapon_rif_ak47` → Asset Browser 點選 `.xbm` → 欄位的綠色箭頭 → 存檔
+- 模型換了形狀，slot 的位置要重算：`m3_build_ak.py` 會印出 `handle` 骨頭座標的槍口與槍管方向；算法在 `docs\m3.md`「槍管往下轉 20.5°」
 
 ## M2 進度
 
@@ -74,7 +93,8 @@
 
 ## 沒 commit 的檔案
 
-- `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過、未照清單實測）
+- `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過；清單沒測完）
+- `gunforgeralt.w3edit`：只有 REDkit 自己改的 `dirtyTileCellIndices`（開過測試關卡）→ 不 commit
 - `.gitignore` 排除、不 commit 的：
   - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出（材質 XML `gfg_ak47.xml` 有 commit）
   - `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 的 `.w2mesh`、`.xbm`：REDkit 匯入的產物（照上表的步驟可以重做）
@@ -82,34 +102,16 @@
 
 ## 下一步
 
-1. **M3：`bolt` slot**（`docs\m3.md`「第 4 步：`bolt` slot 移到槍口」）
-   - ~~使用者在 REDkit 設定~~ → 已設定、存檔（14:39）；Claude 讀檔確認：骨頭 `handle`、位置 (0.423, 0, 0.098)、旋轉存成 (0, 0, 270)
-   - 進遊戲測（2026-10-15 晚上）：裝好的箭不再從彈匣下方露出（已 commit）；**槍管往上翹、和準心不一致**
-     - 原因：AK 對齊 `handle` 的 x 軸，原版的箭沿 `chord` 的 x 軸，差 20.39°（`docs\m3.md`「進遊戲測」）
-     - 使用者選現在修：`m3_build_ak.py` 加了 `--pitch`，已用 `--pitch -20.5` 產生新的 FBX（`docs\m3.md`「槍管往下轉 20.5°」）
-     - slot 已改好（讀檔確認：位置 (0.435, 0, -0.031)、旋轉存成 (0, 339.6, 270)＝Roll 0／Pitch -20.4／Yaw -90）
-     - 第一次重匯模型時 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡槍不見（`docs\m3.md`「第一次重匯」）
-     - 第三次重匯（15:06:40）還是 `0 bones` → Reimport → Mesh only 看起來不會讓人改 `importAsSkinnedMesh`，沿用 REDkit 記憶體裡的設定（推測；介面沒看過）
-     - 改用 Import > Mesh 重新匯入（15:10）：**槍出現了、槍管水平**；顏色不見 → 15:24 Mesh editor 重新指定貼圖＋重開後**顏色正常**
-     - 比對前後兩個 `.w2mesh`：只差 `authorName`，檔案沒問題；是「同一次開著的 REDkit 裡剛匯入過模型」的狀態問題（`docs\m3.md`「結果」）→ 製作步驟加了 4''
-     - 使用者確認（15:3x）：槍管大致對準準心、箭大致沿槍管飛、箭沒有穿出槍管、槍托和手套袖口有一點重疊 → `gfg_ak47.w2ent` 已 commit
-     - 箭出現的點離槍口 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）→ 等使用者決定（M5 槍口火光、曳光／降低箭速）
-   - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
-   - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
-2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）
-   - 方向：借原版 NPC 十字弩兵的動畫（`man_crossbow.w2anims`，和 Geralt 同一套骨架），不從零做動畫
-   - 查到：DLC 能替 Geralt 加動畫組（`CAnimAnimsetsParam`）；腳本能播 slot 動畫但會被十字弩的上半身蓋掉；NPC 十字弩掛右手；四種做法的比較表在 `m3.md`
-   - ~~使用者看十字弩兵的姿勢~~ → 看過了（15:15）：**雙手、抵右肩、右手在後握把、左手在前托住** → 合用
-   - 使用者 15:23 回報：單手姿勢往右看、跑步時**看不到槍**（槍在左手、鏡頭在右後方）→ 雙手抵右肩可以一起解決（`docs\m3.md`「單手姿勢的問題」）
-   - 使用者選：**先修顏色，其他之後再說**（2026-10-15 15:2x）；之後的候選：雙手的第一個實驗（A 同名替換，先只換「站著瞄準」一段）、暫時把鏡頭移到左肩
-   - AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管；在一般地圖還是太亮再查
+1. **雙手持槍的第一個實驗**：先查上面「還不知道、要先查的」，寫成 REDkit 操作步驟給使用者（見「現在在做」）
+2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
+   - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
 4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
-5. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 Wwise 版本：`CLAUDE.md` §3）
-6. M5 候選：持槍衝刺／跳躍的動畫（`findings.md` §17.10）；跳躍散布（§16.2）
+5. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、M4 聲音（要先確認 Wwise 版本：`CLAUDE.md` §3）
+6. M5 候選：槍口火光、曳光；持槍衝刺／跳躍的動畫（`findings.md` §17.10）；跳躍散布（§16.2）
+7. 暫時方案（使用者沒選，雙手做不成時再考慮）：拿著 AK 時鏡頭移到 Geralt 左後方，讓左手的槍看得到
 
-- **REDkit 重開時 `editor.log` 會被整個重寫**：遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
-- Mesh editor 換材質貼圖：**Materials** 分頁 → 選 `weapon_rif_ak47` → Asset Browser 點選 `.xbm` → 欄位的綠色箭頭 → 存檔（使用者 2026-10-15 做過）
+- **REDkit 重開時 `editor.log` 會被整個重寫**：遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄（或先複製到暫存資料夾）
 
 ### 測試方式補充
 
@@ -120,24 +122,23 @@
 - **輪盤的目測**（§24.9）：用 E 下馬 → 再上馬 → 直接在馬上按 Tab：輪盤照原版規則（點一下開著），不會一開就關
 - 騎馬時重載腳本可能卡住下馬鎖（§22.4）→ 一律在地面重載
 - 遊戲開著時改腳本：REDkit 的 **Tools → Debuggers → Reload scripts**；**使用者沒按就不會套用**
-- 遠處的怪物：`spawn('wolf', 1, 60, true)`（`CLAUDE.md` §12）
+- 遠處的怪物：`spawn('wolf', 1, 60, true)`；十字弩兵：`spawn('xbow', 1, 15, true)`；無敵：`god()`（`CLAUDE.md` §12；這兩個 2026-10-15 用過）
 - REDkit 的 Mesh editor 預覽：底下的環境選單預設 `ENV - OFF` 會全黑，換成任何環境（例：`usm\battle_02_noblue_lights.env`）才看得到貼圖；Entity Editor：在 Asset Browser 雙擊 `.w2ent` 開
-- M3 用過的暫存分析腳本（在 session 的暫存資料夾，**新 session 不會有**；要再用得先問使用者）：
+- 暫存資料夾的東西**新 session 不會有**（要再用得先問使用者）：
   - Blender Workbench 正交渲染（AK、十字弩各角度的預覽圖）
-  - 用 Blender 內建的 `io_scene_fbx.parse_fbx` 解析 FBX（GlobalSettings、節點、Cluster、Pose）
+  - 用 Blender 內建的 `io_scene_fbx.parse_fbx` 解析 FBX
   - 用 Blender＋numpy 算 PNG 各通道的統計
-  - 槍管斷面：Blender 讀 `gfg_ak47_m3.blend` 的頂點、乘 `handle` 綁定矩陣，每 1 公分一段列出 y、z 範圍（2026-10-15 晚上）
-  - `.w2mesh` 骨頭名稱和綁定矩陣：已經做進 `tools\m3_build_ak.py` 的 `read_rig_matrices()`
-    - 在 Blender 背景模式用 `--python-expr` 匯入 `m3_build_ak` 呼叫它就能讀（2026-10-15 晚上讀過十字弩 8 根骨頭）
-- **Bash 的 `cd` 會改掉 session 的工作目錄**（2026-10-15 晚上 `cd` 到唯讀資料夾兩次）→ 用絕對路徑，不要 `cd` 到專案外
+  - 槍管斷面：Blender 讀 `gfg_ak47_m3.blend` 的頂點、乘 `handle` 綁定矩陣，沿槍管每 1 公分一段列出範圍
+  - 讀材質參數、比對兩個 `.w2mesh`：用 `tools\cr2w_dump.py` 的 `Cr2wFile` 解自訂資料（格式：數量 u32，每筆「大小 u32（含自己）、名稱 u16、型別 u16、值」）
+  - 2026-10-15 的模型備份（`mesh_snapshots\`）、`editor.log` 副本：只為那次比對，不用保留
+- `.w2mesh` 骨頭名稱和綁定矩陣：`tools\m3_build_ak.py` 的 `read_rig_matrices()`；在 Blender 背景模式用 `--python-expr` 匯入 `m3_build_ak` 呼叫
 
 ## 已知限制（還沒處理）
 
-- ~~M3：遊戲裡 AK 沒有顏色~~ → 已解決：匯入模型後要重開 REDkit（製作步驟 4''；2026-10-15）
-- ~~M3：箭從 AK 彈匣附近伸出來~~ → 已修正：`bolt` slot 移到槍管裡（2026-10-15）
-- M3：十字弩的單手姿勢（左手伸直）；使用者要雙手持槍（見「下一步」2）；往右看、跑步時槍被身體擋住
-- M3：箭第一次出現在槍口前 1～2 公尺（箭速×畫面間隔）
-- M3：槍托後端和手套袖口有一點重疊
+- M3：十字弩的單手姿勢（左手伸直）：往右看、跑步時槍被身體擋住（槍在左手、鏡頭在右後方）→ 雙手持槍要解決
+- M3：箭第一次出現在槍口前 1～2 公尺（見「下一步」2）
+- M3：槍托後端和手套袖口有一點重疊（改雙手時會重調）
+- M3：AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管
 - M3：Mesh editor 的預覽裡 AK 轉了方向：模型存在 `handle` 骨頭的座標系裡，正常（`docs\m3.md`「改用 NODE 模式」）
 - 傷害還是 M1 的佔位值：十字弩 1 的 2 倍（`gunforgeralt_items.xml` 的 `attack_power`）；CS2 的 36、爆頭 ×4 沒套
 - 原版自動瞄準：有戰鬥音樂、畫面目標是人型時，箭飛向身體不照準心（`findings.md` §15.2、§20.13；使用者：先不管）
@@ -160,10 +161,11 @@
 - `CanSprint` 包裝裡用 `super.CanSprint`：官方沒寫 annotation 裡 `super` 的行為 → 改成暫時清空 `rangedWeapon`（§17.6）
 - 卡住的推測，偵測後都排除：移動鎖、戰鬥動作沒結束（§20.4）、被狼的身體擋住（§20.9）、`RotateToTarget`（§20.10）
 - 只改 `fullBodyAnimWeight`（§20.5）：上半身動畫圖不看它（§20.10）
-- **M3：帶骨架的蒙皮 FBX**（`docs\m3.md`「第一次匯入的模型沒用到骨頭群組」）：
-  - 照 Wiki 的匯出設定（Null、Secondary -Y）：REDkit 用 NODE 模式，骨頭變成模型名稱；而且 `handle` 的方向差 180°
-  - 改成和 REDkit 匯出的 FBX 同樣的結構（骨架節點 Root、Secondary Y、Up Z、Forward -Y）：還是 NODE 模式
-  - → 改用「不帶骨架、模型叫 `handle`、頂點先換到骨頭座標」的做法
-- M3：`wcc_lite import` 測試 FBX 匯入：用空的暫存資料夾當 depot，300 秒沒有輸出就中止；而且沒有蒙皮匯入的選項
+- **M3：帶骨架的蒙皮 FBX**（`docs\m3.md`「第一次匯入的模型沒用到骨頭群組」）：REDkit 一律用 NODE 模式 → 改用「不帶骨架、模型叫 `handle`、頂點先換到骨頭座標」的做法
+- M3：`wcc_lite import` 測試 FBX 匯入：300 秒沒有輸出就中止；而且沒有蒙皮匯入的選項
 - M3：第一版 AK 上下顛倒（猜十字弩的上方是 +X）→ 照使用者的遊戲截圖改成 -X
+- M3：AK 對齊十字弩 `handle` 骨頭的方向 → 槍管比原版的箭高 20.4°，往上翹 → 改成 `--pitch -20.5`（槍管和 `chord` 骨頭的 x 軸平行）
+- M3：REDkit 重開後用 Reimport → Mesh only 換模型 → 模型沒綁骨頭、槍不見（試了 3 次）→ 改用 Import > Mesh
+- M3：顏色問題曾以為是 `.xbm` 或光照造成 → 都不是；是剛匯入模型的那次 REDkit 的狀態問題
 - **在 Bash 的 heredoc 裡寫含反斜線的 Python**：`\\` 會變成 `\`，`\a` 會變成控制字元（2026-10-15 弄壞過交接檔一次）→ 含路徑的字串用 Write／Edit 工具，或在 Python 裡用 `chr(92)`
+- **Bash 的 `cd` 會改掉 session 的工作目錄**（2026-10-15 `cd` 到唯讀資料夾兩次）→ 用絕對路徑，不要 `cd` 到專案外
