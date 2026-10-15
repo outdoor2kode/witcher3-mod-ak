@@ -4,9 +4,23 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 01:1x（/clear 之後：使用者同意第 1 步的兩項設計變更；`.re` 重做、放進 `assets\anims\gfg\`；等使用者匯入 REDkit、量 Calc bone）
+最後更新：2026-10-16 01:3x（自主模式開始；第 1 步的動畫匯入 REDkit、Calc bone 和預測一致；接著 Claude 自己在 REDkit、遊戲裡驗證第 1 步）
 
 ---
+
+## 自主模式（2026-10-16 01:2x 起：使用者離開，可能很久才回來，不會回應）
+
+- 使用者授權：REDkit、資料夾、做法都由 Claude 決定、自己驗證，不等回應（「都交給你決定」）→ 決定和理由寫進這份交接檔
+  - 範圍照舊：只做 AK 本身（`CLAUDE.md` §7）；只改專案資料夾（§11）
+- 操作畫面：`tools\desk.ps1`（截圖、滑鼠、鍵盤；用法在檔頭）
+  - 被擋住的視窗也截得到：`wshot <視窗> out.png mode=print`；要點的話先 `focus`，截圖加 `grid=50` 找座標
+  - REDkit 主視窗：`proc:editor` 或標題含 `The Witcher 3 REDkit`；REDkit 是直接開 `<REDKIT_DIR>\bin\x64_RedKit\editor.exe`（沒有參數，從檔案總管）
+  - 只對 editor／witcher3／blender 送輸入；告一段落就把終端機叫回前面（`focus proc:windowsterminal`）
+- 不中斷的設定：
+  - `.claude\settings.local.json` 的 `autoCompactWindow` 400000 → context 40% 自動壓縮（官方文件：設定檔存檔後執行中的 session 會重讀）
+  - 保持清醒：`desk.ps1 awake 604800` 在背景跑（01:22 起，最多 7 天；系統狀態實測 0x3 = 不睡眠＋不關螢幕）；使用者的設定是 30 分鐘沒動作就睡眠、關螢幕
+  - 續做排程：CronCreate 每小時 :13（job `03dddeb6`；只存在這個 session，7 天後自動消失）：被中斷（用量上限、錯誤）就讀這份接著做
+- 停下來的條件：能做的都做完；或卡在只有使用者能做的事（例：M4 的 Wwise 授權要用使用者的帳號）→ CronDelete、停掉保持清醒（`powershell.exe` 命令列含 `desk.ps1 awake` 的程序）、寫清楚狀態
 
 ## 現在在做
 
@@ -27,7 +41,8 @@
       1. AK 跟著胸口（`torso3`）動、兩手都用 IK 握在槍上（原本：左手不動、右手跟著左手）：原檔左手相對胸口晃 4.7°，跟著左手槍管會晃到 4°
       2. IK 用兩節手臂的公式（肩膀自由轉、手肘當鉸鏈），不用 Blender 的 IK 約束：Blender 的把手肘當球形關節，右手肘往側面彎 8°
     - `.re` 已放進 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`（01:08，蓋掉頭轉 30° 的測試檔；`.gitignore` 排除；不見了就用 `docs\m3.md` 的指令重做，約 10 秒，結果一樣）
-    - **等使用者**：匯入 REDkit → Calc bone MS 量 `r_hand`、`head`（時間 0）→ 不重開 REDkit，Claude 讀 `editor.log`，和 `docs\m3.md`「匯入 REDkit 後的預測」比
+    - **匯入 REDkit：成功**（使用者 01:13 匯入、存檔；Calc bone MS 時間 0 的 `r_hand` (0.2004, 0.1056, 1.4057)、(4.04, 108.67, 12.29)，和預測差 0.8 公釐、0.2°：動畫壓縮的誤差）
+      - 原本的步驟（之後重匯時照做）：匯入 REDkit → Calc bone MS 量 `r_hand`、`head`（時間 0）→ 不重開 REDkit，讀 `editor.log`，和 `docs\m3.md`「匯入 REDkit 後的預測」比
       - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 最上面那行（動畫組）右鍵 **Import simple/plain animations** → 選上面的 `.re` → 問 override 按 **Overide** → File → **Save all** → 動畫右鍵 **Calc bone MS**
       - 成功的話：`r_hand` 約 (0.200, 0.106, 1.405)、角度 (4.2, 108.7, 12.3)；`head` 的 Yaw 從 18.26 回到 −11.70；`editor.log` 有一行 `AnimationCompressionDetailed … man_geralt_gabriel_aim_idle_rp`
     - 骨架：`r_shoulder` → `r_bicep` → `r_forearm` → `r_hand`（扭轉骨頭 `r_bicep2`、`r_elbowRoll`、`r_forearmRoll1`→`r_forearmRoll2`→`r_handRoll` 掛在上臂、前臂底下；這次不動它們）
@@ -59,7 +74,8 @@
 
 - 使用者有軟體工程背景，但不熟 REDkit、3D 模型、Blender，**想學**：解釋時用白話，可以用軟體工程的比喻（例：蒙皮連結像用骨頭名稱做 join、實體模板像 prefab）
 - 使用者不想在 Blender 裡找視角、按快捷鍵：需要目視時，Claude 用 Blender 背景模式渲染成圖片（雙擊就能開）
-- REDkit 的操作請使用者做，步驟要寫到「點哪裡、按哪個按鈕」；沒實測過的介面要說明，請使用者截圖
+- REDkit、遊戲的操作 **Claude 自己做**（2026-10-16 起，`tools\desk.ps1`）；使用者不接受「做不到」：沒有現成工具就找 Windows 內建的辦法
+  - 要請使用者操作時（例：自主模式結束後），步驟寫到「點哪裡、按哪個按鈕」
 - 使用者會主動截很多圖回報；Claude 用 Read 看圖時要對照描述，不要只看一張就下結論
   - 會用自由鏡頭從不同角度截（畫面角落有 `camera at position`），不同張可能是不同時間點（例：開槍中、換彈中混在一起）→ 判斷姿勢前先確認是哪個時間點
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的就直接用。範圍（`CLAUDE.md` §7）：只做 AK 本身
@@ -111,7 +127,7 @@
   - 加了**暫時的** `GfgLogHoldPose`（雙手持槍量位置用；`GfgCameraTick` 裡呼叫）→ 決定方向後拿掉
 - `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent`：`bolt` slot 改成擺法 A 的值（實驗失敗；退回單手版時用 `git checkout` 還原）
 - REDkit 裡的 `gfg_ak47.w2mesh`（不在 git）：擺法 A 的模型
-- `workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`：頭轉 30° 的測試版（使用者匯入第 1 步之後變成第 1 步的版本）→ 測試版**不 commit**；還原成 NPC 原本的：用同樣方法匯入 `assets\anims\gfg_aim_idle_rp.re`
+- `workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`：01:13 起是第 1 步的版本（Calc bone 驗證過）→ 和這次的交接一起 commit；還原成 NPC 原本的：用同樣方法匯入 `assets\anims\gfg_aim_idle_rp.re`
 - `gunforgeralt.w3edit`：只有 REDkit 自己改的 `dirtyTileCellIndices`（開過測試關卡）→ 不 commit
 - `.claude\hooks\`（`context-check.sh`、`statusline.sh`）：使用者自己的設定，2026-10-15 18:35 出現，Claude 沒動過 → 不 commit
 - `.gitignore` 排除、不 commit 的：

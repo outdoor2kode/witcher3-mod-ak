@@ -68,6 +68,10 @@
     - hook 的輸入沒有 context 使用率，只有狀態列的輸入有（官方文件 statusline、hooks）
   - `hooks` 的 PostToolUse、UserPromptSubmit 跑 `.claude\hooks\context-check.sh`：到門檻提醒一次（Claude 收到 additionalContext、使用者看到 systemMessage）；降回門檻以下再重新計算
   - 2026-10-15 實測：設定存檔後，執行中的 session 立刻套用；提醒訊息送得到 Claude
+- 自動壓縮（2026-10-16）：`autoCompactWindow` 400000 → context 到 40 萬 tokens（這個模型 100 萬的 40%）時自動壓縮、接著做
+  - 官方文件 model-config「Set the auto-compact window」：`autoCompactWindow` 任何設定檔都能放；預設要到約 96.7 萬才壓縮
+  - 官方文件 settings「When edits take effect」：設定檔存檔後，執行中的 session 會重讀（`model`、`effortLevel`、`modelSettings` 例外）
+  - Claude 不能自己下 `/clear`、`/compact`（官方文件 slash-commands：內建指令只有 `/init` 等少數能用 Skill 叫）
 
 ---
 
@@ -119,13 +123,13 @@
 - Blender Python 腳本（`blender --background --python`）
 - Source 2 Viewer CLI 批次匯出
 - git、除錯、文件
+- **REDkit 和遊戲的畫面操作、測試**：`tools\desk.ps1`（使用者 2026-10-16：不接受「做不到」，要 Claude 自己操作、自己驗證；§12）
 
-**使用者負責（圖形介面與測試）：**
+**使用者負責：**
 
-- REDkit 編輯器：check out 檔案、匯入模型與貼圖、設定實體、處理動畫
-- Wwise：建立聲音
-- Blender 需要目視調整的部分（大小、方向、握把對齊）
-- 從 REDkit 啟動遊戲測試，回報結果給 Claude
+- 要用使用者帳號的事：例如 Wwise 授權
+- 使用者在場、想自己操作時：REDkit 編輯器（check out、匯入模型與貼圖、設定實體、處理動畫）、從 REDkit 啟動遊戲測試
+- Blender 不用使用者操作：需要目視時 Claude 渲染成圖片
 
 ---
 
@@ -350,12 +354,18 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 只寫還在變動的：現在做到哪、還沒寫進本檔的決定、沒 commit 的檔案與測試進度、下一步、試過放棄的做法、相關的 `docs\findings.md` 章節
   - 已定案的寫進本檔，查證過的事實寫進 `docs\findings.md`
   - **context 用到 35%**：hook 會提醒（§3）→ 手上的任務照做，同時更新交接檔；這次回覆的最後提醒使用者 `/clear`（使用者 2026-10-15）
+  - 40% 自動壓縮（§3）；使用者不在時（交接檔的「自主模式」）不用提醒 `/clear`
 - 確認了新的重要事實（路徑、API、格式）就更新本檔
 
 ---
 
 ## 12. 測試方式
 
+- **Claude 自己操作 REDkit 和遊戲**：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/desk.ps1 <指令>`（用法在檔頭；2026-10-16 實測）
+  - 截圖：`wshot proc:editor 檔名.png mode=print grid=50`（REDkit 被終端機擋住也截得到，含 D3D12 畫面；格線標螢幕座標）→ 用 Read 看圖
+  - 點擊、按鍵前先 `focus`；REDkit 是 wxWidgets，UI Automation 看不到元件 → 看截圖的座標點
+  - 只對 editor、witcher3、blender 送輸入（工具會擋終端機、瀏覽器）；做完把終端機叫回前面
+  - 螢幕鎖定、睡眠時截圖和輸入都會失效 → 長時間自己跑時用 `awake`
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
 - **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）

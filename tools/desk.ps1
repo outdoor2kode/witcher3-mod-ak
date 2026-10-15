@@ -23,6 +23,7 @@
   uia <視窗> [深度=4] [關鍵字]              列出 UI Automation 元件：類型、名稱、位置
   invoke <視窗> <名稱>                      按下名稱相符的元件（沒有 Invoke 就點它的中心）
   cursor                                   印出游標位置、游標下的視窗
+  awake [秒數=604800]                      保持清醒（不睡眠、不關螢幕），直到時間到或程序被關掉；在背景跑
 
 2026-10-16 實測：REDkit（editor.exe，沒有用系統管理員權限跑）點選單、按 Esc 都有反應；
 REDkit 是 wxWidgets，UI Automation 看不到裡面的元件（uia 列不出東西）→ 截圖加 grid 找座標再點
@@ -433,6 +434,15 @@ switch ($cmd) {
             Click-At ([int]($r.X + $r.Width / 2)) ([int]($r.Y + $r.Height / 2)) 'left' 1
             "點了「$name」的中心"
         }
+    }
+    'awake' {
+        # 保持清醒：系統不睡眠、螢幕不關（使用者的設定是 30 分鐘沒動作就睡眠；睡著、鎖定後截圖和輸入都失效）
+        # 只在這個程序活著的時候有效；程序結束（時間到或被關掉）就回到原本的設定
+        $sec = if ($rest.Count -ge 1) { [int]$rest[0] } else { 604800 }
+        Add-Type -Namespace Gfg -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
+        [void][Gfg.Power]::SetThreadExecutionState([uint32]2147483651)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+        "保持清醒 $sec 秒（$(Get-Date -Format 'MM-dd HH:mm') 起）"
+        Start-Sleep -Seconds $sec
     }
     'cursor' {
         $p = [Desk]::Cursor(); $h = [Desk]::RootAt($p.X, $p.Y)
