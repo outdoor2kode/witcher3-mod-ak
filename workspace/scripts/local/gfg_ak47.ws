@@ -48,8 +48,6 @@ function PlayOwnerReloadAnim() : bool
 	else
 		shouldPlayAnim = false;
 
-	LogChannel( 'GFG', "AK reload check: shotCount=" + shotCount + " magazine=" + magazine + " ammo=" + previousAmmoItemName + " playReloadAnim=" + shouldPlayAnim );
-
 	if ( shouldPlayAnim )
 	{
 		SetBehaviorGraphVariables( 'isWeaponLoaded', false );
@@ -78,14 +76,6 @@ function GfgCycleTime() : float
 	return 0.1;
 }
 
-@addMethod(Crossbow)
-function GfgLoadedText() : string
-{
-	if ( deployedEnt )
-		return "yes";
-	return "no";
-}
-
 // 扣下／放開扳機
 @addMethod(Crossbow)
 function GfgSetTrigger( pressed : bool )
@@ -94,9 +84,6 @@ function GfgSetTrigger( pressed : bool )
 
 	now = theGame.GetEngineTimeAsSeconds();
 	gfgTriggerHeld = pressed;
-	// context、inAir：看跳躍時扳機的放開是不是按鍵情境切換造成的（docs/findings.md §17.4）
-	LogChannel( 'GFG', "trigger=" + pressed + " t=" + FloatToString( now ) + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText() + " shotCount=" + shotCount
-		+ " context=" + theInput.GetContext() + " inAir=" + ownerPlayer.IsInAir() );
 
 	if ( pressed )
 	{
@@ -141,7 +128,6 @@ function OnWeaponAimStart()
 	crossbow = (Crossbow)this;
 	if ( crossbow && crossbow.GfgIsAk() )
 	{
-		LogChannel( 'GFG', "aim start: trigger=" + crossbow.gfgTriggerHeld );
 		if ( !crossbow.gfgTriggerHeld )
 		{
 			SetBehaviorGraphVariables( 'isAimingWeapon', false );
@@ -291,11 +277,7 @@ function GfgFixBackAim( target : Vector ) : Vector
 	if ( AbsF( diff ) < maxAngle )
 		gfgBackAimForced = false;
 	else if ( diff * side < 0.f && AbsF( diff ) > 165.f )
-	{
-		if ( !gfgBackAimForced )
-			LogChannel( 'GFG', "back aim: forced to side " + FloatToString( side ) + " (diff=" + FloatToString( diff ) + ")" );
 		gfgBackAimForced = true;
-	}
 
 	if ( gfgBackAimForced )
 		outAngle = side * maxAngle;
@@ -377,8 +359,6 @@ function GfgTryFire()
 	GfgCancelAutoHolster();
 
 	OnProcessThrowEvent( 'ProjectileThrow' );
-	LogChannel( 'GFG', "auto fire: t=" + FloatToString( now ) + " shotCount=" + shotCount + " state=" + GetCurrentStateName() + " loaded=" + GfgLoadedText()
-		+ " inAir=" + ownerPlayer.IsInAir() + " context=" + theInput.GetContext() );
 
 	// 後座力：這一發開完，鏡頭開始轉向下一發的位置（之後每格轉一部分：GfgUpdateRecoil）
 	GfgAddRecoil( now );
@@ -388,10 +368,7 @@ function GfgTryFire()
 
 	// 彈匣打空（PlayOwnerReloadAnim 回傳 true，不會立刻裝箭）：觸發換彈動畫，同 rangedWeapon.ws:1690-1691
 	if ( !deployedEnt )
-	{
 		RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
-		LogChannel( 'GFG', "magazine empty: Crossbow_Reload raised" );
-	}
 }
 
 // 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
@@ -449,10 +426,7 @@ function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
 function OnCommSheatheAny( action : SInputAction )
 {
 	if ( IsPressed( action ) && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
-	{
-		LogChannel( 'GFG', "sheathe key: holster AK" );
 		thePlayer.OnRangedForceHolster( true, false );
-	}
 	return wrappedMethod( action );
 }
 
@@ -555,10 +529,7 @@ function StateEnterSpecific( prevStateName : name )
 function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
 	if ( gfgKeepAkOnJump )
-	{
-		LogChannel( 'GFG', "jump: AK kept (holster skipped)" );
 		return true;
-	}
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
 
@@ -587,12 +558,6 @@ var gfgKickRight : float;		// 開火的後座力還沒轉完的部分：往右�
 
 @addField(Crossbow)
 var gfgKickTimeLeft : float;	// 還有幾秒要轉完 gfgKickUp／gfgKickRight
-
-@addField(Crossbow)
-var gfgTicksSinceShot : int;	// 上一發之後過了幾格畫面（寫 log 用）
-
-@addField(Crossbow)
-var gfgTicksMoved : int;		// 其中鏡頭有轉動的格數（寫 log 用：兩者相等，表示兩發之間鏡頭沒有停下來）
 
 // 整體大小的倍率：1 = 往上最多 11.7°（Artanis-RCS 的換算）；CSGODOT 假設的 16° 約為 1.36（推測）
 @addMethod(Crossbow)
@@ -628,22 +593,10 @@ function GfgRange() : float
 @addMethod(Crossbow)
 function GfgAddRecoil( now : float )
 {
-	var rot : EulerAngles;
-
 	if ( now - gfgLastShotTime >= GfgRecoilResetTime() )
 		gfgBurstShots = 0;
 	gfgBurstShots += 1;
 	gfgLastShotTime = now;
-
-	// 這一發開火時：鏡頭的角度、後座力已經轉了多少（＝這一發偏離原本瞄準點多少）、上一發還沒轉完的部分、
-	// 上一發之後鏡頭轉動的格數（ticks 和 moved 相等＝兩發之間每一格都有轉）
-	rot = GfgCamera().GetCameraWorldRotation();
-	LogChannel( 'GFG', "recoil: burst=" + gfgBurstShots + " camera pitch=" + FloatToString( rot.Pitch ) + " yaw=" + FloatToString( rot.Yaw )
-		+ " applied up=" + FloatToString( gfgRecoilUp ) + " right=" + FloatToString( gfgRecoilRight )
-		+ " left up=" + FloatToString( gfgKickUp ) + " right=" + FloatToString( gfgKickRight )
-		+ " ticks=" + gfgTicksSinceShot + " moved=" + gfgTicksMoved );
-	gfgTicksSinceShot = 0;
-	gfgTicksMoved = 0;
 
 	// 上一發還沒轉完的部分一起轉，重新計時
 	gfgKickUp += GfgRecoilKickUp( gfgBurstShots ) * GfgRecoilScale();
@@ -686,14 +639,8 @@ function GfgUpdateRecoil( dt : float, out stepUp : float, out stepRight : float 
 			stepRight -= gfgRecoilRight * ( 1.f - keep );
 			gfgRecoilUp *= keep;
 			gfgRecoilRight *= keep;
-			if ( newMag == 0.f )
-				LogChannel( 'GFG', "recoil recovered: " + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgLastShotTime ) + "s after last shot" );
 		}
 	}
-
-	gfgTicksSinceShot += 1;
-	if ( stepUp != 0.f || stepRight != 0.f )
-		gfgTicksMoved += 1;
 
 	GfgDecaySpread( dt );
 }
@@ -766,7 +713,7 @@ function GfgSpreadPerShot() : float
 }
 
 // AK 的最高移動速度：m_flMaxSpeed 215 單位/秒 ≈ 5.46 公尺/秒（docs/ak47_params.md §6）
-// Geralt 的速度直接和它比（推測；每發的 aim 紀錄會寫 speed，之後可調）
+// Geralt 的速度直接和它比（推測，之後可調）
 @addMethod(Crossbow)
 function GfgMaxMoveSpeed() : float
 {
@@ -980,14 +927,12 @@ function GfgUpdateCrosshair( drawn : bool )
 		{
 			module.SnapToAnchorPosition();	// 放回原本的錨點（hudModuleBase.ws:72-112）；上一版會移動準心
 			module.ShowElement( true, false );
-			LogChannel( 'GFG', "crosshair shown: aiming state=" + aimingState );
 		}
 	}
 	else if ( gfgCrosshairShown )
 	{
 		// 只關我們打開的，不影響原版丟炸彈、十字弩瞄準時的準心
 		module.ShowElement( false, false );
-		LogChannel( 'GFG', "crosshair hidden" );
 	}
 	gfgCrosshairShown = drawn;
 	gfgAimingState = aimingState;
@@ -999,14 +944,11 @@ function GfgUpdateCrosshair( drawn : bool )
 		screen = hud.GetScaleformPoint( ( x + 1 ) / 2, ( y + 1 ) / 2 );
 		module.GetModuleFlash().SetX( screen.X );
 		module.GetModuleFlash().SetY( screen.Y );
-		if ( !gfgCrosshairOnLock )
-			LogChannel( 'GFG', "crosshair on lock target: screen=(" + FloatToString( screen.X ) + "," + FloatToString( screen.Y ) + ")" );
 		gfgCrosshairOnLock = true;
 	}
 	else if ( gfgCrosshairOnLock )
 	{
 		module.SnapToAnchorPosition();	// 解除鎖定：放回原本的錨點（hudModuleBase.ws:72-112）
-		LogChannel( 'GFG', "crosshair back to anchor" );
 		gfgCrosshairOnLock = false;
 	}
 }
@@ -1031,6 +973,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		akDrawn = rangedWeapon.GfgIsAkDrawn();
 		if ( akDrawn )
 		{
+			GfgLogHoldPose();	// 暫時：量雙手持槍的實際位置（量完就拿掉）
 			rangedWeapon.GfgCancelAutoHolster();
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
 			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
@@ -1038,6 +981,52 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		}
 	}
 	GfgUpdateCrosshair( akDrawn );
+}
+
+// ===== 暫時：量雙手持槍的實際位置（使用者 2026-10-15 同意；docs/m3.md「擺法 A 進遊戲：錯誤」；量完就拿掉）=====
+// 拿著 AK 時每 0.5 秒印一次引擎的矩陣（世界座標）：位置、x／y／z 軸
+// - 取法同原版 actor.ws:6775-6810（GetBoneIndex、GetBoneWorldMatrixByIndex）；軸用 MatrixGetAxisX／Y／Z（math.ws:528-534），不經過歐拉角
+@addField(CR4Player)
+var gfgPoseLogTime : float;
+
+@addMethod(CR4Player)
+function GfgLogMatrix( label : string, m : Matrix )
+{
+	LogChannel( 'GFG', "pose " + label + " pos " + VecToStringPrec( MatrixGetTranslation( m ), 4 )
+		+ " x " + VecToStringPrec( MatrixGetAxisX( m ), 4 ) + " y " + VecToStringPrec( MatrixGetAxisY( m ), 4 ) + " z " + VecToStringPrec( MatrixGetAxisZ( m ), 4 ) );
+}
+
+@addMethod(CR4Player)
+function GfgLogBone( ent : CEntity, label : string, bone : name )
+{
+	var idx : int;
+
+	idx = ent.GetBoneIndex( bone );
+	if ( idx == -1 )
+		LogChannel( 'GFG', "pose " + label + " bone not found" );
+	else
+		GfgLogMatrix( label, ent.GetBoneWorldMatrixByIndex( idx ) );
+}
+
+@addMethod(CR4Player)
+function GfgLogHoldPose()
+{
+	var now : float;
+
+	now = theGame.GetEngineTimeAsSeconds();
+	if ( now - gfgPoseLogTime < 0.5 )
+		return;
+	gfgPoseLogTime = now;
+	LogChannel( 'GFG', "pose t=" + FloatToString( now ) + " player=" + GetCurrentStateName() + " ak=" + rangedWeapon.GetCurrentStateName()
+		+ " held=" + FloatToString( GetBehaviorVariable( 'hasCrossbowHeld' ) ) );	// 主動畫圖走路、跑步時兩手用 aim_run 的開關（rangedWeapon.ws:1293）
+	GfgLogMatrix( "player", GetLocalToWorld() );
+	GfgLogBone( this, "l_weapon", 'l_weapon' );
+	GfgLogBone( this, "l_hand", 'l_hand' );
+	GfgLogBone( this, "r_hand", 'r_hand' );
+	GfgLogBone( this, "r_weapon", 'r_weapon' );
+	GfgLogMatrix( "ak", rangedWeapon.GetLocalToWorld() );
+	GfgLogBone( rangedWeapon, "ak_handle", 'handle' );
+	LogChannel( 'GFG', "pose camera eye " + VecToStringPrec( rangedWeapon.GfgEyePosition(), 4 ) + " dir " + VecToStringPrec( rangedWeapon.GfgViewDirection(), 4 ) );
 }
 
 // 玩家鏡頭的每格更新（走路）
@@ -1051,146 +1040,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 
 	result = wrappedMethod( moveData, dt );
 	GfgCameraTick( moveData, dt );
-	GfgCheckStuck( dt );
 	return result;
-}
-
-// ===== 偵測：推著移動鍵卻沒移動（使用者 2026-10-13 回報：生成怪物後有時完全不能動，直到殺死怪物或被攻擊）=====
-// 只寫紀錄、不改行為；不管有沒有拿 AK 都偵測。卡住超過 1 秒記一次，恢復時記卡了多久（docs/findings.md §20）
-// 移動鍵：直接讀移動軸（同原版 HandleMovement：player.ws:588-589），也看 bLAxisReleased（:631-684）
-
-@addField(CR4Player)
-var gfgStuckTime : float;		// 推著移動鍵卻沒移動的累計時間（秒）
-
-@addField(CR4Player)
-var gfgStuckLogged : bool;		// 這次卡住記過了沒
-
-@addMethod(CR4Player)
-function GfgCheckStuck( dt : float )
-{
-	var locks : array<SInputActionLock>;
-	var sources, weaponState : string;
-	var axisX, axisY, speed : float;
-	var i : int;
-	var actors : array<CActor>;
-	var nearCount, aroundCount : int;
-	var nearest, dist : float;
-	var adjustor : CMovementAdjustor;
-	var targetText, displayText : string;
-
-	axisX = theInput.GetActionValue( 'GI_AxisLeftX' );
-	axisY = theInput.GetActionValue( 'GI_AxisLeftY' );
-	speed = VecLength2D( GetMovingAgentComponent().GetVelocity() );
-
-	// 沒推移動鍵，或有在移動：不算卡住
-	if ( ( axisX == 0.f && axisY == 0.f && bLAxisReleased ) || speed > 0.1f )
-	{
-		if ( gfgStuckLogged )
-			LogChannel( 'GFG', "stuck end: " + FloatToString( gfgStuckTime ) + "s speed=" + FloatToString( speed ) );
-		gfgStuckTime = 0.f;
-		gfgStuckLogged = false;
-		return;
-	}
-
-	gfgStuckTime += dt;
-	if ( gfgStuckLogged || gfgStuckTime < 1.f )
-		return;
-	gfgStuckLogged = true;
-
-	// 誰鎖住了移動（GetActionLocks：player.ws:360；SInputActionLock：playerTypes.ws:1148）
-	locks = GetActionLocks( EIAB_Movement );
-	for ( i = 0; i < locks.Size(); i += 1 )
-		sources += NameToString( locks[i].sourceName ) + " ";
-	weaponState = "none";
-	if ( rangedWeapon )
-		weaponState = NameToString( rangedWeapon.GetCurrentStateName() );
-
-	// 可能的原因：戰鬥動作開始時不允許輸入（r4Player.ws:13056），結束時才恢復（:13154）；CombatActionFriendly 鎖移動（:13186-13196）
-	LogChannel( 'GFG', "stuck: axis=(" + FloatToString( axisX ) + "," + FloatToString( axisY ) + ") axisReleased=" + bLAxisReleased
-		+ " movementAllowed=" + IsActionAllowed( EIAB_Movement ) + " locks=" + sources
-		+ " inputAllowed=" + GetBIsInputAllowed() + " combatActionAllowed=" + GetBIsCombatActionAllowed()
-		+ " inCombatAction=" + IsInCombatAction() + " friendly=" + IsInCombatActionFriendly()
-		+ " combatActionType=" + FloatToString( GetBehaviorVariable( 'combatActionType' ) )
-		+ " state=" + GetCurrentStateName() + " substate=" + substateManager.GetStateCur() + " context=" + theInput.GetContext()
-		+ " stance=" + GetPlayerCombatStance() + " weapon=" + weaponState
-		+ " fullBody=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) );
-
-	// 移動控制器只有在 GetIsMovable() 時才算速度（locomotionDirectController.ws:168、:260-266），IsUITakeInput() 時整個跳過（:122）；
-	// 動畫圖的移動狀態機要 moveSpeed > 0 才離開 Idle（pc_gameplay.w2beh #15146；docs/findings.md §20.6）
-	LogChannel( 'GFG', "stuck detail: movable=" + GetIsMovable() + " uiTakesInput=" + IsUITakeInput()
-		+ " moveType=" + playerMoveType + " rawSpeed=" + FloatToString( rawPlayerSpeed )
-		+ " relSpeed=" + FloatToString( GetMovingAgentComponent().GetRelativeMoveSpeed() )
-		+ " behMoveType=" + FloatToString( GetBehaviorVariable( 'playerMoveType' ) )
-		+ " overlayMoveType=" + FloatToString( GetBehaviorVariable( 'playerMoveTypeForOverlay' ) )
-		+ " inputNotReady=" + FloatToString( GetBehaviorVariable( 'inputDirectionIsNotReady' ) )
-		+ " sprinting=" + GetIsSprinting() + " inCombat=" + IsInCombat() );
-
-	// 身邊的角色（被包圍時，身體會不會擋住移動）：5 公尺內幾隻、1.5 公尺內幾隻、最近的多遠
-	// （GetActorsInRange：actorsStorage.ws:44；VecDistance2D：math.ws:368）
-	actors = GetActorsInRange( this, 5.f, , , true );
-	nearest = 5.f;
-	for ( i = 0; i < actors.Size(); i += 1 )
-	{
-		if ( actors[i] == this )
-			continue;
-		aroundCount += 1;
-		dist = VecDistance2D( actors[i].GetWorldPosition(), GetWorldPosition() );
-		if ( dist < 1.5f )
-			nearCount += 1;
-		if ( dist < nearest )
-			nearest = dist;
-	}
-	LogChannel( 'GFG', "stuck around: actors5m=" + aroundCount + " actors1.5m=" + nearCount + " nearest=" + FloatToString( nearest ) );
-
-	// 移動調整：動畫事件 RotateToTarget 會建立「不使用動畫位移」的請求，轉向滑動目標（r4Player.ws:3913-3971、:2712-2729）；
-	// 十字弩拿著時畫面上的目標＝滑動目標（:6749-6753）（docs/findings.md §20.9）
-	adjustor = GetMovingAgentComponent().GetMovementAdjustor();
-	targetText = "none";
-	if ( slideTarget )
-	{
-		targetText = slideTarget.GetReadableName();
-		if ( (CActor)slideTarget && !( (CActor)slideTarget ).IsAlive() )
-			targetText += "(dead)";
-	}
-	displayText = "none";
-	if ( GetDisplayTarget() )
-		displayText = GetDisplayTarget().GetReadableName();
-	LogChannel( 'GFG', "stuck adjust: any=" + adjustor.HasAnyActiveRequest() + " rotation=" + adjustor.HasAnyActiveRotationRequests()
-		+ " translation=" + adjustor.HasAnyActiveTranslationRequests()
-		+ " rotateToTarget=" + adjustor.IsRequestActive( adjustor.GetRequest( 'RotateToTarget' ) )
-		+ " slideTarget=" + targetText + " displayTarget=" + displayText + " orientation=" + GetOrientationTarget() );
-}
-
-// ===== 偵測：按下馬鍵時記下原版下馬的條件（使用者 2026-10-14 回報：不能下馬；docs/findings.md §22）=====
-// 只寫紀錄、不改行為。按鍵：OnHorseDismountKeyboard（horse/states/exploration.ws:3017-3030）；
-// 條件照原版 DismountHorse（:3044-3053）；騎馬拿十字弩時會鎖下馬（ShootingCrossbow：useVehicle.ws:755-756、rangedWeapon.ws:1145）
-
-@wrapMethod(W3HorseComponentStateExploration)
-function OnHorseDismountKeyboard( action : SInputAction )
-{
-	LogChannel( 'GFG', "dismount key: pressed=" + IsPressed( action ) + " released=" + IsReleased( action ) );
-	return wrappedMethod( action );
-}
-
-@wrapMethod(W3HorseComponentStateExploration)
-function DismountHorse() : bool
-{
-	var locks : array<SInputActionLock>;
-	var sources, weaponState : string;
-	var i : int;
-
-	locks = thePlayer.GetActionLocks( EIAB_DismountVehicle );
-	for ( i = 0; i < locks.Size(); i += 1 )
-		sources += NameToString( locks[i].sourceName ) + " ";
-	weaponState = "none";
-	if ( thePlayer.rangedWeapon )
-		weaponState = NameToString( thePlayer.rangedWeapon.GetCurrentStateName() );
-	LogChannel( 'GFG', "dismount check: allowed=" + thePlayer.IsActionAllowed( EIAB_DismountVehicle ) + " locks=" + sources
-		+ " riderInCombatAction=" + IsRiderInCombatAction() + " jumpAnim=" + isInJumpAnim + " dismountRequest=" + dismountRequest
-		+ " canDismount=" + parent.canDismount + " horseAction=" + parent.IsInHorseAction()
-		+ " dialog=" + theGame.IsDialogOrCutscenePlaying() + " context=" + theInput.GetContext()
-		+ " fading=" + theGame.IsFading() + " blackscreen=" + theGame.IsBlackscreen() + " weapon=" + weaponState );
-	return wrappedMethod();
 }
 
 // ===== 騎馬：左鍵開槍，行為和沒騎馬時一樣（使用者 2026-10-14 指定；docs/findings.md §24）=====
@@ -1227,7 +1077,6 @@ function StartAttackAction()
 		rider.SetBehaviorVariable( 'actionType', (int)EHCA_ShootCrossbow );
 		rider.rangedWeapon = ak;
 		ak.OnRangedWeaponPress();
-		LogChannel( 'GFG', "horse: draw AK" );
 	}
 	ak.GfgSetTrigger( true );
 }
@@ -1281,8 +1130,6 @@ function GfgSetHorseAimCam( on : bool, optional keepVanilla : bool )
 		vehicleCbtMgrAiming = true;
 	else if ( gfgHorseAimCam && !keepVanilla )
 		vehicleCbtMgrAiming = false;
-	if ( on != gfgHorseAimCam )
-		LogChannel( 'GFG', "horse aim camera: " + on + " locked=" + IsCameraLockedToTarget() );
 	gfgHorseAimCam = on;
 }
 
@@ -1326,10 +1173,7 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 	{
 		GfgSetHorseAimCam( false, true );
 		if ( !rangedWeapon.IsWeaponBeingUsed() && !theInput.IsActionPressed( 'VehicleItemAction' ) )
-		{
-			LogChannel( 'GFG', "horse: ShootCrossbow -> idle (AK still drawn)" );
 			mgr.PopState( true );
-		}
 		return false;
 	}
 
@@ -1401,10 +1245,7 @@ function OnAnimEvent_Throwable( animEventName : name, animEventType : EAnimation
 	result = wrappedMethod( animEventName, animEventType, animInfo );
 	if ( vehicleCombatMgr.GetCurrentStateName() != 'ShootCrossbow' && parent.rangedWeapon && parent.rangedWeapon.GfgIsAk()
 		&& parent.inv.IsItemCrossbow( parent.inv.GetItemFromSlot( 'l_weapon' ) ) )
-	{
-		LogChannel( 'GFG', "horse: anim event " + animEventName + " -> AK" );
 		parent.rangedWeapon.OnProcessThrowEvent( animEventName );
-	}
 	return result;
 }
 
@@ -1417,92 +1258,6 @@ function OnLeaveState( nextStateName : name )
 		parent.rangedWeapon.GfgSetTrigger( false );
 	parent.GfgSetHorseAimCam( false );
 	return wrappedMethod( nextStateName );
-}
-
-// ===== 偵測：騎馬時法印輪盤（Tab）一開就關（使用者 2026-10-14 回報；docs/findings.md §24.6）=====
-// 只寫紀錄、不改行為。原版關輪盤都經過 HideRadialMenu（hudModuleRadialMenu.ws:455-497），呼叫它的有：
-// Flash 要求關閉 OnRequestCloseRadial（:257-264）、CloseRadialMenu 鍵（:187-201）、ConfirmRadialMenuSelection 鍵（:171-185）、
-// OpenMeditation 鍵（:274-310）；按鍵的註冊：:82-85；開啟：OnRadialMenu（:324-345）
-
-@addMethod(CR4HudModuleRadialMenu)
-function GfgRadialState() : string
-{
-	return "shown=" + m_shown + " tabHeld=" + theInput.IsActionPressed( 'RadialMenu' ) + " context=" + theInput.GetContext()
-		+ " onVehicle=" + thePlayer.IsUsingVehicle() + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnRadialMenu( action : SInputAction )
-{
-	LogChannel( 'GFG', "radial: key pressed=" + IsPressed( action ) + " released=" + IsReleased( action ) + " " + GfgRadialState() );
-	return wrappedMethod( action );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnRequestCloseRadial( PCConfirmControls : bool )
-{
-	LogChannel( 'GFG', "radial: close requested by Flash PCConfirm=" + PCConfirmControls + " " + GfgRadialState() );
-	return wrappedMethod( PCConfirmControls );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnRadialMenuClose( action : SInputAction )
-{
-	LogChannel( 'GFG', "radial: CloseRadialMenu pressed=" + IsPressed( action ) + " " + GfgRadialState() );
-	return wrappedMethod( action );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnRadialMenuConfirmSelection( action : SInputAction )
-{
-	LogChannel( 'GFG', "radial: ConfirmRadialMenuSelection pressed=" + IsPressed( action ) + " " + GfgRadialState() );
-	return wrappedMethod( action );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnOpenMeditation( action : SInputAction )
-{
-	LogChannel( 'GFG', "radial: OpenMeditation pressed=" + IsPressed( action ) + " " + GfgRadialState() );
-	return wrappedMethod( action );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function HideRadialMenu()
-{
-	LogChannel( 'GFG', "radial: hide " + GfgRadialState() );
-	wrappedMethod();
-}
-
-// 第二次實測（docs/findings.md §24.7）：一開就關都是 Flash 要求「選定並關閉」（PCConfirm=true），
-// Flash 只在 E、Enter 鍵（HudModuleRadialMenu.as:845-849）、左鍵點選（:603-611）、雙擊（:619-629）時這樣要求，送出前都會先選定格子
-// （activateSelectedSlot(false)：:653-682 → OnActivateSlot 的 tab=false；放開 Tab 關閉時是 tab=true：:738-744）。
-// 一開就關的期間 Flash 一直收到輸入事件，時間和「可以下馬」一致（下馬的按住提示：playerInput.ws:351-358 → r4guimanager.ws:1507-1519 → 這裡的 EnableHoldIndicator）
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnActivateSlot( slotName : string, isTabOrBumper : bool, swappingItems : bool )
-{
-	LogChannel( 'GFG', "radial: activate slot=" + slotName + " tab=" + isTabOrBumper + " swapping=" + swappingItems + " " + GfgRadialState() );
-	return wrappedMethod( slotName, isTabOrBumper, swappingItems );
-}
-
-@wrapMethod(CR4HudModuleRadialMenu)
-function OnActivateSlotRanged( slotName : string, isTabOrBumper : bool, swappingItems : bool )
-{
-	LogChannel( 'GFG', "radial: activate ranged slot=" + slotName + " tab=" + isTabOrBumper + " swapping=" + swappingItems + " " + GfgRadialState() );
-	return wrappedMethod( slotName, isTabOrBumper, swappingItems );
-}
-
-@wrapMethod(CR4HudModuleInteractions)
-function EnableHoldIndicator( gpadKeyCode : int, kbKeyCode : int, label : string, holdDuration : float, optional intName : name )
-{
-	LogChannel( 'GFG', "radial: hold indicator on label=" + label + " pad=" + gpadKeyCode + " kb=" + kbKeyCode + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) );
-	wrappedMethod( gpadKeyCode, kbKeyCode, label, holdDuration, intName );
-}
-
-@wrapMethod(CR4HudModuleInteractions)
-function DisableHoldIndicator()
-{
-	LogChannel( 'GFG', "radial: hold indicator off t=" + FloatToString( theGame.GetEngineTimeAsSeconds() ) );
-	wrappedMethod();
 }
 
 // ===== 修正：馬上沒拿 AK 時法印輪盤一開就關（使用者 2026-10-14 選「開輪盤時清掉」；docs/findings.md §24.8、§24.9）=====
@@ -1520,10 +1275,7 @@ function ShowRadialMenu()
 	{
 		fxResetInput = GetModuleFlash().GetMemberFlashFunction( "resetInput" );
 		if ( fxResetInput )
-		{
 			fxResetInput.InvokeSelf();
-			LogChannel( 'GFG', "radial: flash input reset " + GfgRadialState() );
-		}
 	}
 	wrappedMethod();
 }
@@ -1534,29 +1286,16 @@ function ThrowProjectile( targetPosIn : Vector )
 {
 	var player : CR4Player;
 	var target : Vector;
-	var rx, ry : float;
-	var displayTarget : string;
 
 	target = targetPosIn;
 	player = (CR4Player)GetOwner();
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
 	{
-		// 這一發的圓錐半角、玩家速度（GfgAimPoint 用的是同一個值）
-		LogChannel( 'GFG', "spread: cone=" + FloatToString( player.rangedWeapon.GfgSpreadCone() ) + " penalty=" + FloatToString( player.rangedWeapon.gfgSpreadPenalty )
-			+ " speed=" + FloatToString( VecLength2D( player.GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + player.playerMoveType );
 		target = player.rangedWeapon.GfgAimPoint();
 		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
 		if ( !player.IsDiving() )
 			gfgAkRange = player.rangedWeapon.GfgRange();
-		// 診斷：目標點投影到畫面的位置（畫面中央是 0,0：hud.ws:1864-1874）；
 		// 原版自動瞄準的條件：鎖定的目標是 NPC、有戰鬥音樂、沒在中鍵瞄準（playerBoltProjectile.ws:353-354），成立時箭會改射向那個 NPC 的身體
-		theCamera.WorldVectorToViewRatio( target, rx, ry );
-		displayTarget = "none";
-		if ( player.GetDisplayTarget() )
-			displayTarget = player.GetDisplayTarget().GetReadableName();
-		LogChannel( 'GFG', "aim: distance=" + FloatToString( VecDistance( player.rangedWeapon.GfgEyePosition(), target ) )
-			+ " screen=(" + FloatToString( rx ) + "," + FloatToString( ry ) + ")"
-			+ " displayTarget=" + displayTarget + " hardLock=" + player.IsHardLockEnabled() + " combatMusic=" + player.IsCombatMusicEnabled() );
 	}
 	wrappedMethod( target );
 }
@@ -1571,21 +1310,12 @@ function ThrowProjectile( targetPosIn : Vector )
 @addField(W3AdvancedProjectile)
 var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
 
-@addField(W3AdvancedProjectile)
-var gfgShotFrom : Vector;	// 發射的位置（寫 log 用）
-
-@addField(W3AdvancedProjectile)
-var gfgShotTime : float;	// 發射的時間（引擎時間，秒；寫 log 用）
-
-// 發射時：回傳要用的射程；AK 的箭記下發射的位置與時間
+// 發射時要用的射程
 @addMethod(W3AdvancedProjectile)
-function GfgShotRange( range : float, target : Vector ) : float
+function GfgShotRange( range : float ) : float
 {
 	if ( gfgAkRange <= 0.f )
 		return range;
-	gfgShotFrom = GetWorldPosition();
-	gfgShotTime = theGame.GetEngineTimeAsSeconds();
-	LogChannel( 'GFG', "bolt shot: range " + FloatToString( range ) + " -> " + FloatToString( gfgAkRange ) + " target distance=" + FloatToString( VecDistance( gfgShotFrom, target ) ) );
 	return gfgAkRange;
 }
 
@@ -1593,45 +1323,21 @@ function GfgShotRange( range : float, target : Vector ) : float
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtPosition( angle : float, velocity : float, target : Vector, optional range : float, optional collisionGroups : array<name> )
 {
-	wrappedMethod( angle, velocity, target, GfgShotRange( range, target ), collisionGroups );
+	wrappedMethod( angle, velocity, target, GfgShotRange( range ), collisionGroups );
 }
 
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
 {
-	wrappedMethod( angle, velocity, target, targetBone, GfgShotRange( range, target.GetWorldPosition() ), collisionGroups );
-}
-
-// 診斷：飛到射程時飛了多遠、多久（驗證射程有沒有生效）
-// 到射程後每一格都會再呼叫（docs/findings.md §18.4），只記第一次：原版第一次就把 isScheduledForDestruction 設成 true（arrowProjectile.ws:40-44）
-@wrapMethod(W3ArrowProjectile)
-function OnRangeReached()
-{
-	if ( gfgAkRange > 0.f && !isScheduledForDestruction )
-		LogChannel( 'GFG', "bolt range reached: flown=" + FloatToString( VecDistance( gfgShotFrom, GetWorldPosition() ) ) + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgShotTime ) );
-	return wrappedMethod();
+	wrappedMethod( angle, velocity, target, targetBone, GfgShotRange( range ), collisionGroups );
 }
 
 // 碰撞：AK 的箭插在牆壁、地面上時改成不限時間（GfgAddStuckBolt）
-// 診斷：碰撞時飛了多遠、多久、碰到什麼（飛行中才記：原版停下來後 isActive 是 false，碰撞直接忽略：playerBoltProjectile.ws:159-160）
 @wrapMethod(W3BoltProjectile)
 function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
 {
-	var what, groups : string;
-	var i : int;
 	var wasScheduled, result : bool;
 	var player : CR4Player;
-
-	if ( gfgAkRange > 0.f && isActive )
-	{
-		what = "none";
-		if ( collidingComponent )
-			what = collidingComponent.GetEntity().GetReadableName();
-		for ( i = 0; i < hitCollisionsGroups.Size(); i += 1 )
-			groups += NameToString( hitCollisionsGroups[i] ) + " ";
-		LogChannel( 'GFG', "bolt collision: flown=" + FloatToString( VecDistance( gfgShotFrom, pos ) ) + " t=" + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgShotTime )
-			+ " entity=" + what + " groups=" + groups );
-	}
 
 	wasScheduled = isScheduledForDestruction;
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
@@ -1667,7 +1373,7 @@ function GfgMaxStuckBolts() : int
 @addMethod(CR4Player)
 function GfgAddStuckBolt( bolt : W3BoltProjectile )
 {
-	var i, removed : int;
+	var i : int;
 
 	// 已經不在的先移出清單
 	i = 0;
@@ -1680,14 +1386,11 @@ function GfgAddStuckBolt( bolt : W3BoltProjectile )
 	}
 
 	gfgStuckBolts.PushBack( bolt );
-	removed = 0;
 	while ( gfgStuckBolts.Size() > GfgMaxStuckBolts() )
 	{
 		gfgStuckBolts[0].Destroy();
 		gfgStuckBolts.Erase( 0 );
-		removed += 1;
 	}
-	LogChannel( 'GFG', "bolt stuck: kept=" + gfgStuckBolts.Size() + " removed=" + removed );
 }
 
 // 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生
