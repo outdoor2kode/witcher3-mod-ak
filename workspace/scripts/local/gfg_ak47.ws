@@ -1018,7 +1018,8 @@ function GfgLogHoldPose()
 		return;
 	gfgPoseLogTime = now;
 	LogChannel( 'GFG', "pose t=" + FloatToString( now ) + " player=" + GetCurrentStateName() + " ak=" + rangedWeapon.GetCurrentStateName()
-		+ " held=" + FloatToString( GetBehaviorVariable( 'hasCrossbowHeld' ) ) );	// 主動畫圖走路、跑步時兩手用 aim_run 的開關（rangedWeapon.ws:1293）
+		+ " held=" + FloatToString( GetBehaviorVariable( 'hasCrossbowHeld' ) )	// 主動畫圖走路、跑步時兩手用 aim_run 的開關（rangedWeapon.ws:1293）
+		+ " friendly=" + FloatToString( GetBehaviorVariable( 'isShootingFriendlyForOverlay' ) ) );	// 上半身 #18575：移動中而且 ≥ 1 → 換成一般跑步的手（rangedWeapon.ws:566-580）
 	GfgLogMatrix( "player", GetLocalToWorld() );
 	GfgLogBone( this, "l_weapon", 'l_weapon' );
 	GfgLogBone( this, "l_hand", 'l_hand' );
