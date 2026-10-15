@@ -42,7 +42,7 @@
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → Import → Mesh；`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel** | 使用者 | `gfg_ak47.w2mesh` |
-| 4' | 只換模型時：Mesh editor → **Reimport** → **Mesh only** → Save（材質會保留） | 使用者 | |
+| 4' | 只換模型時：Mesh editor → **Reimport** → **Mesh only** → 對話框的 **`importAsSkinnedMesh` 要設 true**（REDkit 重開後會變回 false，2026-10-15 因此槍不見）→ Save（材質會保留）；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | |
 | 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK（已完成、已 commit） | — | |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已完成、已 commit） | — | |
 
@@ -86,8 +86,10 @@
    - 進遊戲測（2026-10-15 晚上）：裝好的箭不再從彈匣下方露出（已 commit）；**槍管往上翹、和準心不一致**
      - 原因：AK 對齊 `handle` 的 x 軸，原版的箭沿 `chord` 的 x 軸，差 20.39°（`docs\m3.md`「進遊戲測」）
      - 使用者選現在修：`m3_build_ak.py` 加了 `--pitch`，已用 `--pitch -20.5` 產生新的 FBX（`docs\m3.md`「槍管往下轉 20.5°」）
-     - **等使用者在 REDkit**：`gfg_ak47.w2mesh` Reimport → Mesh only → 存檔；slot `bolt` 改位置 (0.435, 0, -0.031)、Pitch -20.4（Yaw 維持 -90）→ 存檔
-     - 之後 Claude 讀檔確認 Pitch 存在哪個 float；進遊戲看槍管有沒有對準準心、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
+     - slot 已改好（讀檔確認：位置 (0.435, 0, -0.031)、旋轉存成 (0, 339.6, 270)＝Roll 0／Pitch -20.4／Yaw -90）
+     - 第一次重匯模型時 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡槍不見（`docs\m3.md`「第一次重匯」）
+     - **等使用者重匯一次**：Reimport → Mesh only → `importAsSkinnedMesh` 設 true → 存檔；Claude 看 `editor.log`、讀 `.w2mesh` 確認（自訂資料應該回到 88 bytes）
+     - 之後進遊戲看槍管有沒有對準準心、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
    - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
 2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）

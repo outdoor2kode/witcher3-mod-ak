@@ -144,7 +144,7 @@
     - **實體模板**用 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載資料夾（`entitieTemplatesDirectoryPath`，本專案 `dlc\gunforgeralt\data\items\`）
       - 物品 XML 的 `equip_template` = 模板的**檔名**（不含 `.w2ent`），放在掛載資料夾往下任何一層都找得到（2026-10-15 遊戲實測，`docs\m3.md`）
       - 模板的 slot 在 Entity Editor 下方分頁 **Slots**（和 Node properties 同一排）改；使用者 2026-10-15 改過 `bolt`
-      - slot 的 transform 存檔時，旋轉的**第三個 float 是 Yaw**（填 Yaw -90 存成 270）；前兩個的順序還不知道（`docs\m3.md`）
+      - slot 的 transform 存檔時，旋轉的 3 個 float 是 **(Roll, Pitch, Yaw)**（填 Pitch -20.4、Yaw -90 存成 (0, 339.6, 270)；第一個是 Roll 是推論；`docs\m3.md`）
     - **DLC 可以替現有的角色模板加動畫組**：`CR4EntityTemplateParamDLCMounter` ＋ `CAnimAnimsetsParam`（元件名稱＋動畫組清單）
       - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（2026-10-15 讀原版資料，我們還沒實測；`docs\m3.md`「雙手持槍：第二輪查詢」）
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
@@ -167,6 +167,8 @@
     - `editor.log` 寫 `HasSkinning: true (NODE '模型名稱')`：整個模型綁在一根「和模型節點同名」的骨頭上，綁定矩陣是單位矩陣
     - 照 Wiki 的 Blender 匯出設定、照 REDkit 自己匯出的 FBX 結構都試過，結果一樣
     - → 要掛在既有骨架上的模型：匯出不帶骨架、名稱取成骨頭名的模型，頂點先換到那根骨頭的座標系（`tools\m3_build_ak.py`）
+    - **匯入、重匯時 `importAsSkinnedMesh` 都要設 true**：REDkit 不保存匯入選項，重開後變回 false；沒設的話模型沒綁骨頭，遊戲裡看不到（2026-10-15）
+      - 確認方式：`editor.log` 要有 `HasSkinning: true (NODE '骨頭名')`；`Created mesh chunk … 0 bones` 就是沒綁
 15. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
