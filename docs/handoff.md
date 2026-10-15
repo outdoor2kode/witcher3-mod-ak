@@ -82,11 +82,12 @@
 ## 下一步
 
 1. **M3：`bolt` slot**（`docs\m3.md`「第 4 步：`bolt` slot 移到槍口」）
-   - 使用者在 REDkit 設定：`gfg_ak47.w2ent` → Slots 分頁 → `bolt`：骨頭 `handle`、位置 (0.423, 0, 0.098)、旋轉 Pitch 0／Yaw -90／Roll 0 → 存檔
-   - Claude 用 `tools\cr2w_dump.py` 讀檔確認（transform 的旗標應該變成 3 = 位置＋旋轉）
-   - 進遊戲看：箭從槍口飛出、裝好的箭藏在槍管裡；請使用者截圖（不開槍時、開槍時）
+   - ~~使用者在 REDkit 設定~~ → 已設定、存檔（14:39）；Claude 讀檔確認：骨頭 `handle`、位置 (0.423, 0, 0.098)、旋轉存成 (0, 0, 270)
+   - **等使用者進遊戲看**：箭從槍口飛出、裝好的箭藏在槍管裡；請使用者截圖（不開槍時、開槍時）
    - 箭朝後或歪掉 → 旋轉的推測錯了（yaw 的方向），改 Yaw 90 再試
+   - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - 通過就 commit `gfg_ak47.w2ent`
+   - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
 2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）
    - 方向：借原版 NPC 十字弩兵的動畫（`man_crossbow.w2anims`，和 Geralt 同一套骨架），不從零做動畫
    - 查到：DLC 能替 Geralt 加動畫組（`CAnimAnimsetsParam`）；腳本能播 slot 動畫但會被十字弩的上半身蓋掉；NPC 十字弩掛右手；四種做法的比較表在 `m3.md`
