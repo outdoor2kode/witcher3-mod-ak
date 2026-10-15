@@ -76,7 +76,7 @@
        - 03:22 量到：跑步時 `l_weapon`（玩家座標）和站著時**完全一樣** (0.15, 0.52, 1.36)；右手在身後擺（y −0.34～−0.09）→ 上半身其他部分是站著的雙手姿勢，**只有右手臂被換成跑步擺手**；`held=1`、`friendly=0`（#18575 沒啟用）
        - 想用 REDkit 的 Tools → Debuggers → **Behavior Debugger** 看跑步時哪些節點在動（遊戲中選單點不到：要在 F10 之前……沒試過）
        - 遊戲裡按鍵前先**點一下遊戲畫面**（不然方向鍵會送到 REDkit 右邊場景面板的圖層下拉選單，跳出「Changing layer preset」→ 按 No）
-    2. 收槍時 AK 在背上的位置跑掉（擺法做進模型裡：`docs\m3.md`「擺法 A 進遊戲」）→ AK 專用的背部 slot（`CR4EntityTemplateSlotDLCMounter`）
+    2. ~~收槍時 AK 在背上的位置跑掉~~ → **完成**（03:47；`docs\m3.md`「雙手持槍：收槍的位置」）：`test.reddlc` 加 slot 掛載器、物品 XML `equip_slot="gfg_ak47_back_slot"`；以下是當時的紀錄
        - 查到（03:3x）：物品 XML `equip_slot="crossbow_back_slot"`；這個 slot 在 `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`：`componentName` = `scabbards_skeleton`、`boneName` = `crossbow_back`、沒有 transform
        - **算好了**（03:4x，暫存腳本 `back_slot.py`：Blender 用 `m3_build_ak` 的函式算兩種擺法；自我檢查：G2 算出的握把、槍管、上方和第 1 步的設定差 0.6 公釐、0.15°）：
          - T：位置 (0.0622, −0.0002, 0.3771)；**Pitch −7.38、Yaw −75.65、Roll −50.13**（矩陣 = Rz(Yaw)·Rx(Pitch)·Ry(Roll)；重組誤差 1e-7）
