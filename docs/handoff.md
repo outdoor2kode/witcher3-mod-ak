@@ -16,6 +16,9 @@
   - 被擋住的視窗也截得到：`wshot <視窗> out.png mode=print`；要點的話先 `focus`，截圖加 `grid=50` 找座標
   - REDkit 主視窗：`proc:editor` 或標題含 `The Witcher 3 REDkit`；REDkit 是直接開 `<REDKIT_DIR>\bin\x64_RedKit\editor.exe`（沒有參數，從檔案總管）
   - 只對 editor／witcher3／blender 送輸入；告一段落就把終端機叫回前面（`focus proc:windowsterminal`）
+  - **等待最多 30 秒**（使用者 2026-10-16）：沒反應就截圖看狀態、直接做合理的下一步（卡在關閉就 `taskkill /F`）
+  - 重開 REDkit（2026-10-16 01:4x 實測）：`close` 主視窗 → 問「Modified file found」照情況答 → 程序常卡在關閉（CPU 空轉、紀錄不再寫）→ 30 秒後 `taskkill //PID … //F` → `Start-Process editor.exe`（工作目錄 `bin\x64_RedKit`）→ Welcome 視窗：點 Recent projects 沒反應，改按「Open existing project」的 Browse（約 (1236, 814)）→ 檔名框輸入 `D:\OneDrive\Desktop\gunforgeralt\gunforgeralt.w3edit` → Enter → File 選單的最近世界 `engine\reference_level\world\reference_level.w2w`（約 (180, 245)）
+  - 主視窗最大化時工具列：`play game` (650, 86)、`Fast` (682, 86)、`load a saved game` (713, 86)；Asset Browser 用 Ctrl+A 開，會跑到螢幕外 → `place "Asset Browser" 300 80 1300 900`
 - 不中斷的設定：
   - `.claude\settings.local.json` 的 `autoCompactWindow` 400000 → context 40% 自動壓縮（官方文件：設定檔存檔後執行中的 session 會重讀）
   - 保持清醒：`desk.ps1 awake 604800` 在背景跑（01:22 起，最多 7 天；系統狀態實測 0x3 = 不睡眠＋不關螢幕）；使用者的設定是 30 分鐘沒動作就睡眠、關螢幕
@@ -41,6 +44,11 @@
       1. AK 跟著胸口（`torso3`）動、兩手都用 IK 握在槍上（原本：左手不動、右手跟著左手）：原檔左手相對胸口晃 4.7°，跟著左手槍管會晃到 4°
       2. IK 用兩節手臂的公式（肩膀自由轉、手肘當鉸鏈），不用 Blender 的 IK 約束：Blender 的把手肘當球形關節，右手肘往側面彎 8°
     - `.re` 已放進 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`（01:08，蓋掉頭轉 30° 的測試檔；`.gitignore` 排除；不見了就用 `docs\m3.md` 的指令重做，約 10 秒，結果一樣）
+    - **進遊戲前的準備：Claude 用 desk.ps1 做完**（01:25～01:52）
+      - AK 模型：`m3_build_ak.py` 加第 1 步的 `--place`（`docs\m3.md`）→ Import > Mesh（`importAsSkinnedMesh` true；`editor.log` 01:28:16 `HasSkinning: true (NODE 'handle')`）
+      - `bolt` slot：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Roll 92.6、Yaw −68.9 → 存檔讀回：(Roll, Pitch, Yaw) = (92.6, 306.6, 291.1) ✓（**還沒 commit**：進遊戲通過再 commit）
+      - 重開 REDkit、開 `reference_level`（關閉時問動畫組「Modified」：01:16 有人開預覽角色、記憶體裡重新壓縮（大小一樣）→ 按 No，保留 01:13 驗證過的檔）
+      - 下一步：`play game` → 主控台拿 AK、瞄準 → 截圖、`GfgLogHoldPose` 的紀錄和預測比
     - **匯入 REDkit：成功**（使用者 01:13 匯入、存檔；Calc bone MS 時間 0 的 `r_hand` (0.2004, 0.1056, 1.4057)、(4.04, 108.67, 12.29)，和預測差 0.8 公釐、0.2°：動畫壓縮的誤差）
       - 原本的步驟（之後重匯時照做）：匯入 REDkit → Calc bone MS 量 `r_hand`、`head`（時間 0）→ 不重開 REDkit，讀 `editor.log`，和 `docs\m3.md`「匯入 REDkit 後的預測」比
       - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 最上面那行（動畫組）右鍵 **Import simple/plain animations** → 選上面的 `.re` → 問 override 按 **Overide** → File → **Save all** → 動畫右鍵 **Calc bone MS**

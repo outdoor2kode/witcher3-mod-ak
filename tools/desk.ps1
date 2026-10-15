@@ -12,6 +12,8 @@
   wshot <視窗> <out.png> [scale=…] [grid=…] [mode=print]
                                            截視窗的範圍；mode=print 用 PrintWindow：視窗被擋住也截得到（含 REDkit 的 D3D12 畫面）
   focus <視窗>                             把視窗叫到最前面
+  place <視窗> <x> <y> <寬> <高>            移動、縮放視窗（例：跑到螢幕外的 Asset Browser）
+  close <視窗>                             關視窗（等於按 X）
   click <x> <y> [left|right|middle] [次數]  螢幕座標
   down|up [left|right|middle]              按住、放開滑鼠鍵（在游標目前的位置）
   move <x> <y>                             游標移到螢幕座標
@@ -123,6 +125,9 @@ public static class Desk {
         return GetForegroundWindow() == h;
     }
     [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr h, bool altTab);
+
+    [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hgt, bool repaint);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
 
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
@@ -331,6 +336,20 @@ switch ($cmd) {
         $hw = Find-Win $rest[0]
         if ([Desk]::Focus($hw)) { "前景：0x$($hw.ToString('X'))「$([Desk]::Title($hw))」" }
         else { throw "叫不到前面；現在的前景：「$([Desk]::Title([Desk]::GetForegroundWindow()))」" }
+    }
+    'place' {
+        $hw = Find-Win $rest[0]
+        Assert-Allowed $hw '移動視窗'
+        $x, $y, $w, $h = $rest[1..4] | ForEach-Object { [int]$_ }
+        [void][Desk]::MoveWindow($hw, $x, $y, $w, $h, $true)
+        $r = [Desk]::Rect($hw); "視窗移到 ($($r.Left), $($r.Top)) $($r.Right - $r.Left)x$($r.Bottom - $r.Top)"
+    }
+    'close' {
+        # 等於按視窗的 X（WM_CLOSE）；程式要問存檔的話會跳出問題視窗
+        $hw = Find-Win $rest[0]
+        Assert-Allowed $hw '關視窗'
+        [void][Desk]::PostMessage($hw, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)
+        "送出關閉：0x$($hw.ToString('X'))「$([Desk]::Title($hw))」"
     }
     'click' {
         $button = if ($rest.Count -ge 3) { $rest[2].ToLower() } else { 'left' }
