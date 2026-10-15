@@ -61,16 +61,15 @@
   - 之後：在 Blender 裡改姿勢（雙手握 AK）→ `export_re` → 匯回 REDkit
   - 暫存腳本（session 結束就沒了）：`re_summary.py`（列出各段動了哪些骨頭）、`re_roundtrip_blender.py`（外掛來回，已由 `tools\re_blender.py` 取代）、`re_compare.py`（逐骨頭比對）、`re_fk_check.py`（FK 和 Calc bone 比）、`test_head_turn.py`（頭轉 30°）；做法都寫在 `docs\m3.md`
 
-### 測試檔匯回 REDkit 的步驟（2026-10-15 給使用者；介面沒看過）
+### 測試檔匯回 REDkit 的步驟（2026-10-15 23:5x 更正；第一版「Properties 改 Import file → Reimport」是錯的：`docs\m3.md`「AnimBrowser 的介面、匯入同名動畫」）
 
-1. Asset Browser 雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 點 `man_geralt_gabriel_aim_idle_rp`
-2. 做法一：屬性裡的 **Import file** 改成 `D:\OneDrive\Desktop\gunforgeralt\assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` → 動畫右鍵 **Reimport (keep type)**
-   - 做法二（沒有 Import file 欄位、或 Reimport 失敗）：動畫組最上面那行右鍵 **Import animations (keep type)** → 選同一個檔；跳出 `Animation '…' already exists` 之類的訊息就停下來截圖
-   - 改之前先截屬性那一塊（看原本的 Import file、Animation type for reimport）
-3. 存檔（Ctrl+S）
-4. 動畫右鍵 **Calc bone MS** → `head`、時間 `0` → 截結果
-5. 跟 Claude 說；**不要重開 REDkit**（`editor.log` 會被重寫）
-6. （選做）進遊戲拿 AK 瞄準、自由鏡頭看臉：頭應該比之前往左轉；看不出來也不算失敗（遊戲可能另外控制頭的方向：推論）
+1. AnimBrowser（已開著 `gfg_ak47_geralt.w2anims`）的 **All animations** 分頁 → 對**動畫組那一行** `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims (Self-Contained)` 按右鍵 → **Import simple/plain animations**
+2. 選 `D:\OneDrive\Desktop\gunforgeralt\assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`
+3. 問 `Do you want to override animation man_geralt_gabriel_aim_idle_rp?` → 按 **Overide**（REDkit 原文的拼法）；沒問、或跳出別的訊息 → 截圖
+4. File → **Save all**（Ctrl+S）
+5. 動畫右鍵 **Calc bone MS** → `head`、時間 `0` → 截結果（出現 `No skeleton specified!` 也截圖）
+6. 跟 Claude 說；**不要重開 REDkit**（`editor.log` 會被重寫）
+7. （選做）進遊戲拿 AK 瞄準、自由鏡頭看臉：頭應該比之前往左轉；看不出來也不算失敗（遊戲可能另外控制頭的方向：推論）
   - 之前的 4 個方向（2026-10-15 22:2x 問過，使用者沒選、改問問題）：
     1. **退回單手版**（Claude 建議）：回到之前能正常用的狀態，雙手留到用 Blender 改動畫時再做
        - Claude：`m3_build_ak.py` 用 `--pitch -20.5` 重做模型；`git checkout -- workspace/dlc/gunforgeralt/data/items/weapons/gfg_ak47/gfg_ak47.w2ent`（slot 回到單手版）；拿掉 `gfg_ak47.ws` 的偵測紀錄
