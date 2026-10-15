@@ -146,7 +146,10 @@
       - 模板的 slot 在 Entity Editor 下方分頁 **Slots**（和 Node properties 同一排）改；使用者 2026-10-15 改過 `bolt`
       - slot 的 transform 存檔時，旋轉的 3 個 float 是 **(Roll, Pitch, Yaw)**（填 Pitch -20.4、Yaw -90 存成 (0, 339.6, 270)；第一個是 Roll 是推論；`docs\m3.md`）
     - **DLC 可以替現有的角色模板加動畫組**：`CR4EntityTemplateParamDLCMounter` ＋ `CAnimAnimsetsParam`（元件名稱＋動畫組清單）
-      - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（2026-10-15 讀原版資料，我們還沒實測；`docs\m3.md`「雙手持槍：第二輪查詢」）
+      - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（`docs\m3.md`「雙手持槍：第二輪查詢」）
+      - 本專案 2026-10-15 實測可用：掛在 `geralt_player.w2ent`（照 dlc16），`componentName` = `man_base`
+      - **同名動畫：遊戲用 DLC 加的那段，蓋過原版**（2026-10-15 實測 `man_geralt_gabriel_aim_idle_rp` 換成 NPC 的雙手瞄準，Geralt 站著瞄準的姿勢跟著變；只測了這一段；`docs\m3.md`「第 12～15 步的結果」）
+        - 原版用同名動畫的地方（例：Geralt 的十字弩）也會跟著變
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
       - 遊戲生成的玩家是 `gameplay\templates\characters\player\player.w2ent`（`game\witcher3.redgame` 的 `defaultPlayerTemplate`），它 include `geralt_player.w2ent`；dlc16 替 `geralt_player.w2ent` 加動畫組（2026-10-15 讀原版資料，`docs\m3.md`「第三輪查詢」）
       - **複製動畫到自己的動畫組**：Asset Browser 雙擊 `.w2anims` 開 AnimBrowser → **All animations** → 動畫右鍵 **Copy animation** → 另一個動畫組最上面那行右鍵 **Paste animation to set** → 右鍵 **Rename**；動畫資料原封不動（2026-10-15 實測，`docs\m3.md`「第 1～7 步的結果」）
@@ -354,7 +357,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）
 - **REDkit 的紀錄 `<REDKIT_DIR>\bin\editor.log` 在 REDkit 重開時會被整個重寫**（2026-10-15）→ 遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
-- **DLC 掛載器有沒有生效**：從 REDkit 開遊戲時會重讀 `.reddlc`，`editor.log` 寫 `[DLC] Mounted N DLC mounter(s).`（2026-10-15 是 165，含我們的 2 個）；加了掛載器，數字應該跟著變（未實測）
+- **DLC 掛載器有沒有生效**：從 REDkit 開遊戲時會重讀 `.reddlc`，`editor.log` 寫 `[DLC] Mounted N DLC mounter(s).`（2026-10-15 是 165，含我們的 2 個）；加了掛載器，數字會跟著變（2026-10-15 加 1 個變成 166）
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
   - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
