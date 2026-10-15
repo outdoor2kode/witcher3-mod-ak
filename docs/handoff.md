@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 04:0x（自主模式；收槍位置修好；換彈試了一次（事件保住了，但遊戲裡串流報錯）→ 已退回，下次照交接檔的修法再做；跑步右手、走路還沒解決）
+最後更新：2026-10-16 05:1x（自主模式；換彈第二次試：事件看得到但串流報錯原因沒找到、沒存；REDkit 關閉時動畫組要按 No；下一步：手動加 OnWeaponReload 事件的做法）
 
 ---
 
@@ -84,6 +84,10 @@
          - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
        - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
     3. **換彈（還沒做好；04:01 已退回）**：動畫組 `git checkout` 回 15 段的版本、重開 REDkit → 04:03 確認串流錯誤 0 次、掛載器 167 個
+       - 05:1x 第二次：同樣貼上＋同名匯入（沒存檔）→ AnimBrowser 的 **Animation** 分頁看得到屬性和時間軸上的事件（`RaiseWeapon` 等）→ 事件確實跟著過來；屬性 `streamingType` = `SAST_Standard`，但存檔裡我們自己的動畫、原版都沒存這個值（預設）→ 串流報錯的原因不是它，**還沒找到**
+         - 屬性面板很小：點一列再按方向鍵往下才會捲（滾輪不行）
+         - 這次沒存：關 AnimBrowser 沒問要不要存 → 修改留在 REDkit 記憶體裡；**之後關 REDkit 時問 `gfg_ak47_geralt.w2anims` 要不要存 → 按 No**；硬碟上是 15 段的好版本（04:01:24）
+         - 下一個想法：不要貼原版的那筆，改在我們自己匯入的換彈動畫上**手動加事件**（AnimBrowser 時間軸上右鍵加事件：名稱 `OnWeaponReload`、時間照原版那段的標記），避開原版那筆帶來的串流設定
        - 下次照同樣做法（Copy／Paste 原版兩段 → 同名匯入雙手姿勢），**存檔前**先把那兩段的 `useOwnBitwiseCompressionParams` 改 false（AnimBrowser 的 Animation 分頁）再 Recompress，或試 Recompress (choose preset)；存檔後開遊戲確認紀錄沒有 `IsThereDataBufferPtr`，再測換彈（連射 30 發 → 換彈時手在槍上 → 換完能接著射）
        - 輪盤：沒跳教學時**不要按 Space**（會變冥想）→ 先截圖看有沒有教學
        - 當時的紀錄：
