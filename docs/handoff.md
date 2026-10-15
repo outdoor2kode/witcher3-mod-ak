@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 晚上（使用者要 /clear）
+最後更新：2026-10-15 深夜（第一個實驗的步驟查好了）
 
 ---
 
@@ -12,8 +12,9 @@
 
 - **下一步（使用者 2026-10-15 晚上選的）：雙手持槍的第一個實驗**
   - 做法 A「同名替換」：只換「站著瞄準」一段動畫，確認行不行得通
-  - **Claude 先查好每一步，寫成 REDkit 操作步驟給使用者**（REDkit 的介面操作都是使用者做）；還沒開始查
-  - 背景、證據、四種做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「單手姿勢的問題」
+  - **步驟已查好，等使用者照做**：`docs\m3.md`「雙手持槍：第三輪查詢」的「第一個實驗：REDkit 操作步驟」（15 步，含判斷表）
+  - 使用者做完第 7 步、第 11 步時，Claude 用 `tools\cr2w_dump.py` 讀檔確認；第 15 步讀 `editor.log`
+  - 背景、證據、做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「第三輪查詢」
 - **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
   - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
   - 詳細過程、證據、指令都在 `docs\m3.md`
@@ -22,27 +23,21 @@
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的就直接用
 - 範圍（`CLAUDE.md` §7）：只做 AK 本身
 
-### 雙手持槍的第一個實驗（要查、要寫成步驟的內容）
+### 雙手持槍的第一個實驗（步驟已查好，見 `docs\m3.md`「第三輪查詢」）
 
 目的：用 DLC 加一個動畫組，裡面放一段**名稱和 Geralt 十字弩瞄準待機相同**的動畫（內容是 NPC 的雙手瞄準），看遊戲會不會改用我們的。
 
-1. 匯出 NPC 動畫：AnimBrowser 開 `animations\man\combat\man_crossbow.w2anims` → 視窗右鍵 **Use selected entity**（先在 Asset Browser 選一個 `man_base` 骨架的角色，例：`gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent`）→ **All animations** → `man_npc_bow_idle_aiming_01` 右鍵 **Export animation** → `.re` 檔
-2. 建立我們的動畫組，新增一段名叫 `man_geralt_gabriel_aim_idle_rp` 的動畫，匯入 `.re`
-   - Wiki 的流程（頁面 6326649，用 REST API 讀到）：對「w2anims container」右鍵 **Create new virtual animation** → AnimBrowser 右上 **Animation** 分頁 **Import file** 選 `.re` → All animations 裡右鍵 **Reimport as simple/plain animation**
-3. `test.reddlc` 加 `CR4EntityTemplateParamDLCMounter`：`entityTemplatePaths` = Geralt 的模板（`characters\player_entities\geralt\geralt_player.w2ent`，或照 bob 掛 `characters\base_entities\man_base\man_base.w2ent`）；`entityTemplateParams` = `CAnimAnimsetsParam`（`componentName` = `man_base`、`animationSets` = 我們的動畫組）
-4. 進遊戲拿 AK 站著瞄準：姿勢有沒有變成 NPC 的雙手抵肩
-
-還不知道、要先查的：
-- 怎麼建立新的 `.w2anims`（Asset Browser 的 Create 選單有沒有；沒有就複製一個小的原版動畫組當容器，例：`animations\items\weapon\crossbow_man.w2anims` 17 KB）
-- 「Create new virtual animation」怎麼設名稱（`editor.exe` 有「Animation name:」「Rename animation」字串）
-- 在 REDkit 的 `.reddlc` 編輯器怎麼加 `CR4EntityTemplateParamDLCMounter`、怎麼在裡面建 `CAnimAnimsetsParam`（使用者之前加過 `CR4DefinitionsEntitieTemplatesDLCMounter`）
-- 匯出時用哪個實體才對（骨架要一樣）
-
-預期與後續：
+- 第三輪查到、改掉原本計畫的：
+  - 不用匯出 `.re` 再匯入：AnimBrowser 有 **Copy animation** → **Paste animation to set** → **Rename**（`editor.exe` 字串，沒實際看過）
+  - 新增動畫組：Create 選單的「Set of animations」（推論的名稱）
+  - 掛在 `geralt_player.w2ent`（照 dlc16），不掛 `man_base.w2ent`
+  - 有沒有掛上看 `editor.log` 的 `Mounted N DLC mounter(s)`：現在 165，加了應該 166
+- 同名時遊戲用哪一個：查不到資料（Geralt 原本就有 32 個同名動畫，看不出規則）→ 就是這個實驗要回答的
+- 失敗（同名時遊戲用原版的）：改**做法 A2**（check out `man_geralt_gabriel.w2anims`，把那段換掉），比做法 B（改動畫圖）輕很多
 - 成功：再擴大到開槍、走路、換彈、上下瞄準（Geralt 的十字弩動畫 `man_geralt_gabriel_*` 的清單在 `docs\m3.md`），並把 AK 改成雙手握的位置
-- 失敗（同名時遊戲用原版的）：改做法 B（改 Geralt 的上半身動畫圖 `pc_overlay.w2beh`），工作量大很多
 - 副作用：原版十字弩的動作也會變成雙手（已跟使用者說過）
 - 哪隻手：NPC 的十字弩掛右手（`r_weapon`）；可以維持左手 `l_weapon`，把 AK 放成左手握護木 → 實驗成功後再決定
+- 新的 `.w2anims` 沒被 `.gitignore` 排除：commit 前問使用者要不要納入 git
 
 ### 跟使用者溝通（2026-10-15 學到的）
 
@@ -102,7 +97,7 @@
 
 ## 下一步
 
-1. **雙手持槍的第一個實驗**：先查上面「還不知道、要先查的」，寫成 REDkit 操作步驟給使用者（見「現在在做」）
+1. **雙手持槍的第一個實驗**：使用者照 `docs\m3.md`「第三輪查詢」的步驟做；Claude 在第 7、11、15 步確認（見「現在在做」）
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`

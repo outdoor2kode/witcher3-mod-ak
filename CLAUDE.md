@@ -148,6 +148,7 @@
     - **DLC 可以替現有的角色模板加動畫組**：`CR4EntityTemplateParamDLCMounter` ＋ `CAnimAnimsetsParam`（元件名稱＋動畫組清單）
       - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（2026-10-15 讀原版資料，我們還沒實測；`docs\m3.md`「雙手持槍：第二輪查詢」）
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
+      - 遊戲生成的玩家是 `gameplay\templates\characters\player\player.w2ent`（`game\witcher3.redgame` 的 `defaultPlayerTemplate`），它 include `geralt_player.w2ent`；dlc16 替 `geralt_player.w2ent` 加動畫組（2026-10-15 讀原版資料，`docs\m3.md`「第三輪查詢」）
     - **腳本放 `workspace\scripts\local\`**，會被從 REDkit 啟動的遊戲載入（2026-10-12 確認）
 12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
     - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
@@ -350,6 +351,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）
 - **REDkit 的紀錄 `<REDKIT_DIR>\bin\editor.log` 在 REDkit 重開時會被整個重寫**（2026-10-15）→ 遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
+- **DLC 掛載器有沒有生效**：從 REDkit 開遊戲時會重讀 `.reddlc`，`editor.log` 寫 `[DLC] Mounted N DLC mounter(s).`（2026-10-15 是 165，含我們的 2 個）；加了掛載器，數字應該跟著變（未實測）
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
   - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
