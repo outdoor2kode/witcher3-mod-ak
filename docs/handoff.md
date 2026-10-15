@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 18:10（第一個實驗做到第 7 步，檔案確認過）
+最後更新：2026-10-15 18:15（第一個實驗做到第 11 步，檔案確認過；接著進遊戲看）
 
 ---
 
@@ -14,7 +14,8 @@
   - 做法 A「同名替換」：只換「站著瞄準」一段動畫，確認行不行得通
   - 步驟：`docs\m3.md`「雙手持槍：第三輪查詢」的「第一個實驗：REDkit 操作步驟」（15 步，含判斷表）
   - **第 1～7 步做完、確認過**（`docs\m3.md`「第 1～7 步的結果」）：`workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` 裡有 `man_geralt_gabriel_aim_idle_rp`（NPC 的 `man_npc_bow_idle_aiming_01`，資料相同）
-  - **現在：使用者做第 8～11 步**（`test.reddlc` 加 `CR4EntityTemplateParamDLCMounter`）；做完 Claude 用 `tools\cr2w_dump.py` 讀檔確認；第 15 步讀 `editor.log`
+  - **第 8～11 步做完、確認過**：`test.reddlc` 多了掛在 `geralt_player.w2ent` 的 `CR4EntityTemplateParamDLCMounter`（和 dlc16 同結構）
+  - **現在：使用者做第 12～15 步（進遊戲看）**；結束遊戲後、重開 REDkit 前，Claude 讀 `editor.log`（找 `Mounted N DLC mounter(s)`，應該是 166），對照 `docs\m3.md` 的判斷表
   - 背景、證據、做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「第三輪查詢」
 - **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
   - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
@@ -98,7 +99,7 @@
 
 ## 下一步
 
-1. **雙手持槍的第一個實驗**：使用者照 `docs\m3.md`「第三輪查詢」的步驟做，現在到第 8 步；Claude 在第 11、15 步確認（見「現在在做」）
+1. **雙手持槍的第一個實驗**：使用者照 `docs\m3.md`「第三輪查詢」的步驟做，現在到第 12 步（進遊戲）；Claude 在第 15 步讀 `editor.log`（見「現在在做」）
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
