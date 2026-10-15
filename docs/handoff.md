@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 23:4x（使用者選「外掛匯出＋修補」；`tools\re_blender.py`、`re_fix.py` 寫好；頭轉 30° 的測試檔做好，等使用者匯回 REDkit、用 Calc bone 確認）
+最後更新：2026-10-15 23:5x（頭轉 30° 的測試檔匯回 REDkit 成功：整條流程通了；分析了 4 段 aimpose 的時間和角度；等使用者決定下一步：雙手版的底層姿勢＋瞄準差值，要寫新腳本）
 
 ---
 
@@ -54,11 +54,15 @@
     - 4 段 `aimpose_*` 匯出的是差值（第 0 格為基準，在父骨頭座標裡先轉）
   - **使用者選 A「外掛匯出＋修補」**（Claude 建議 B「直接改數字」，使用者沒選）→ 寫好 `tools\re_blender.py`（匯入、匯出＋自動修補＋比對）、`tools\re_fix.py`（修補、比對）；用法在檔頭、`docs\m3.md`「使用者選 A」
     - 來回測試：修補後 94 根骨頭都和原檔一樣
-  - **現在：測試檔匯回 REDkit**：`assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` = 我們那段（NPC 雙手瞄準）的 `head` 每一格往左轉 30°（只有 `head` 不同）
-    - 目的：確認 REDkit 收外掛＋修補的檔、匯入的資料真的被用到（頭轉了就看得出來）
-    - 步驟在下面「測試檔匯回 REDkit 的步驟」；預期 Calc bone MS `head` 時間 0：角度 (−18.6, **18.3**, −80.9)（原本 Yaw −11.7）、位置不變 (0.030, −0.041, 1.664)
-    - 測完要還原：同樣的方法匯入 `assets\anims\gfg_aim_idle_rp.re`（REDkit 自己匯出的原檔），或直接用下一版蓋掉；**頭轉 30° 的動畫組不要 commit**
-  - 之後：在 Blender 裡改姿勢（雙手握 AK）→ `export_re` → 匯回 REDkit
+  - **測試檔匯回 REDkit：成功**（23:46～23:48；`docs\m3.md`「結果：成功」）：Calc bone `head` Yaw −11.68 → 18.26、位置一模一樣 → 整條流程通了
+    - 動畫組 `gfg_ak47_geralt.w2anims` 現在是頭轉 30° 的測試版（git 會顯示改過）：**不 commit**；下一版蓋掉，或用同樣方法匯入 `assets\anims\gfg_aim_idle_rp.re` 還原
+    - 使用者可能進遊戲看過（`editor.log` 23:48 有遊戲在跑）：沒回報
+  - **4 段 aimpose 的時間和角度**（`docs\m3.md`「4 段 `aimpose_*` 的時間和角度」）：第 60 格 = 不偏；左右 ±180° ↔ ±1 秒；上下約 ±90° ↔ ±1 秒；原版上下瞄幾乎只動左手臂和頭
+  - **下一步（等使用者同意；要寫新腳本，`CLAUDE.md` §11）**：雙手版
+    1. 底層姿勢：我們那段（NPC 雙手瞄準）的右手用 Blender 內建的 IK 移到 AK 的握把（左手不動、AK 的護木放在左掌）→ 烘焙 → `export_re`；同時算出 AK 相對 `l_weapon` 的擺法（`m3_build_ak.py --place`，要照「handle 骨頭在遊戲裡繞槍管轉 180°」修正）和 `bolt` slot；Blender 渲染預覽圖給使用者看
+    2. 瞄準差值：4 段 aimpose 換成「只轉上半身（`torso`～`torso3`），手臂和槍跟著胸口一起轉」的版本，照上面的時間對應做，放進我們的動畫組（同名蓋過原版）
+    3. 使用者：匯入動畫、重匯 AK 模型（Import > Mesh，`importAsSkinnedMesh` true）、改 slot → 重開 REDkit → 進遊戲（偵測紀錄 `GfgLogHoldPose` 還在 `gfg_ak47.ws` 裡，可以量）
+    - Claude 建議順序：先做 1，在 REDkit AnimBrowser（開動畫組時按 Yes 才有預覽角色）和預覽圖確認，再做 2
   - 暫存腳本（session 結束就沒了）：`re_summary.py`（列出各段動了哪些骨頭）、`re_roundtrip_blender.py`（外掛來回，已由 `tools\re_blender.py` 取代）、`re_compare.py`（逐骨頭比對）、`re_fk_check.py`（FK 和 Calc bone 比）、`test_head_turn.py`（頭轉 30°）；做法都寫在 `docs\m3.md`
 
 ### 測試檔匯回 REDkit 的步驟（2026-10-15 23:5x 更正；第一版「Properties 改 Import file → Reimport」是錯的：`docs\m3.md`「AnimBrowser 的介面、匯入同名動畫」）
