@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 21:5x（擺法 A 進遊戲錯誤；等使用者同意加暫時的偵測紀錄）
+最後更新：2026-10-15 22:3x（遊戲裡實測完：NPC 姿勢拿不好 AK；/clear 前交接，新 session 先問使用者選哪個方向）
 
 ---
 
@@ -31,7 +31,15 @@
   - 第 6 步（做完）：使用者在遊戲裡量了（`docs\m3.md`「遊戲裡實測」）
     - 擺法 A 錯的主因：AK 的 `handle` 骨頭在遊戲裡比假設的**繞槍管轉了 180°**；Calc bone 的角度換算是對的
     - **結論：NPC 姿勢＋Geralt 單手的瞄準疊加層拿不好 AK**：瞄水平時槍對準準心就碰不到左手（差約 12 公分）、兩手都碰到槍就偏 17.5°；上下瞄時只有左手跟著動
-  - **等使用者決定方向**（Claude 給了選項：退回單手版／換掉瞄準疊加層的實驗／先做折衷版；之後要好看得用 Blender 改動畫）
+  - **等使用者決定方向**：2026-10-15 22:2x 問了，使用者回「先 /clear」→ **新 session 一開始先問這題**（用 AskUserQuestion，4 個選項）：
+    1. **退回單手版**（Claude 建議）：回到之前能正常用的狀態，雙手留到用 Blender 改動畫時再做
+       - Claude：`m3_build_ak.py` 用 `--pitch -20.5` 重做模型；`git checkout -- workspace/dlc/gunforgeralt/data/items/weapons/gfg_ak47/gfg_ak47.w2ent`（slot 回到單手版）；拿掉 `gfg_ak47.ws` 的偵測紀錄
+       - NPC 姿勢的掛載也要拿掉，不然單手的 AK 會配上 NPC 的雙手姿勢（像截圖 #59）：`test.reddlc` 的第 3 個掛載器（使用者在 REDkit 刪，或 Claude 用 git 取回 commit `d0684cb` 的版本：要先跟使用者確認）
+       - 使用者：Import > Mesh（`importAsSkinnedMesh` true）→ 重開 REDkit → 進遊戲確認
+    2. **先做折衷版**：瞄水平時槍對準準心、右手握把；左手碰不到護木、上下瞄會偏；收槍時背上的位置要另外修（AK 專用的背部 slot：`CR4EntityTemplateSlotDLCMounter`＋物品 XML 的 `equip_slot`；沒查過細節）
+    3. **再試一個實驗**：把 Geralt 單手的 4 段瞄準姿勢（`man_geralt_gabriel_aimpose_vertical_rp_left`／`center`／`right`、`man_geralt_gabriel_aimpose_horizontal_rp`）也換成 NPC 的（`man_crossbow.w2anims` 的 `additive_aim_down_to_up_lp`、`additive_aim_left_to_right_lp` 等），用偵測紀錄再量；不確定會成功，`AT_Ref` 疊加怎麼算沒有文件；就算成功，兩手一樣高的問題還在（槍朝下約 10°）
+    4. **現在就用 Blender 改動畫**：裝 REDkit 的 Blender 外掛（`<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip`，可能要另裝 Blender 3.6：`CLAUDE.md` §3）、匯出 `.re`、改兩手的位置、匯回去
+  - 偵測紀錄的讀法（暫存腳本沒了的話）：`[Script_GFG] pose <名稱> pos x y z w x … y … z …`（世界座標的位置和三個軸）；點換到某個骨頭座標 = 和那個骨頭的三個軸分別做內積（先減掉骨頭位置）；右手掌心 = `r_hand` 位置 + 0.061·x 軸 + 0.032·y 軸 − 0.002·z 軸
   - 用遊戲裡的數據算擺法時：直接在 `handle` 座標算（偵測紀錄的矩陣），再用 `.w2mesh` 的綁定矩陣反算成 `--place`（工具會再乘回綁定矩陣，所以 `handle` 座標會對）
   - 現在的狀態：REDkit 裡的 `gfg_ak47.w2mesh` 是擺法 A；`gfg_ak47.w2ent` 的 slot 是擺法 A 的值（**沒 commit**；要回到單手版：`git checkout` 這個檔＋用 `--pitch -20.5` 重做模型、重匯）
 
@@ -129,8 +137,13 @@
 
 ## 沒 commit 的檔案
 
-- `workspace\scripts\local\gfg_ak47.ws`：拿掉偵測紀錄（編譯通過；清單沒測完）
+- `workspace\scripts\local\gfg_ak47.ws`：兩件事混在一起
+  - 拿掉舊的 `GFG` 偵測紀錄（編譯通過；清單沒測完）
+  - 加了**暫時的** `GfgLogHoldPose`（雙手持槍量位置用；`GfgCameraTick` 裡呼叫）→ 決定方向後拿掉
+- `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent`：`bolt` slot 改成擺法 A 的值（實驗失敗；退回單手版時用 `git checkout` 還原）
+- REDkit 裡的 `gfg_ak47.w2mesh`（不在 git）：擺法 A 的模型
 - `gunforgeralt.w3edit`：只有 REDkit 自己改的 `dirtyTileCellIndices`（開過測試關卡）→ 不 commit
+- `.claude\hooks\`（`context-check.sh`、`statusline.sh`）：使用者自己的設定，2026-10-15 18:35 出現，Claude 沒動過 → 不 commit
 - `.gitignore` 排除、不 commit 的：
   - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出（材質 XML `gfg_ak47.xml` 有 commit）
   - `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 的 `.w2mesh`、`.xbm`：REDkit 匯入的產物（照上表的步驟可以重做）
