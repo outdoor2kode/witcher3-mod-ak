@@ -22,6 +22,7 @@
   wheel <x> <y> <格數>                     正數往上捲
   key <組合鍵> [按住毫秒]                   例：enter、esc、f7、ctrl+s、shift+tab、oem3（~ 那一鍵）、num1
   type <文字>                              Unicode 逐字輸入（輸入框用；不經過輸入法）
+  typepath <路徑>                          同 type，但 / 換成 \（檔案視窗不接受正斜線；Bash 裡不用寫反斜線）
   keys <文字>                              逐字按鍵輸入（遊戲的主控台用：它不吃 Unicode 輸入）
   keydown|keyup <鍵>                       分開按住、放開（按住之後一定要 keyup）
   uia <視窗> [深度=4] [關鍵字]              列出 UI Automation 元件：類型、名稱、位置
@@ -419,6 +420,13 @@ switch ($cmd) {
         Assert-Allowed ([Desk]::GetForegroundWindow()) '打字'
         foreach ($c in ($rest -join ' ').ToCharArray()) { [Desk]::Char($c); Start-Sleep -Milliseconds 15 }
         "打了 $($rest -join ' ')"
+    }
+    'typepath' {
+        # 檔案視窗不接受正斜線（2026-10-16 實測：The filename is not valid）；Bash 裡寫反斜線容易被吃掉 → 這裡換
+        Assert-Allowed ([Desk]::GetForegroundWindow()) '打字'
+        $p = ($rest -join ' ').Replace('/', '\')
+        foreach ($c in $p.ToCharArray()) { [Desk]::Char($c); Start-Sleep -Milliseconds 15 }
+        "打了 $p"
     }
     { $_ -in 'keydown', 'keyup' } {
         # 分開按住、放開（例：按住 Tab 開輪盤時截圖）；按住之後一定要 keyup

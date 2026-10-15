@@ -48,6 +48,15 @@ NAMES = {
     'center': 'man_geralt_gabriel_aimpose_vertical_rp_center',
     'right': 'man_geralt_gabriel_aimpose_vertical_rp_right',
 }
+# 走路、跑步瞄準的差值（上半身動畫圖 #18587、#18679）：節點和動畫都是預設的疊加方式（不是 AT_Ref）
+# → 推論是在骨頭自己的座標裡套用（區域 = 底層·D）；長度、角度範圍和站著的一樣（3.0 秒；(180, 90)）
+SETS = {
+    'stand': ('ref', NAMES),
+    'walk': ('local', {k: v.replace('man_geralt_gabriel_aimpose_', 'man_geralt_gabriel_walk_aimpose_').replace('_rp', '')
+                       for k, v in NAMES.items()}),
+    'run': ('local', {k: v.replace('man_geralt_gabriel_aimpose_', 'ex_man_geralt_gabriel_run_aimpose_').replace('_rp', '')
+                      for k, v in NAMES.items()}),
+}
 CENTER = 60  # 第 60 格 = 不偏
 # 第 1 步的 AK 擺法（l_weapon 座標；docs/m3.md「雙手持槍：第 1 步：底層姿勢」）
 GRIP = np.array([-0.3032, -0.0115, -0.2320])
@@ -179,11 +188,22 @@ def spine_deltas(hier, base_world, base_local, kind: str, deg: float) -> dict[st
     return out
 
 
-def apply(hier, base_local, deltas) -> dict:
+def to_mode(deltas, base_local, mode: str) -> dict:
+    """父骨頭座標的差值 → 這個疊加方式要存的差值。local：區域 = 底層·D → D = 底層ᵀ·R·底層（位置 0）。"""
+    if mode == 'ref':
+        return deltas
+    out = {}
+    for b, (r, _t) in deltas.items():
+        rl = base_local[b][0]
+        out[b] = (rl.T @ r @ rl, np.zeros(3))
+    return out
+
+
+def apply(hier, base_local, deltas, mode: str = 'ref') -> dict:
     local = dict(base_local)
     for b, (r, t) in deltas.items():
         lr, lt = base_local[b]
-        local[b] = (r @ lr, r @ lt + t)
+        local[b] = (r @ lr, r @ lt + t) if mode == 'ref' else (lr @ r, lt + lr @ t)
     return fk(hier, local)
 
 
@@ -194,7 +214,7 @@ def palm_grip_cm(world) -> float:
     return float(np.linalg.norm(lw_r.T @ (palm - lw_p) - GRIP)) * 100
 
 
-def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_local) -> list[str]:
+def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_local, mode: str = 'ref') -> list[str]:
     shutil.copyfile(template, out)
     lines = []
     with h5py.File(out, 'r+') as f:
@@ -219,7 +239,7 @@ def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_loc
             ds[...] = flat.reshape(arr.shape)
         spine_data = {b: clip[b]['xformframes'][()] for b in moved}
         for frame in range(count):
-            deltas = spine_deltas(hier, base_world, base_local, kind, aim_angle(kind, frame))
+            deltas = to_mode(spine_deltas(hier, base_world, base_local, kind, aim_angle(kind, frame)), base_local, mode)
             for b in moved:
                 r, t = deltas[b]
                 q = mat_to_quat(r.T)  # 寫進檔案要轉置（讀的時候會再轉置回來）
@@ -237,7 +257,7 @@ def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_loc
         for b in SPINE:
             d = frames[b][frame]
             deltas[b] = (file_rot(d), np.array([float(d['pos.x']), float(d['pos.y']), float(d['pos.z'])]) * 0.01)
-        world = apply(hier, base_local, deltas)
+        world = apply(hier, base_local, deltas, mode)
         deg = aim_angle(kind, frame)
         want = total_rotation(kind, deg) @ (base_world['l_weapon'][0] @ BARREL)
         got = world['l_weapon'][0] @ BARREL
@@ -252,6 +272,7 @@ def main() -> int:
     ap.add_argument('orig_dir', type=Path)
     ap.add_argument('base', type=Path)
     ap.add_argument('out_dir', type=Path)
+    ap.add_argument('--set', choices=sorted(SETS), default='stand', help='stand：站著（AT_Ref）；walk、run：走路、跑步（預設的疊加方式）')
     a = ap.parse_args()
     hier = read_skeleton(a.base)
     base_local = read_frame0(a.base)
@@ -261,20 +282,22 @@ def main() -> int:
     barrel0 = base_world['l_weapon'][0] @ BARREL
     print(f'底層姿勢第 0 格：槍管方向 ({barrel0[0]:.3f}, {barrel0[1]:.3f}, {barrel0[2]:.3f})；右手掌心離握把 {palm_grip_cm(base_world):.2f} 公分')
     a.out_dir.mkdir(parents=True, exist_ok=True)
-    for kind, name in NAMES.items():
-        template = a.orig_dir / f'{name}.re'
+    mode, names = SETS[a.set]
+    print(f'組：{a.set}（疊加方式 {mode}）')
+    for kind, name in names.items():
+        template = a.orig_dir / f'{NAMES[kind]}.re'
         out = a.out_dir / f'{name}.re'
         print(f'{out.name}（{"左右" if kind == "horizontal" else "上下"}：{"、".join(bones_of(kind))}）')
-        for line in write_delta(template, out, kind, hier, base_world, base_local):
+        for line in write_delta(template, out, kind, hier, base_world, base_local, mode):
             print(line)
     print('左右＋上下同時（直接算差值，套到第 0 格；兩段在不同骨頭上，疊加順序不影響結果）：')
     worst = 0.0
     for th in (0, 30, 90, 150, -150):
         cells = []
         for ph in (-38, 0, 38, 80):
-            deltas = spine_deltas(hier, base_world, base_local, 'horizontal', th)
-            deltas.update(spine_deltas(hier, base_world, base_local, 'vertical', ph))
-            world = apply(hier, base_local, deltas)
+            deltas = to_mode(spine_deltas(hier, base_world, base_local, 'horizontal', th), base_local, mode)
+            deltas.update(to_mode(spine_deltas(hier, base_world, base_local, 'vertical', ph), base_local, mode))
+            world = apply(hier, base_local, deltas, mode)
             want = axis_angle([0, 0, 1], th) @ axis_angle([1, 0, 0], ph) @ barrel0
             err = angle_deg(world['l_weapon'][0] @ BARREL, want)
             worst = max(worst, err)
