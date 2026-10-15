@@ -83,7 +83,12 @@
          - 掛載器（照原版 `dlc\dlc16\dlc16.reddlc` #34）：`CR4EntityTemplateSlotDLCMounter`，`baseEntityTemplatePath` = `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`，`entityTemplateSlots` 一個 `EntitySlot`：名稱 `gfg_ak47_back_slot`、`componentName` `scabbards_skeleton`、`boneName` `crossbow_back`、transform = T
          - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
        - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
-    3. **換彈（04:1x 進行中）**：事件存在原版動畫組每筆 `CSkeletalAnimationSetEntry` 的自訂資料（`reload_lowered` 那筆 141 bytes，其他 4 bytes）→ 計畫：AnimBrowser 開原版 `animations\man\combat\man_geralt_gabriel.w2anims` → 兩段換彈動畫 Copy animation → 我們的動畫組 Paste animation to set（帶事件）→ 再用 Import simple/plain animations 同名匯入雙手姿勢（`assets\anims\gfg\man_geralt_gabriel_reload_lowered.re` 36 格、`…_front_2.re` 38 格：第 1 步的姿勢截短）→ 讀存檔確認那筆的自訂資料還在 → 遊戲裡換彈後能接著射；原版動畫組不要存
+    3. **換彈（04:0x 進行中；工作區的動畫組現在會報錯）**：
+       - 03:55 做了：原版兩段換彈動畫 Copy／Paste 到我們的動畫組（事件跟著過來：那兩筆的自訂資料 199、141 bytes）→ 同名 Import simple/plain 換成雙手姿勢 → 存檔後事件資料還在
+       - **問題**：開遊戲後每一格都報 `animationBufferBitwiseCompressed.cpp:2715 … Animation didn't have usage set and is fully streamable`（03:56:10 起，上萬次）；那兩段帶著原版的 `useOwnBitwiseCompressionParams = True`（`ABBCP_VeryHighQuality`）
+       - 修法（試中）：AnimBrowser 把那兩段的 `useOwnBitwiseCompressionParams` 改 false → Recompress；**不行就 `git checkout` 動畫組**（回到 15 段的版本）再重開 REDkit
+       - 另外：這次測試左鍵拿不出 AK（原因沒查：可能和報錯有關）
+       - 原計畫：事件存在原版動畫組每筆 `CSkeletalAnimationSetEntry` 的自訂資料（`reload_lowered` 那筆 141 bytes，其他 4 bytes）→ 計畫：AnimBrowser 開原版 `animations\man\combat\man_geralt_gabriel.w2anims` → 兩段換彈動畫 Copy animation → 我們的動畫組 Paste animation to set（帶事件）→ 再用 Import simple/plain animations 同名匯入雙手姿勢（`assets\anims\gfg\man_geralt_gabriel_reload_lowered.re` 36 格、`…_front_2.re` 38 格：第 1 步的姿勢截短）→ 讀存檔確認那筆的自訂資料還在 → 遊戲裡換彈後能接著射；原版動畫組不要存
        - 舊紀錄：原版換彈動畫中段有動畫事件 `OnWeaponReload`（裝新箭：`findings.md` §13.x）；事件不在任何 `.w2animev`，應該在原版動畫組的自訂資料裡 → 同名蓋掉會沒有事件 → 要在 REDkit 複製原版動畫（含事件）再換動作資料；**還沒做**
        - 換彈用的動畫：`man_geralt_gabriel_reload_front_2`（1.25 秒）、`man_geralt_gabriel_reload_lowered`（1.18 秒）（十字弩 `WeaponReload` #17300）
     4. 跑步的右手：主動畫圖的跑步混合（#27906：0.8、1.0 有十字弩版本，1.5 衝刺沒有）＋上半身的左手臂覆蓋（`aim_run`）→ 推論；要改主動畫圖的結構才能修（REDkit 的動畫圖編輯器）；**先列為已知限制**
