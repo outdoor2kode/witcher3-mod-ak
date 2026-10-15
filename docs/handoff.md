@@ -89,14 +89,18 @@
      - slot 已改好（讀檔確認：位置 (0.435, 0, -0.031)、旋轉存成 (0, 339.6, 270)＝Roll 0／Pitch -20.4／Yaw -90）
      - 第一次重匯模型時 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡槍不見（`docs\m3.md`「第一次重匯」）
      - 第三次重匯（15:06:40）還是 `0 bones` → Reimport → Mesh only 看起來不會讓人改 `importAsSkinnedMesh`，沿用 REDkit 記憶體裡的設定（推測；介面沒看過）
-     - **等使用者改用 Import > Mesh 重新匯入**（第一次成功的流程）：`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`、蓋掉舊檔、Import mesh 對話框按 Cancel → 存檔；Claude 看 `editor.log`、讀 `.w2mesh` 確認（自訂資料應該回到 88 bytes）
-     - 之後進遊戲看槍管有沒有對準準心、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
+     - 改用 Import > Mesh 重新匯入（15:10）：**槍出現了、槍管水平**；但**顏色不見**（整把淺灰）
+     - 顏色：有顏色的都是「Mesh editor 手動重新指定過 Diffuse」的模型，沒顏色的都是「材質 XML 建立」的模型（`docs\m3.md`「顏色的線索」）；檔案裡的參數讀起來是對的
+     - **等使用者**：Mesh editor → Materials → `weapon_rif_ak47` → `Diffuse`、`Normal` 重新指定（Asset Browser 選 `.xbm` → 綠色箭頭）→ 存檔 → 進遊戲；有顏色就比對 `mesh_snapshots\gfg_ak47_1510_xml.w2mesh`（暫存資料夾）和新檔
+     - 之後進遊戲看槍管有沒有對準準心（從背後、鏡頭放平）、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
+     - `gfg_ak47.w2ent`（slot 改 Pitch）還沒 commit：等槍管對準確認
    - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
 2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）
    - 方向：借原版 NPC 十字弩兵的動畫（`man_crossbow.w2anims`，和 Geralt 同一套骨架），不從零做動畫
    - 查到：DLC 能替 Geralt 加動畫組（`CAnimAnimsetsParam`）；腳本能播 slot 動畫但會被十字弩的上半身蓋掉；NPC 十字弩掛右手；四種做法的比較表在 `m3.md`
-   - 下一步：使用者和 bolt 測試同一次，`god()` 之後 `spawn('xbow', 1, 15, true)`，截圖十字弩兵瞄準、射擊、換彈的姿勢 → 合用再選做法（A 同名替換要先用一段動畫實測「同名時用哪一個」）
+   - ~~使用者看十字弩兵的姿勢~~ → 看過了（15:15）：**雙手、抵右肩、右手在後握把、左手在前托住** → 合用
+   - 下一步（顏色修好之後）：選做法（A 同名替換要先用一段動畫實測「同名時用哪一個」）
    - AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管；在一般地圖還是太亮再查
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
 4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
