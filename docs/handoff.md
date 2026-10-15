@@ -88,7 +88,8 @@
      - 使用者選現在修：`m3_build_ak.py` 加了 `--pitch`，已用 `--pitch -20.5` 產生新的 FBX（`docs\m3.md`「槍管往下轉 20.5°」）
      - slot 已改好（讀檔確認：位置 (0.435, 0, -0.031)、旋轉存成 (0, 339.6, 270)＝Roll 0／Pitch -20.4／Yaw -90）
      - 第一次重匯模型時 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡槍不見（`docs\m3.md`「第一次重匯」）
-     - **等使用者重匯一次**：Reimport → Mesh only → `importAsSkinnedMesh` 設 true → 存檔；Claude 看 `editor.log`、讀 `.w2mesh` 確認（自訂資料應該回到 88 bytes）
+     - 第三次重匯（15:06:40）還是 `0 bones` → Reimport → Mesh only 看起來不會讓人改 `importAsSkinnedMesh`，沿用 REDkit 記憶體裡的設定（推測；介面沒看過）
+     - **等使用者改用 Import > Mesh 重新匯入**（第一次成功的流程）：`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`、蓋掉舊檔、Import mesh 對話框按 Cancel → 存檔；Claude 看 `editor.log`、讀 `.w2mesh` 確認（自訂資料應該回到 88 bytes）
      - 之後進遊戲看槍管有沒有對準準心、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
    - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
