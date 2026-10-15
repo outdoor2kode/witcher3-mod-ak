@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 02:0x（自主模式；第 1 步進遊戲通過（右手掌心離握把 1.7 公分）；**下一步：第 2 步（瞄準差值）**）
+最後更新：2026-10-16 02:3x（自主模式；第 1、2 步都在遊戲裡通過（上下 ±38°、左右 ±30° 槍管差 2° 內，右手掌心離握把 0.8 公分）；**下一步：其他狀態的雙手**）
 
 ---
 
@@ -23,8 +23,10 @@
   - `.claude\settings.local.json` 的 `autoCompactWindow` 400000 → context 40% 自動壓縮（官方文件：設定檔存檔後執行中的 session 會重讀）
   - 保持清醒：`desk.ps1 awake 604800` 在背景跑（01:22 起，最多 7 天；系統狀態實測 0x3 = 不睡眠＋不關螢幕）；使用者的設定是 30 分鐘沒動作就睡眠、關螢幕
   - 續做排程：CronCreate 每小時 :13（job `03dddeb6`；只存在這個 session，7 天後自動消失）：被中斷（用量上限、錯誤）就讀這份接著做
-  - 02:05 觀察：context 到 42% 了，**這一輪中途沒有自動壓縮** → 結束這一輪、排一次性排程 2 分鐘後叫醒（推測：壓縮在兩輪之間才發生；醒來後看有沒有壓縮，結果寫在這裡）
-    - 如果還是沒壓縮：`autoCompactWindow` 可能要重開 Claude Code 才生效 → 寫進交接檔，等使用者回來處理；預設約 96.7 萬才壓縮，不會爆
+  - 02:05 觀察：context 到 42% 了，**這一輪中途沒有自動壓縮** → 結束這一輪、排一次性排程 2 分鐘後叫醒
+    - **02:08 結果：一輪開始時也沒有壓縮（還是 42%）→ `autoCompactWindow` 在這個 session 沒生效**（設定檔裡有；官方文件說存檔會重讀，實際沒套用）
+    - 不會爆：預設約 96.7 萬 tokens 才壓縮（官方文件 model-config）
+    - 使用者回來可以：打 `/autocompact 400k`（官方文件：存到使用者設定的這個模型底下、套用到目前的 session；所有專案都會用這個值；`/autocompact auto` 還原），或重開 Claude Code 讓專案設定生效
 - 停下來的條件：能做的都做完；或卡在只有使用者能做的事（例：M4 的 Wwise 授權要用使用者的帳號）→ CronDelete、停掉保持清醒（`powershell.exe` 命令列含 `desk.ps1 awake` 的程序）、寫清楚狀態
 
 ## 現在在做
@@ -62,14 +64,14 @@
       - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 最上面那行（動畫組）右鍵 **Import simple/plain animations** → 選上面的 `.re` → 問 override 按 **Overide** → File → **Save all** → 動畫右鍵 **Calc bone MS**
       - 成功的話：`r_hand` 約 (0.200, 0.106, 1.405)、角度 (4.2, 108.7, 12.3)；`head` 的 Yaw 從 18.26 回到 −11.70；`editor.log` 有一行 `AnimationCompressionDetailed … man_geralt_gabriel_aim_idle_rp`
     - 骨架：`r_shoulder` → `r_bicep` → `r_forearm` → `r_hand`（扭轉骨頭 `r_bicep2`、`r_elbowRoll`、`r_forearmRoll1`→`r_forearmRoll2`→`r_handRoll` 掛在上臂、前臂底下；這次不動它們）
-  - **接下來**（順序：使用者看預覽圖 → REDkit 預覽 → 第 2 步 → 進遊戲）：
-    1. 使用者匯入、量 Calc bone（上面）→ AnimBrowser 預覽（要看得到 Geralt 的身體：開動畫組時問預覽角色按 **Yes**？沒試過；跳出要 check out、存檔其他檔案的視窗一律按 No、截圖）
-       - Yes 的問句原文：「Entity doesn't have animated component with select animset. Do you want to add animset to entity and load it again?」（`docs\m3.md` 第一個實驗）；會不會改到 Geralt 的模板沒查到
-    2. **第 2 步：瞄準差值**——4 段 aimpose 換成「只轉上半身（`torso`～`torso3`），手臂和槍跟著胸口一起轉」的版本，放進我們的動畫組（同名蓋過原版）
-       - 時間對應（推論）：第 60 格 = 不偏；左右 時間 = 2.0 − 角度/180、上下 時間 = 2.0 + 角度/90 → 差值在那個時間要剛好轉那個角度
-    3. 使用者：匯入動畫、重匯 AK 模型（`m3_build_ak.py` 加上 `docs\m3.md` 第 1 步的 `--place`；Import > Mesh，`importAsSkinnedMesh` true）、`bolt` slot 改成第 1 步算的值 → 重開 REDkit → 進遊戲（偵測紀錄 `GfgLogHoldPose` 還在 `gfg_ak47.ws` 裡，可以量）
-       - 遊戲裡的參考值（改過動畫圖之後、瞄水平）：`r_hand` (0.261, 0.062, 1.458)、`l_weapon` (0.192, 0.484, 1.429)（玩家座標）
-    - 還沒處理的右手覆蓋：拔槍 `WeaponDraw`（#22145，只有 `r_hand`，也用 `man_ger_sword_axii_arm_override`）；拿劍時 `WeaponAim` #21346、`WeaponShoot` #17768
+  - **第 2 步：瞄準差值——做完、遊戲裡通過**（02:14～02:31；`tools\aim_delta.py`；`docs\m3.md`「雙手持槍：第 2 步：瞄準差值」）
+    - 新的 4 段 `aimpose_*`：左右只轉 `torso`、`torso2`，上下只轉 `torso3`；手臂和 AK 跟著胸口整組轉
+    - 匯入：AnimBrowser 動畫組那一行（先左鍵選、再右鍵）→ **Import additive animations II (Ref)**（來回測試差 0.000）→ Ctrl+S；動畫組 02:28:49 存檔（commit）
+    - 遊戲裡：上下 ±38°、左右 ±30° 的組合，槍管和鏡頭差 0.4～2.0°；右手掌心離握把 0.8 公分
+  - **接下來**（Claude 自己做、自己驗證）：
+    1. 其他狀態的雙手：走路／跑步時瞄準（`walk_aimpose_*`、`run_aimpose_*`：#18587、#18679）、換彈（#20899）、開槍、拔槍 `WeaponDraw`（#22145 也用 `man_ger_sword_axii_arm_override` 拉右手）、拿劍時 `WeaponAim` #21346、`WeaponShoot` #17768 → 先進遊戲截圖、量紀錄，看哪些壞了
+    2. 收槍時 AK 在背上的位置跑掉（擺法做進模型裡：`docs\m3.md`「擺法 A 進遊戲」）→ AK 專用的背部 slot（`CR4EntityTemplateSlotDLCMounter`）
+    - 遊戲裡的參考值（第 2 步之後、平視）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
   - 暫存資料夾（session 結束就沒了）：`pose_2206.log`、`pose_0025.log`（兩次的偵測紀錄，從 `editor.log` 複製；數字摘要在 `docs\m3.md`「遊戲裡實測」「右手臂被換成另一段動畫」）；`pose_parse.py`（解析偵測紀錄）；查動畫圖用的 `graph_walk_lib.py` 等（做法寫在 `docs\m3.md`）
     - 沒有 numpy 的系統 Python 3.14 跑不了 `pose_parse.py`；用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
 
@@ -155,7 +157,7 @@
 
 ## 下一步
 
-1. **雙手持槍**：第 1 步（底層姿勢）離線做好、等使用者看預覽圖 → REDkit 預覽 → 第 2 步（瞄準差值）（見「現在在做」）；之後再換開槍、換彈、走路的動畫
+1. **雙手持槍**：第 1 步（底層姿勢）、第 2 步（瞄準差值）都在遊戲裡通過 → 其他狀態（走路、換彈、開槍、拔槍）和收槍位置（見「現在在做」的「接下來」）
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`

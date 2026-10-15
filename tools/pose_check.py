@@ -61,7 +61,7 @@ def main():
     recs = parse(sys.argv[1])
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 20
     print(f'完整紀錄 {len(recs)} 筆；最後 {n} 筆：')
-    print('時間     狀態                         鏡頭俯仰  掌心-握把(公分, l_weapon 座標)        距離  槍管-鏡頭  r_hand(玩家座標)          l_weapon(玩家座標)')
+    print('時間     狀態                         鏡頭俯仰 左右(對身體,左正)  掌心-握把(公分, l_weapon 座標)        距離  槍管-鏡頭  r_hand(玩家座標)          l_weapon(玩家座標)')
     for r in recs[-n:]:
         lw = r['l_weapon']
         rh = r['r_hand']
@@ -75,7 +75,9 @@ def main():
         state = re.sub(r'^t=\S+ ', '', r['head']).replace('player=', '').replace(' ak=', '/')
         rh_p = to_local(pl, rh[0])
         lw_p = to_local(pl, lw[0])
-        print(f"{r['clock']} {state:28s} {pitch:6.1f}°  ({d[0]*100:5.1f}, {d[1]*100:5.1f}, {d[2]*100:5.1f})  {norm(d)*100:5.1f}  {ang:6.1f}°  "
+        cam_p = tuple(dot(cam, a) for a in pl[1])  # 鏡頭方向在玩家座標（x 右、y 前）
+        yaw = math.degrees(math.atan2(-cam_p[0], cam_p[1]))
+        print(f"{r['clock']} {state:28s} {pitch:6.1f}° {yaw:7.1f}°  ({d[0]*100:5.1f}, {d[1]*100:5.1f}, {d[2]*100:5.1f})  {norm(d)*100:5.1f}  {ang:6.1f}°  "
               f"({rh_p[0]:.3f}, {rh_p[1]:.3f}, {rh_p[2]:.3f})  ({lw_p[0]:.3f}, {lw_p[1]:.3f}, {lw_p[2]:.3f})")
 
 

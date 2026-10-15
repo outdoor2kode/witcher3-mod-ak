@@ -19,10 +19,13 @@
   0 → 30 格是 30 → 60 的倒放（節點設定 Animation angle range (180, 90)）
 做法：
 - 模型座標（X 右、Y 前、Z 上）的總旋轉 Q：左右 = 繞 Z 轉 θ；上下 = 繞 X 轉 φ（3 段 left／center／right 都一樣）
-- 平均分給 torso、torso2、torso3：每根在模型座標裡繞自己的原點轉 Q 的 1/3（四元數 slerp），3 根疊起來 = Q
-  → 每根的差值 = 父骨頭在底層姿勢（第 0 格）的方向把 Q^(1/3) 換到父骨頭座標
+- **左右只轉 torso、torso2，上下只轉 torso3**（2026-10-16 遊戲實測後改）：
+  - 第一版 3 根都轉、左右和上下疊在同一批骨頭上：大幅往右轉＋往上 38° 時槍管差 34°（上下是繞「轉之前」的 X 轉）
+  - torso3 掛在 torso2 底下 → 上下的軸跟著左右轉過去；兩段疊加的順序不影響結果 = 先左右、再沿轉過之後的右邊上下
+- 每根在模型座標裡繞自己的原點轉 Q 的 1/n（四元數 slerp；n = 這一段用到的骨頭數），疊起來 = Q
+  → 每根的差值 = 父骨頭在底層姿勢（第 0 格）的方向把 Q^(1/n) 換到父骨頭座標
 - 其他骨頭全部是單位（不動）：手臂、手、AK 都跟著胸口轉，兩手握槍的關係不變
-檢查（把差值套到底層姿勢的第 0 格再做 FK）：槍管方向和該瞄的方向差幾度、右手掌心離握把多遠
+檢查（把差值套到底層姿勢的第 0 格再做 FK）：每一段自己、左右＋上下同時（兩種疊加順序）→ 槍管方向和該瞄的方向差幾度、右手掌心離握把多遠
 """
 import argparse
 import math
@@ -38,6 +41,7 @@ import h5py  # noqa: E402
 SKEL = '.re_asset_node/.re_asset_description_node/.re_skeleton'
 CLIP = '.re_asset_node/.re_animation_container/.re_animation/.re_anim_clip'
 SPINE = ('torso', 'torso2', 'torso3')
+BONES = {'horizontal': ('torso', 'torso2'), 'vertical': ('torso3',)}  # 左右轉的骨頭都是上下轉的骨頭的祖先
 NAMES = {
     'horizontal': 'man_geralt_gabriel_aimpose_horizontal_rp',
     'left': 'man_geralt_gabriel_aimpose_vertical_rp_left',
@@ -156,13 +160,20 @@ def total_rotation(kind: str, deg: float) -> np.ndarray:
     return axis_angle([0, 0, 1], deg) if kind == 'horizontal' else axis_angle([1, 0, 0], deg)
 
 
-def spine_deltas(hier, base_world, base_local, q_model: np.ndarray) -> dict[str, tuple[np.ndarray, np.ndarray]]:
-    """每根脊椎骨的差值（父骨頭座標的旋轉, 位置 公尺）：模型座標裡繞自己的原點轉 q_model（3 根各一份）。"""
+def bones_of(kind: str) -> tuple[str, ...]:
+    return BONES['horizontal' if kind == 'horizontal' else 'vertical']
+
+
+def spine_deltas(hier, base_world, base_local, kind: str, deg: float) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """這一段每根骨頭的差值（父骨頭座標的旋轉, 位置 公尺）：模型座標裡繞自己的原點轉總角度的 1/n。"""
+    bones = bones_of(kind)
+    q_total = mat_to_quat(total_rotation(kind, deg))
+    q_part = quat_to_mat(*slerp_identity(q_total, 1.0 / len(bones)))
     parent = dict(hier)
     out = {}
-    for b in SPINE:
+    for b in bones:
         pr = base_world[parent[b]][0]
-        r = pr.T @ q_model @ pr
+        r = pr.T @ q_part @ pr
         t = base_local[b][1]
         out[b] = (r, t - r @ t)
     return out
@@ -189,6 +200,7 @@ def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_loc
     with h5py.File(out, 'r+') as f:
         clip = f[CLIP]
         bones = [k for k in clip.keys() if isinstance(clip[k], h5py.Group)]
+        moved = bones_of(kind)
         missing = [b for b in SPINE if b not in bones]
         if missing:
             raise SystemExit(f'{template.name} 沒有骨頭 {missing}')
@@ -205,19 +217,16 @@ def write_delta(template: Path, out: Path, kind: str, hier, base_world, base_loc
                 if c in flat.dtype.names:
                     flat[c] = 1
             ds[...] = flat.reshape(arr.shape)
-        spine_data = {b: clip[b]['xformframes'][()] for b in SPINE}
+        spine_data = {b: clip[b]['xformframes'][()] for b in moved}
         for frame in range(count):
-            deg = aim_angle(kind, frame)
-            q_total = mat_to_quat(total_rotation(kind, deg))
-            q_part = quat_to_mat(*slerp_identity(q_total, 1.0 / len(SPINE)))
-            deltas = spine_deltas(hier, base_world, base_local, q_part)
-            for b in SPINE:
+            deltas = spine_deltas(hier, base_world, base_local, kind, aim_angle(kind, frame))
+            for b in moved:
                 r, t = deltas[b]
                 q = mat_to_quat(r.T)  # 寫進檔案要轉置（讀的時候會再轉置回來）
                 rec = spine_data[b].reshape(-1)
                 rec[frame]['rot.x'], rec[frame]['rot.y'], rec[frame]['rot.z'], rec[frame]['rot.w'] = (float(v) for v in q)
                 rec[frame]['pos.x'], rec[frame]['pos.y'], rec[frame]['pos.z'] = (float(v) * 100 for v in t)
-        for b in SPINE:
+        for b in moved:
             clip[b]['xformframes'][...] = spine_data[b]
     # 檢查：讀回來的差值套到底層姿勢的第 0 格
     with h5py.File(out, 'r') as f:
@@ -255,9 +264,23 @@ def main() -> int:
     for kind, name in NAMES.items():
         template = a.orig_dir / f'{name}.re'
         out = a.out_dir / f'{name}.re'
-        print(f'{out.name}（{"左右" if kind == "horizontal" else "上下"}）')
+        print(f'{out.name}（{"左右" if kind == "horizontal" else "上下"}：{"、".join(bones_of(kind))}）')
         for line in write_delta(template, out, kind, hier, base_world, base_local):
             print(line)
+    print('左右＋上下同時（直接算差值，套到第 0 格；兩段在不同骨頭上，疊加順序不影響結果）：')
+    worst = 0.0
+    for th in (0, 30, 90, 150, -150):
+        cells = []
+        for ph in (-38, 0, 38, 80):
+            deltas = spine_deltas(hier, base_world, base_local, 'horizontal', th)
+            deltas.update(spine_deltas(hier, base_world, base_local, 'vertical', ph))
+            world = apply(hier, base_local, deltas)
+            want = axis_angle([0, 0, 1], th) @ axis_angle([1, 0, 0], ph) @ barrel0
+            err = angle_deg(world['l_weapon'][0] @ BARREL, want)
+            worst = max(worst, err)
+            cells.append(f'上下 {ph:3d}° 差 {err:.3f}°／握把 {palm_grip_cm(world):.2f} 公分')
+        print(f'  左右 {th:4d}°：' + '；'.join(cells))
+    print(f'  最多差 {worst:.3f}°')
     return 0
 
 
