@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 00:3x（改原版動畫圖的曲線：進遊戲測成功，右手和動畫只差 2.6 公分（之前 15.9）；下一步：第 1 步底層姿勢，使用者已同意寫腳本）
+最後更新：2026-10-16 01:1x（第 1 步底層姿勢：`tools\two_hand_pose.py` 做好、離線檢查通過、預覽圖給使用者看；等使用者看圖、確認兩項設計變更）
 
 ---
 
@@ -22,18 +22,20 @@
       - 讀回來檢查過：和原檔只差 16 bytes；`.gitignore` 排除這個檔（用腳本可以重做）
     - **進遊戲測：成功**（00:25；`docs\m3.md`「右手臂被換成另一段動畫」的表）：站著瞄水平，`r_hand` 和動畫差 **2.6 公分**（改之前 15.9 公分）；遊戲會讀 workspace 改過的動畫圖、沒有錯誤；左手還差 7 公分（原版瞄準疊加層，第 2 步處理）
     - 這次查到、還沒用到的：Geralt 原版動畫的 `IK_r_hand` 等骨頭 = 對應骨頭的模型座標；NPC 那段對不上；`pc_overlay.w2beh` 沒用它們做 IK（`pc_gameplay.w2beh` 有 16 處，沒查）→ 第 1 步改右手時，`IK_r_hand` 先照原檔（`re_fix` 會把所有骨頭的位置改回原檔）
-  - **下一步：第 1 步**（使用者 2026-10-16 選「先做第 1 步」、同意寫腳本；順序：先做 1、看預覽圖和 REDkit 預覽確認，再做 2）：
-    1. **第 1 步：底層姿勢**——NPC 雙手瞄準的右手用 Blender 內建的 IK 移到 AK 握把（左手不動、AK 的護木放在左掌）→ 烘焙 → `export_re`；同時算 AK 相對 `l_weapon` 的擺法（`m3_build_ak.py --place`，照「`handle` 繞槍管轉 180°」修正）和 `bolt` slot；Blender 渲染預覽圖給使用者看
-       - 骨架：`r_shoulder` → `r_bicep` → `r_forearm` → `r_hand`（扭轉骨頭 `r_bicep2`、`r_elbowRoll`、`r_forearmRoll1`→`r_forearmRoll2`→`r_handRoll` 掛在上臂、前臂底下）
-       - 設計（2026-10-16 想好、還沒做；要跟使用者說明）：
-         - 槍的方向：底層姿勢裡槍管朝正前方（模型 +Y）、水平；瞄準的偏轉交給第 2 步的差值（節點把角度換成時間：左右 2.0 − 角度/180、上下 2.0 + 角度/90 → 差值在那個時間要剛好轉那個角度：推論）
-         - 左手不動；AK 的護木底部放在左掌（`l_weapon` 附近；AK 的輪廓在 `docs\m3.md`「AK 的側面輪廓」）
-         - 右手：IK 目標掛在 `l_weapon` 底下（跟著左手的待機晃動）；右掌中心 = `r_hand` + (0.061, 0.032, −0.002)（`r_hand` 座標）；拳頭的軸（`r_hand` 的 −z）對齊握把的斜度
-         - Blender：`r_forearm` 加 IK 約束（鏈長 2）、`r_hand` 加 Copy Rotation → 每一格烘焙 → `re_blender.export_re`
-         - 預覽圖：骨頭畫成棒子、關節和指節畫成球，加上 AK 模型；從右側、上方、前方渲染
-         - 遊戲裡的參考值（改過動畫圖之後、瞄水平）：`r_hand` (0.261, 0.062, 1.458)、`l_weapon` (0.192, 0.484, 1.429)（玩家座標）
-    2. **第 2 步：瞄準差值**——4 段 aimpose 換成「只轉上半身（`torso`～`torso3`），手臂和槍跟著胸口一起轉」的版本，照上面的時間對應做，放進我們的動畫組（同名蓋過原版）
-    3. 使用者：匯入動畫、重匯 AK 模型（Import > Mesh，`importAsSkinnedMesh` true）、改 slot → 重開 REDkit → 進遊戲（偵測紀錄 `GfgLogHoldPose` 還在 `gfg_ak47.ws` 裡，可以量）
+  - **第 1 步：底層姿勢——做好、離線檢查通過（2026-10-16 01:0x）**：`tools\two_hand_pose.py`（使用者同意寫；指令、結果、數字在 `docs\m3.md`「雙手持槍：第 1 步：底層姿勢」）
+    - 已經給使用者看：預覽圖 `assets\ak47\preview\step1_pose.png`（2×2：左上右邊、右上上面、左下前面、右下右後上方；紅＝右手臂、淡紅＝原本的、藍＝左手臂）
+    - **和原本設計不同的兩項（等使用者確認）**：
+      1. AK 跟著胸口（`torso3`）動、兩手都用 IK 握在槍上（原本：左手不動、右手跟著左手）：原檔左手相對胸口晃 4.7°，跟著左手槍管會晃到 4°
+      2. IK 用兩節手臂的公式（肩膀自由轉、手肘當鉸鏈），不用 Blender 的 IK 約束：Blender 的把手肘當球形關節，右手肘往側面彎 8°
+    - **等使用者回答**：輸出的 `.re` 要放到 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`，會蓋掉頭轉 30° 的測試檔（`.gitignore` 排除）→ 使用者同意才蓋
+      - 輸出現在只在暫存資料夾；新 session 用 `docs\m3.md` 的指令重做（約 10 秒，結果一樣）
+    - 骨架：`r_shoulder` → `r_bicep` → `r_forearm` → `r_hand`（扭轉骨頭 `r_bicep2`、`r_elbowRoll`、`r_forearmRoll1`→`r_forearmRoll2`→`r_handRoll` 掛在上臂、前臂底下；這次不動它們）
+  - **接下來**（順序：使用者看預覽圖 → REDkit 預覽 → 第 2 步 → 進遊戲）：
+    1. 使用者看預覽圖、確認上面兩項 → 把 `.re` 放進 `assets\anims\gfg\` → 使用者照「匯回 REDkit」的步驟匯入（動畫組那一行右鍵 **Import simple/plain animations** → **Overide** → Save all）→ AnimBrowser 預覽（要看得到 Geralt 的身體：開動畫組時問預覽角色按 **Yes**？沒試過）
+    2. **第 2 步：瞄準差值**——4 段 aimpose 換成「只轉上半身（`torso`～`torso3`），手臂和槍跟著胸口一起轉」的版本，放進我們的動畫組（同名蓋過原版）
+       - 時間對應（推論）：第 60 格 = 不偏；左右 時間 = 2.0 − 角度/180、上下 時間 = 2.0 + 角度/90 → 差值在那個時間要剛好轉那個角度
+    3. 使用者：匯入動畫、重匯 AK 模型（`m3_build_ak.py` 加上 `docs\m3.md` 第 1 步的 `--place`；Import > Mesh，`importAsSkinnedMesh` true）、`bolt` slot 改成第 1 步算的值 → 重開 REDkit → 進遊戲（偵測紀錄 `GfgLogHoldPose` 還在 `gfg_ak47.ws` 裡，可以量）
+       - 遊戲裡的參考值（改過動畫圖之後、瞄水平）：`r_hand` (0.261, 0.062, 1.458)、`l_weapon` (0.192, 0.484, 1.429)（玩家座標）
     - 還沒處理的右手覆蓋：拔槍 `WeaponDraw`（#22145，只有 `r_hand`，也用 `man_ger_sword_axii_arm_override`）；拿劍時 `WeaponAim` #21346、`WeaponShoot` #17768
   - 暫存資料夾（session 結束就沒了）：`pose_2206.log`、`pose_0025.log`（兩次的偵測紀錄，從 `editor.log` 複製；數字摘要在 `docs\m3.md`「遊戲裡實測」「右手臂被換成另一段動畫」）；`pose_parse.py`（解析偵測紀錄）；查動畫圖用的 `graph_walk_lib.py` 等（做法寫在 `docs\m3.md`）
     - 沒有 numpy 的系統 Python 3.14 跑不了 `pose_parse.py`；用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
@@ -119,7 +121,7 @@
 
 ## 下一步
 
-1. **雙手持槍**：改過的動畫圖測試通過 → 第 1 步（底層姿勢）→ 第 2 步（瞄準差值）（見「現在在做」）；之後再換開槍、換彈、走路的動畫
+1. **雙手持槍**：第 1 步（底層姿勢）離線做好、等使用者看預覽圖 → REDkit 預覽 → 第 2 步（瞄準差值）（見「現在在做」）；之後再換開槍、換彈、走路的動畫
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
@@ -192,5 +194,6 @@
 - M3：AK 對齊十字弩 `handle` 骨頭的方向 → 槍管比原版的箭高 20.4°，往上翹 → 改成 `--pitch -20.5`（槍管和 `chord` 骨頭的 x 軸平行）
 - M3：REDkit 重開後用 Reimport → Mesh only 換模型 → 模型沒綁骨頭、槍不見（試了 3 次）→ 改用 Import > Mesh
 - M3：顏色問題曾以為是 `.xbm` 或光照造成 → 都不是；是剛匯入模型的那次 REDkit 的狀態問題
+- 雙手持槍第 1 步：Blender 的 IK 約束（右手肘往側面彎 8°）、加 `ik_stiffness_y/z`（左手變更差）→ 改用兩節手臂的 IK 公式（`docs\m3.md`「雙手持槍：第 1 步：底層姿勢」）
 - **在 Bash 的 heredoc 裡寫含反斜線的 Python**：`\\` 會變成 `\`，`\a` 會變成控制字元（2026-10-15 弄壞過交接檔一次）→ 含路徑的字串用 Write／Edit 工具，或在 Python 裡用 `chr(92)`
 - **Bash 的 `cd` 會改掉 session 的工作目錄**（2026-10-15 `cd` 到唯讀資料夾三次）→ 用絕對路徑，不要 `cd` 到專案外
