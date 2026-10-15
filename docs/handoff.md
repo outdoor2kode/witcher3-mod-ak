@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 18:35（雙手持槍的第一個實驗成功；/clear 前交接，等使用者回答 3 個問題）
+最後更新：2026-10-15 18:40（使用者選了做法 A、掛左手；等使用者在 AnimBrowser 用 Calc bone 量手的位置）
 
 ---
 
@@ -13,15 +13,15 @@
 - **雙手持槍的第一個實驗：成功**（2026-10-15 18:09；`docs\m3.md`「第 12～15 步的結果」）
   - 做法 A「同名替換」：DLC 動畫組裡的 `man_geralt_gabriel_aim_idle_rp`（內容是 NPC 的 `man_npc_bow_idle_aiming_01`）蓋過原版 → Geralt 站著瞄準變成雙手舉在胸前；`editor.log` `Mounted 166`
   - 做好的檔案（都已 commit）：`workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`、`test.reddlc` 的第 3 個掛載器
-  - 使用者說「看起來有但很怪」：AK 還照單手的角度掛在左手 → 槍歪、胸口那隻手握空（預期中）；另外 3 張截圖像換彈（**待使用者確認**）
-  - **等使用者決定下一步**：先把 AK 放到兩手之間，或先換其他動畫（開槍、換彈、走路、上下瞄準）
-    - Claude 建議先放 AK。要先知道 NPC 姿勢裡兩隻手的位置：REDkit AnimBrowser 可能有現成功能（「Calc bone」），怎麼用還沒查（見下面「下一步 A 的線索」）
-    - 哪隻手拿：維持左手 `l_weapon`（只改 AK 模型的位移：`m3_build_ak.py` 重做、重匯入、重算 `bolt` slot，都是做過的流程）或改右手 `r_weapon`（像 NPC；要改物品掛在哪隻手，沒查過）
-  - **新 session 一開始先問使用者這 3 件事**（2026-10-15 已經問了，使用者還沒回答就 /clear）：
-    1. 第 2～4 張截圖（低頭看著腰前的槍）是不是換彈的時候
-    2. 下一步選 A（先放 AK）還是 B（先換其他動畫）；Claude 建議 A
-    3. AK 掛左手還是右手；Claude 建議左手
+  - 使用者說「看起來有但很怪」：AK 還照單手的角度掛在左手 → 槍歪、胸口那隻手握空（預期中）
+  - 截圖（使用者確認）：#59 靜止、#60 開槍中（兩張同一個姿勢）、#61 換彈（原版十字弩的換彈，沒換掉）
   - 背景、證據、做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「第三輪查詢」
+- **現在：做法 A，把 AK 放到兩手之間**（使用者 2026-10-15 選；`docs\m3.md`「雙手持槍：把 AK 放到兩手之間」）
+  - AK 維持掛左手 `l_weapon`（使用者選；原版十字弩程式有 8 處到 `l_weapon` 找十字弩）
+  - 第 1 步（**等使用者做**）：AnimBrowser 對 `man_geralt_gabriel_aim_idle_rp` 右鍵 **Calc bone MS**，量 `l_weapon`、`r_weapon` 等骨頭在時間 0 的位置、方向 → 結果寫進 `editor.log`，Claude 讀
+    - 給使用者的步驟在下面「Calc bone 的步驟」
+  - 第 2 步（Claude）：算 AK 在 `l_weapon` 底下要怎麼擺（握把在右掌、護木在左掌）；先用目前的 AK 驗證座標換算（算出來應該像截圖 #59：從左手斜向上）
+  - 第 3 步：渲染預覽圖給使用者看 → `m3_build_ak.py` 加參數（**改之前先問**）→ 使用者重匯模型、改 `bolt` slot → 進遊戲
 - **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
   - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
   - 詳細過程、證據、指令都在 `docs\m3.md`
@@ -30,17 +30,12 @@
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的就直接用
 - 範圍（`CLAUDE.md` §7）：只做 AK 本身
 
-### 下一步 A 的線索（還沒查）
+### Calc bone 的步驟（2026-10-15 給使用者；畫面沒看過）
 
-- `editor.exe` 的 AnimBrowser 字串（`animBrowser.cpp` 的字串區段，檔案位移約 0x5f3f448～0x5f42c00）：
-  - 「Write bone name and time」「Calc bone」「Bone MS - '%s' - time - '%1.3f'」「   >Position:」「   >Rotation:」，視窗標題「Editor」
-  - 同一組字出現 3 次（位移 0x5f427d0、0x5f42990、0x5f42b50）；是不是 3 種座標空間，沒查
-  - 選單上叫什麼、輸入格式（骨頭名稱和時間怎麼寫）、結果顯示在哪：都還沒查
-- 預覽角色身上要有那個動畫組才能播：
-  - 視窗右鍵 **Use selected entity**，換成 Asset Browser 選取的角色（Wiki 頁面 6326649 的做法）
-  - 十字弩兵 `gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent` 透過 `ai_preset_crossbowman.w2ent` 掛了 `man_crossbow.w2anims`（`docs\m3.md`「第二輪查詢」）；在 AnimBrowser 裡能不能用，沒試過
-  - 或開動畫組時的問題按 Yes：會把動畫組加到預覽用的 Geralt 身上；可能留在 REDkit 的記憶體裡（推論）→ 之後進遊戲前重開 REDkit
-- 要的資料：NPC 瞄準姿勢裡 `l_weapon`（AK 掛的骨頭）和右手（`r_weapon`）的位置、方向 → 算出 AK 在 `l_weapon` 座標系裡怎麼擺，才會落在兩手之間
+- 查到的（`docs\m3.md`「雙手持槍：把 AK 放到兩手之間」）：動畫的右鍵選單有 `Calc bone MS`／`WS`／`MS with motion`／`WS with motion`；輸入框「Write bone name and time」；結果框「Result」，同時寫進 `editor.log`（`Bone MS - '骨頭' - time - '時間'`、`   >Position:`、`   >Rotation:`）
+- 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → `man_geralt_gabriel_aim_idle_rp` 右鍵 → **Calc bone MS** → 第一次截輸入框 → 骨頭 `l_weapon`、時間 `0` → 結果框按 OK → 依序做 `r_weapon`、`l_hand`、`r_hand`、`head`
+- 出錯（例：`Bone 'l_weapon' not found`）：可能是預覽角色沒有這個動畫組 → 重開動畫組時按 **Yes**（把動畫組加到預覽用的 Geralt；可能留在 REDkit 記憶體裡，之後進遊戲前重開 REDkit：推論）
+- 做完**先不要重開 REDkit**（`editor.log` 會被重寫）→ 跟 Claude 說，Claude 讀紀錄
 
 ### 雙手持槍的第一個實驗（2026-10-15 做完：成功；步驟與結果在 `docs\m3.md`「第三輪查詢」）
 
@@ -54,7 +49,7 @@
 - 同名時遊戲用哪一個：原版資料查不到 → **實驗結果：用 DLC 加的**（做法 A2 不用做了）
 - 接下來：擴大到開槍、走路、換彈、上下瞄準（Geralt 的十字弩動畫 `man_geralt_gabriel_*` 的清單在 `docs\m3.md`），並把 AK 改成雙手握的位置
 - 副作用：原版十字弩的動作也會變成雙手（已跟使用者說過）
-- 哪隻手：NPC 的十字弩掛右手（`r_weapon`）；可以維持左手 `l_weapon`，把 AK 放成左手握護木 → 現在要決定（上面 3 個問題的第 3 個）
+- 哪隻手：NPC 的十字弩掛右手（`r_weapon`）；**使用者選維持左手 `l_weapon`**，把 AK 放成左手握護木、右手在握把
 - `gfg_ak47_geralt.w2anims` 納入 git（使用者 2026-10-15 同意；和 `.w2ent`、`.reddlc` 一樣是 REDkit 手動做的）
 
 ### 跟使用者溝通（2026-10-15 學到的）
@@ -116,7 +111,7 @@
 
 ## 下一步
 
-1. **雙手持槍**：第一個實驗成功；等使用者決定先放 AK 還是先換其他動畫（見「現在在做」）
+1. **雙手持槍**：第一個實驗成功；現在做 A「把 AK 放到兩手之間」（見「現在在做」）；之後再換開槍、換彈、走路、上下瞄準的動畫（B）
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
@@ -187,4 +182,4 @@
 - M3：REDkit 重開後用 Reimport → Mesh only 換模型 → 模型沒綁骨頭、槍不見（試了 3 次）→ 改用 Import > Mesh
 - M3：顏色問題曾以為是 `.xbm` 或光照造成 → 都不是；是剛匯入模型的那次 REDkit 的狀態問題
 - **在 Bash 的 heredoc 裡寫含反斜線的 Python**：`\\` 會變成 `\`，`\a` 會變成控制字元（2026-10-15 弄壞過交接檔一次）→ 含路徑的字串用 Write／Edit 工具，或在 Python 裡用 `chr(92)`
-- **Bash 的 `cd` 會改掉 session 的工作目錄**（2026-10-15 `cd` 到唯讀資料夾兩次）→ 用絕對路徑，不要 `cd` 到專案外
+- **Bash 的 `cd` 會改掉 session 的工作目錄**（2026-10-15 `cd` 到唯讀資料夾三次）→ 用絕對路徑，不要 `cd` 到專案外
