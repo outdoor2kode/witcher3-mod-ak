@@ -78,7 +78,11 @@
        - 遊戲裡按鍵前先**點一下遊戲畫面**（不然方向鍵會送到 REDkit 右邊場景面板的圖層下拉選單，跳出「Changing layer preset」→ 按 No）
     2. 收槍時 AK 在背上的位置跑掉（擺法做進模型裡：`docs\m3.md`「擺法 A 進遊戲」）→ AK 專用的背部 slot（`CR4EntityTemplateSlotDLCMounter`）
        - 查到（03:3x）：物品 XML `equip_slot="crossbow_back_slot"`；這個 slot 在 `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`：`componentName` = `scabbards_skeleton`、`boneName` = `crossbow_back`、沒有 transform
-       - 計畫：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
+       - **算好了**（03:4x，暫存腳本 `back_slot.py`：Blender 用 `m3_build_ak` 的函式算兩種擺法；自我檢查：G2 算出的握把、槍管、上方和第 1 步的設定差 0.6 公釐、0.15°）：
+         - T：位置 (0.0622, −0.0002, 0.3771)；**Pitch −7.38、Yaw −75.65、Roll −50.13**（矩陣 = Rz(Yaw)·Rx(Pitch)·Ry(Roll)；重組誤差 1e-7）
+         - 掛載器（照原版 `dlc\dlc16\dlc16.reddlc` #34）：`CR4EntityTemplateSlotDLCMounter`，`baseEntityTemplatePath` = `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`，`entityTemplateSlots` 一個 `EntitySlot`：名稱 `gfg_ak47_back_slot`、`componentName` `scabbards_skeleton`、`boneName` `crossbow_back`、transform = T
+         - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
+       - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
     3. 換彈：原版換彈動畫中段有動畫事件 `OnWeaponReload`（裝新箭：`findings.md` §13.x）；事件不在任何 `.w2animev`，應該在原版動畫組的自訂資料裡 → 同名蓋掉會沒有事件 → 要在 REDkit 複製原版動畫（含事件）再換動作資料；**還沒做**
        - 換彈用的動畫：`man_geralt_gabriel_reload_front_2`（1.25 秒）、`man_geralt_gabriel_reload_lowered`（1.18 秒）（十字弩 `WeaponReload` #17300）
     4. 跑步的右手：主動畫圖的跑步混合（#27906：0.8、1.0 有十字弩版本，1.5 衝刺沒有）＋上半身的左手臂覆蓋（`aim_run`）→ 推論；要改主動畫圖的結構才能修（REDkit 的動畫圖編輯器）；**先列為已知限制**
