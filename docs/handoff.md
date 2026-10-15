@@ -77,6 +77,11 @@
        - 想用 REDkit 的 Tools → Debuggers → **Behavior Debugger** 看跑步時哪些節點在動（遊戲中選單點不到：要在 F10 之前……沒試過）
        - 遊戲裡按鍵前先**點一下遊戲畫面**（不然方向鍵會送到 REDkit 右邊場景面板的圖層下拉選單，跳出「Changing layer preset」→ 按 No）
     2. 收槍時 AK 在背上的位置跑掉（擺法做進模型裡：`docs\m3.md`「擺法 A 進遊戲」）→ AK 專用的背部 slot（`CR4EntityTemplateSlotDLCMounter`）
+       - 查到（03:3x）：物品 XML `equip_slot="crossbow_back_slot"`；這個 slot 在 `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`：`componentName` = `scabbards_skeleton`、`boneName` = `crossbow_back`、沒有 transform
+       - 計畫：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
+    3. 換彈：原版換彈動畫中段有動畫事件 `OnWeaponReload`（裝新箭：`findings.md` §13.x）；事件不在任何 `.w2animev`，應該在原版動畫組的自訂資料裡 → 同名蓋掉會沒有事件 → 要在 REDkit 複製原版動畫（含事件）再換動作資料；**還沒做**
+       - 換彈用的動畫：`man_geralt_gabriel_reload_front_2`（1.25 秒）、`man_geralt_gabriel_reload_lowered`（1.18 秒）（十字弩 `WeaponReload` #17300）
+    4. 跑步的右手：主動畫圖的跑步混合（#27906：0.8、1.0 有十字弩版本，1.5 衝刺沒有）＋上半身的左手臂覆蓋（`aim_run`）→ 推論；要改主動畫圖的結構才能修（REDkit 的動畫圖編輯器）；**先列為已知限制**
     - 遊戲裡的參考值（第 2 步之後、平視）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
   - 暫存資料夾（session 結束就沒了）：`pose_2206.log`、`pose_0025.log`（兩次的偵測紀錄，從 `editor.log` 複製；數字摘要在 `docs\m3.md`「遊戲裡實測」「右手臂被換成另一段動畫」）；`pose_parse.py`（解析偵測紀錄）；查動畫圖用的 `graph_walk_lib.py` 等（做法寫在 `docs\m3.md`）
     - 沒有 numpy 的系統 Python 3.14 跑不了 `pose_parse.py`；用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
