@@ -660,6 +660,9 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - ⚠️ **第一次執行會跳出 EULA 視窗**，要使用者本人在畫面上確認，否則會一直等待
   - EULA 內文：`<REDKIT_DIR>\bin\x64_RedKit\wcc_eula.rtf`
   - ❓ 同意紀錄會不會保存，下次執行還會不會再跳，尚未確認
+  - 同意紀錄在登錄 `HKCU\Software\CD Projekt RED\Mod Tools\1.0` 的 `DoNotShowEula`（`wcc_lite.exe` 的字串：`Software\CD Projekt RED\Mod Tools\1.0`、`DoNotShowEula`、`Agree`、`Decline`、`wcc_eula.rtf`）
+    - 2026-10-15 21:56 又跳出來（當時值是 0；什麼時候、被什麼改回 0，查不到）；使用者按 Agree 後變成 1
+    - 卡住時：`tasklist /v` 看 `wcc_lite.exe` 的視窗標題是不是 `EULA`
 - ⚠️ **工作目錄一定要設成 `bin\x64_RedKit`**
   - 紀錄檔寫在相對路徑 `..\wcc.log`
   - 從專案資料夾執行時，紀錄檔寫到了 `D:\OneDrive\Desktop\wcc.log`（已刪除），而且 EULA 內文讀不到

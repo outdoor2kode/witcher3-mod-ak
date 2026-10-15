@@ -25,7 +25,11 @@
   - 第 4 步（做完）：**進遊戲結果錯誤**（`docs\m3.md`「擺法 A 進遊戲：錯誤」）
     - 拿出槍：AK 不在兩手之間（使用者：「完全錯誤」）；收槍：AK 在背上的位置跑掉（擺法做進模型 → 背上也偏）
     - 可能原因：Calc bone 角度的組合順序沒驗證到；遊戲裡左手被 `pc_overlay.w2beh` 的瞄準疊加層（Geralt 單手的 `aimpose_*`）改掉；自由鏡頭可能改了瞄準方向
-  - **等使用者決定**：Claude 提議在 `gfg_ak47.ws` 加**暫時的偵測紀錄**，用遊戲鏡頭瞄準時印出引擎的矩陣（`l_weapon`、`l_hand`、`r_hand`、`r_weapon`、AK 的 `handle` 骨頭、玩家、鏡頭方向）→ 直接用遊戲裡的實際位置算擺法，不用歐拉角
+  - 第 5 步（使用者同意）：`gfg_ak47.ws` 加了**暫時的偵測紀錄**（`GfgLogHoldPose`，`GfgCameraTick` 裡 AK 拿出來時呼叫；**沒 commit**，量完就拿掉）
+    - 每 0.5 秒印 `[GFG] pose …`：玩家、`l_weapon`、`l_hand`、`r_hand`、`r_weapon`、AK 本身、AK 的 `handle` 骨頭（位置、x／y／z 軸，世界座標），鏡頭位置和方向
+    - 編譯檢查通過（21:56～22:05，中間卡在 wcc_lite 的 EULA 視窗，使用者按 Agree）
+  - **等使用者測**：遊戲鏡頭（不要自由鏡頭）站著瞄水平、往上、往下各停 3 秒 → Claude 讀 `editor.log`
+  - 拿到紀錄之後：把右手掌心、左手掌心、鏡頭方向、世界上方換到 AK 的 `handle` 骨頭座標（模型頂點就在這個座標）→ 直接算擺法；順便驗證「`l_weapon` = AK 本身、`handle` = 十字弩參考姿勢」的假設；看往上下瞄時兩手的相對位置變多少
   - 現在的狀態：REDkit 裡的 `gfg_ak47.w2mesh` 是擺法 A；`gfg_ak47.w2ent` 的 slot 是擺法 A 的值（**沒 commit**；要回到單手版：`git checkout` 這個檔＋用 `--pitch -20.5` 重做模型、重匯）
 
 ### 擺法 A 的 REDkit 步驟（2026-10-15 給使用者）

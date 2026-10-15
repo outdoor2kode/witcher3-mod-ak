@@ -379,6 +379,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`
   - 預設檢查 `workspace/scripts`；通過了才交給使用者進遊戲測試
   - 錯誤訊息只有行號，工具會列出各檔案的第 N 行
+  - 超過 1 分鐘沒結束：可能是 `wcc_lite` 的 EULA 視窗又跳出來（2026-10-15 發生過；要使用者按 Agree；`docs\findings.md` §12.5）
 - **開發時從 REDkit 啟動遊戲**，以便使用 Script Studio 熱重載
   - 工具列按鈕（使用者 2026-10-12 確認的提示文字，左到右）：
     `play game`、`play game on the current layer only. Fast.`、**`load a saved game`**、`enable editor streaming`、`leave game camera postion`
