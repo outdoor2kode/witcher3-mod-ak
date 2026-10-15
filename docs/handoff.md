@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 19:2x（Calc bone 量完、算出三種擺法；等使用者選 A／B／C、同意改 `m3_build_ak.py`）
+最後更新：2026-10-15 21:0x（擺法 A 的模型已輸出；等使用者匯入模型、改 `bolt` slot、進遊戲）
 
 ---
 
@@ -21,8 +21,24 @@
   - 第 1 步（做完）：使用者用 Calc bone MS 量了 5 根骨頭（`docs\m3.md`「Calc bone 的結果」）
   - 第 2 步（做完）：角度格式是 (Pitch, Yaw, Roll)；現在的 AK 套進去和截圖 #59 一致；算出三種擺法 A／B／C、渲染預覽圖 `assets\ak47\preview\two_hand_side.png`、`two_hand_rear.png`
     - **發現**：NPC 姿勢的兩手一樣高（照十字弩做的），但 AK 的握把比護木底部低 7.6 公分 → 兩手都握到（A）槍口就朝下 9.6°；槍水平（B）左手就在護木下 9 公分
-  - **等使用者決定**：A／B／C 選哪個先進遊戲試（Claude 建議 C）；同意 `m3_build_ak.py` 加參數 `--place`（握把位置、前方、上方，用 `l_weapon` 骨頭座標）
-  - 第 3 步：`m3_build_ak.py` 加參數 → 產生模型 → 使用者重匯模型（Import > Mesh、`importAsSkinnedMesh` true）、重開 REDkit、改 `bolt` slot → 進遊戲看：槍管和準心、兩手
+  - 第 3 步（做完）：使用者選 **A**（兩手都握到，Claude 原本建議 C）、同意加 `--place`；`m3_build_ak.py` 改好、檢查過，A 的模型已輸出（20:53，`assets\ak47\gfg_ak47.fbx`）
+  - **第 4 步（等使用者做）**：下面「擺法 A 的 REDkit 步驟」
+  - 之後：看遊戲截圖決定要不要往 C、B 調（A／B／C 的 `--place`、slot 數字都在 `docs\m3.md`「使用者選 A」的表，不用重算）
+
+### 擺法 A 的 REDkit 步驟（2026-10-15 給使用者）
+
+1. Asset Browser → `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 空白處右鍵 → **Import → Mesh** → 選 `assets\ak47\gfg_ak47.fbx` → 蓋掉 `gfg_ak47.w2mesh`
+   - 設定：`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；之後的「Import mesh」選材質對話框按 **Cancel**
+2. 跟 Claude 說 → Claude 讀 `editor.log`：要有 `HasSkinning: true (NODE 'handle')`（沒有、或 `0 bones` → 重做第 1 步）
+3. 雙擊 `gfg_ak47.w2ent` → 下方 **Slots** 分頁 → `bolt` → 位置 **(0.054, 0.037, -0.029)**、**Pitch 45.5、Yaw -124.6、Roll -76.2**（骨頭維持 `handle`）→ Ctrl+S
+   - Claude 讀檔確認：旋轉的 3 個 float 應存成 (Roll, Pitch, Yaw) = (283.8 或 -76.2, 45.5, 235.4 或 -124.6)
+4. **重開 REDkit**（剛匯入模型的那次 REDkit 進遊戲沒有顏色）
+5. play game → `additem('gfg_ak47', 1, true)` → 拿出 AK、站著瞄準、開幾槍
+   - 截圖：遊戲鏡頭（看槍管和準心）、自由鏡頭從側面和前面（看兩手）
+6. 結束遊戲、重開 REDkit 前讓 Claude 讀 `editor.log`
+
+- 預期：右手握在握把、左手托在護木下；槍管比 NPC 十字弩的方向低 9.6°、偏左 6.9° → 遊戲裡多半指向準心的左下方（要看截圖）
+- 預期會怪、先不管的：換彈、走路、瞄上下左右還是原版的單手動畫（疊加的瞄準姿勢會動左手 → 槍跟著左手動，右手可能脫開）
 - **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
   - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
   - 詳細過程、證據、指令都在 `docs\m3.md`
@@ -65,18 +81,18 @@
 
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
-| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加 `--pitch -20.5`**） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
+| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加擺法 A 的 `--place …`**（`docs\m3.md`「使用者選 A」的表）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
 | 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
-| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`、位置 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90（已 commit） | — | |
+| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；擺法 A 是位置 (0.054, 0.037, -0.029)、Pitch 45.5／Yaw -124.6／Roll -76.2（**等使用者改**；已 commit 的是單手版 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | 使用者 | |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
 
 - 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍
 - 改了 XML、`.reddlc`、模型、模板後，都要從 REDkit 重開遊戲
 - Mesh editor 換材質貼圖：**Materials** 分頁 → 選 `weapon_rif_ak47` → Asset Browser 點選 `.xbm` → 欄位的綠色箭頭 → 存檔
-- 模型換了形狀，slot 的位置要重算：`m3_build_ak.py` 會印出 `handle` 骨頭座標的槍口與槍管方向；算法在 `docs\m3.md`「槍管往下轉 20.5°」
+- 模型換了形狀，slot 的位置要重算：`m3_build_ak.py` 會印出 `handle` 骨頭座標的槍口與槍管方向；算法在 `docs\m3.md`「槍管往下轉 20.5°」、「使用者選 A」
 
 ## M2 進度
 
@@ -151,7 +167,9 @@
 ## 已知限制（還沒處理）
 
 - M3：十字弩的單手姿勢（左手伸直）：往右看、跑步時槍被身體擋住（槍在左手、鏡頭在右後方）→ 雙手持槍要解決
-- 雙手持槍（實驗中）：只有站著瞄準換成 NPC 的雙手姿勢；AK 還照單手的角度掛在左手 → 槍歪、胸口那隻手握空；原版十字弩也變成這個姿勢
+- 雙手持槍（實驗中）：只有站著瞄準換成 NPC 的雙手姿勢；原版十字弩也變成這個姿勢
+  - NPC 姿勢的兩手一樣高，AK 的握把比護木低 7.6 公分 → 兩手都握到（擺法 A）槍口就朝下 9.6°；要完全貼合得改動畫（右手往下約 8 公分）
+  - 擺法 A 的模型做好、還沒進遊戲（遊戲裡還沒換掉，現在是單手版的模型）
 - M3：箭第一次出現在槍口前 1～2 公尺（見「下一步」2）
 - M3：槍托後端和手套袖口有一點重疊（改雙手時會重調）
 - M3：AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管
