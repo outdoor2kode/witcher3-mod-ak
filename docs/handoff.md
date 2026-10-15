@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 03:5x（自主模式；第 1、2 步通過；收槍位置修好；跑步時右手會擺、走路、換彈還沒解決 → 下一步見「現在在做」的「接下來」：建議先做換彈（保住動畫事件），再回頭查跑步）
+最後更新：2026-10-16 04:0x（自主模式；收槍位置修好；換彈試了一次（事件保住了，但遊戲裡串流報錯）→ 已退回，下次照交接檔的修法再做；跑步右手、走路還沒解決）
 
 ---
 
@@ -83,7 +83,10 @@
          - 掛載器（照原版 `dlc\dlc16\dlc16.reddlc` #34）：`CR4EntityTemplateSlotDLCMounter`，`baseEntityTemplatePath` = `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`，`entityTemplateSlots` 一個 `EntitySlot`：名稱 `gfg_ak47_back_slot`、`componentName` `scabbards_skeleton`、`boneName` `crossbow_back`、transform = T
          - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
        - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
-    3. **換彈（04:0x 進行中；工作區的動畫組現在會報錯）**：
+    3. **換彈（還沒做好；04:01 已退回）**：動畫組 `git checkout` 回 15 段的版本、重開 REDkit → 04:03 確認串流錯誤 0 次、掛載器 167 個
+       - 下次照同樣做法（Copy／Paste 原版兩段 → 同名匯入雙手姿勢），**存檔前**先把那兩段的 `useOwnBitwiseCompressionParams` 改 false（AnimBrowser 的 Animation 分頁）再 Recompress，或試 Recompress (choose preset)；存檔後開遊戲確認紀錄沒有 `IsThereDataBufferPtr`，再測換彈（連射 30 發 → 換彈時手在槍上 → 換完能接著射）
+       - 輪盤：沒跳教學時**不要按 Space**（會變冥想）→ 先截圖看有沒有教學
+       - 當時的紀錄：
        - 03:55 做了：原版兩段換彈動畫 Copy／Paste 到我們的動畫組（事件跟著過來：那兩筆的自訂資料 199、141 bytes）→ 同名 Import simple/plain 換成雙手姿勢 → 存檔後事件資料還在
        - **問題**：開遊戲後每一格都報 `animationBufferBitwiseCompressed.cpp:2715 … Animation didn't have usage set and is fully streamable`（03:56:10 起，上萬次）；那兩段帶著原版的 `useOwnBitwiseCompressionParams = True`（`ABBCP_VeryHighQuality`）
        - 修法（試中）：AnimBrowser 把那兩段的 `useOwnBitwiseCompressionParams` 改 false → Recompress；**不行就 `git checkout` 動畫組**（回到 15 段的版本）再重開 REDkit
