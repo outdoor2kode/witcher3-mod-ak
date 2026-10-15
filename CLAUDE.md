@@ -169,6 +169,8 @@
     - → 要掛在既有骨架上的模型：匯出不帶骨架、名稱取成骨頭名的模型，頂點先換到那根骨頭的座標系（`tools\m3_build_ak.py`）
     - **匯入、重匯時 `importAsSkinnedMesh` 都要設 true**：REDkit 不保存匯入選項，重開後變回 false；沒設的話模型沒綁骨頭，遊戲裡看不到（2026-10-15）
       - 確認方式：`editor.log` 要有 `HasSkinning: true (NODE '骨頭名')`；`Created mesh chunk … 0 bones` 就是沒綁
+      - Reimport → Mesh only 會沿用 REDkit 記憶體裡的匯入設定，不會讓人改 → 重開 REDkit 後要換模型，用 **Import > Mesh** 蓋掉舊檔
+    - **匯入模型後，同一次開著的 REDkit 裡進遊戲沒有貼圖顏色**：重開 REDkit（或在 Mesh editor 重新指定貼圖）就正常；硬碟上的檔案沒問題（2026-10-15 比對前後兩版只差 `authorName`；`docs\m3.md`）
 15. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---

@@ -10,7 +10,7 @@
 
 ## 現在在做
 
-- **M3 模型**：AK 已經出現在遊戲裡 Geralt 的左手，方向、上下都對；**顏色也正常**（2026-10-15；凌晨的灰白色是光照造成的）
+- **M3 模型**：AK 已經出現在遊戲裡 Geralt 的左手，方向、上下都對；**顏色正常**（2026-10-15；沒顏色是「剛匯入模型的那次 REDkit」的狀態問題，重開就好：`docs\m3.md`「結果」）
   - 詳細的過程、證據、指令都在 `docs\m3.md`，**接著做就讀那份**；重點章節：
     - 「第 3 步」：`tools\m3_build_ak.py`（AK 轉方向、放到握把、匯出 FBX）
     - 「第 4 步：準備好的檔案」：`tools\m3_textures.py`、材質 XML、檔案位置
@@ -42,7 +42,8 @@
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → Import → Mesh；`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel** | 使用者 | `gfg_ak47.w2mesh` |
-| 4' | 只換模型時：Mesh editor → **Reimport** → **Mesh only** → 對話框的 **`importAsSkinnedMesh` 要設 true**（REDkit 重開後會變回 false，2026-10-15 因此槍不見）→ Save（材質會保留）；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | |
+| 4' | 只換模型時：**Import > Mesh** 重新匯入（同第 4 步，蓋掉舊檔）；Reimport → Mesh only 會沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false（2026-10-15 因此槍不見）；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | |
+| 4'' | 匯入、重匯之後：**重開 REDkit**（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）再進遊戲；不然遊戲裡沒有顏色（2026-10-15，`docs\m3.md`「結果」） | 使用者 | |
 | 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK（已完成、已 commit） | — | |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已完成、已 commit） | — | |
 
@@ -89,11 +90,10 @@
      - slot 已改好（讀檔確認：位置 (0.435, 0, -0.031)、旋轉存成 (0, 339.6, 270)＝Roll 0／Pitch -20.4／Yaw -90）
      - 第一次重匯模型時 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡槍不見（`docs\m3.md`「第一次重匯」）
      - 第三次重匯（15:06:40）還是 `0 bones` → Reimport → Mesh only 看起來不會讓人改 `importAsSkinnedMesh`，沿用 REDkit 記憶體裡的設定（推測；介面沒看過）
-     - 改用 Import > Mesh 重新匯入（15:10）：**槍出現了、槍管水平**；但**顏色不見**（整把淺灰）
-     - 顏色：有顏色的都是「Mesh editor 手動重新指定過 Diffuse」的模型，沒顏色的都是「材質 XML 建立」的模型（`docs\m3.md`「顏色的線索」）；檔案裡的參數讀起來是對的
-     - **等使用者**：Mesh editor → Materials → `weapon_rif_ak47` → `Diffuse`、`Normal` 重新指定（Asset Browser 選 `.xbm` → 綠色箭頭）→ 存檔 → 進遊戲；有顏色就比對 `mesh_snapshots\gfg_ak47_1510_xml.w2mesh`（暫存資料夾）和新檔
-     - 之後進遊戲看槍管有沒有對準準心（從背後、鏡頭放平）、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
-     - `gfg_ak47.w2ent`（slot 改 Pitch）還沒 commit：等槍管對準確認
+     - 改用 Import > Mesh 重新匯入（15:10）：**槍出現了、槍管水平**；顏色不見 → 15:24 Mesh editor 重新指定貼圖＋重開後**顏色正常**
+     - 比對前後兩個 `.w2mesh`：只差 `authorName`，檔案沒問題；是「同一次開著的 REDkit 裡剛匯入過模型」的狀態問題（`docs\m3.md`「結果」）→ 製作步驟加了 4''
+     - **等使用者確認**：槍管有沒有對準準心（從背後、鏡頭放平）、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
+     - `gfg_ak47.w2ent`（slot 改 Pitch）還沒 commit：等上面確認
    - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
 2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）
@@ -133,7 +133,7 @@
 
 ## 已知限制（還沒處理）
 
-- ~~M3：遊戲裡 AK 沒有顏色~~ → 已解決：光照造成的（2026-10-15）
+- ~~M3：遊戲裡 AK 沒有顏色~~ → 已解決：匯入模型後要重開 REDkit（製作步驟 4''；2026-10-15）
 - M3：箭從 AK 彈匣附近伸出來（`bolt` slot 還在 `chord` 骨頭；改的值已算好，見「下一步」1）
 - M3：十字弩的單手姿勢（左手伸直）；使用者要雙手持槍（見「下一步」2）
 - M3：Mesh editor 的預覽裡 AK 轉了方向：模型存在 `handle` 骨頭的座標系裡，正常（`docs\m3.md`「改用 NODE 模式」）
