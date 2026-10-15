@@ -76,7 +76,10 @@
 
 ## 下一步
 
-1. **M3 顏色問題：先做這個測試**（分辨是「我們的貼圖檔」還是「材質」的問題）
+0. **M3 顏色測試已做（2026-10-15 13:39）：換成原版十字弩貼圖就有顏色 → 問題在我們的 `.xbm`**（`docs\m3.md`「顏色測試」）
+   - 現在 `Diffuse` 還是十字弩的貼圖（使用者還沒換回）
+   - 下一個測試：用 `m3_textures.py --size 512` 重做貼圖、重新匯入，看尺寸是不是原因（等使用者同意）
+1. （已做，留著當紀錄）**M3 顏色問題：先做這個測試**（分辨是「我們的貼圖檔」還是「材質」的問題）
    1. 打開 `gfg_ak47.w2mesh` → **Materials** 分頁 → 選 `weapon_rif_ak47`
    2. 把 `Diffuse` 暫時換成原版的 `items\weapons\ranged\witcher_crossbow\model\witcher_crossbow_lvl1_d01.xbm`（Asset Browser 點選 → 綠色箭頭）→ 存檔
    3. 開遊戲、`additem('gfg_ak47')`：
