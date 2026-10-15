@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 05:1x（自主模式；換彈第二次試：事件看得到但串流報錯原因沒找到、沒存；REDkit 關閉時動畫組要按 No；下一步：手動加 OnWeaponReload 事件的做法）
+最後更新：2026-10-16 05:4x（自主模式；換彈完成：在我們匯入的換彈動畫上手動加事件，遊戲裡通過）
 
 ---
 
@@ -56,6 +56,7 @@
     - 遊戲裡的操作（desk.ps1 實測）：
       - `play game`：Geralt 出生在 0,0,0 會死 → 死亡選單**用鍵盤**（down ×3 → enter = DEBUG RESURRECT；滑鼠點遊戲選單沒反應）
       - 主控台：`key oem3` 開、**用 `keys` 輸入**（`type` 的 Unicode 輸入遊戲收不到）、`key enter`；再 `key oem3` 關
+      - 拿 AK：**先 `setlevel(31)`** 再 `additem('gfg_ak47', 1, true)`（等級不夠時裝不上，原本的十字弩還在，左鍵變成徒手攻擊：05:30 漏打）；裝上時紀錄會讀 `gfg_ak47.w2mesh`；`god()` 免得被打死
       - 選 AK：`keydown tab` → `rmove 0 300 10 15`（往下）→ `keyup tab`；第一次開輪盤有教學提示要按 Space 翻頁（多按會變成冥想 → Esc、按 W 站起來）
       - 左鍵開槍：`click 860 555`；`tools\pose_check.py editor.log [筆數]` 算掌心和握把的距離、槍管和鏡頭的角度
       - **不要按 F1**（自由鏡頭＋任務選單，鍵盤被鏡頭拿走）；**F10 結束遊戲**回編輯器
@@ -70,7 +71,7 @@
     - 遊戲裡：上下 ±38°、左右 ±30° 的組合，槍管和鏡頭差 0.4～2.0°；右手掌心離握把 0.8 公分
   - **接下來**（Claude 自己做、自己驗證）：
     1. 其他狀態的雙手（`docs\m3.md`「雙手持槍：走路、跑步」）：
-       - 站著連射 ✓；**跑步**：槍管跟著準心，右手離握把 22～61 公分（擺手，原因沒確定）；**走路**（Alt）✗；**換彈** ✗（十字弩的換彈動畫）；拔槍沒量
+       - 站著連射 ✓；換彈 ✓（下面 3.）；**跑步**：槍管跟著準心，右手離握把 22～61 公分（擺手，原因沒確定）；**走路**（Alt）✗；拔槍沒量
        - 試過、失敗：#18960 改成移動時也走站著那一支 → 角色不能移動（已還原）
        - 下一個方向（還沒做）：找跑步時右手臂的來源（主動畫圖的哪個狀態；偵測紀錄可以加印主動畫圖的變數）
        - 03:22 量到：跑步時 `l_weapon`（玩家座標）和站著時**完全一樣** (0.15, 0.52, 1.36)；右手在身後擺（y −0.34～−0.09）→ 上半身其他部分是站著的雙手姿勢，**只有右手臂被換成跑步擺手**；`held=1`、`friendly=0`（#18575 沒啟用）
@@ -83,21 +84,11 @@
          - 掛載器（照原版 `dlc\dlc16\dlc16.reddlc` #34）：`CR4EntityTemplateSlotDLCMounter`，`baseEntityTemplatePath` = `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`，`entityTemplateSlots` 一個 `EntitySlot`：名稱 `gfg_ak47_back_slot`、`componentName` `scabbards_skeleton`、`boneName` `crossbow_back`、transform = T
          - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
        - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
-    3. **換彈（還沒做好；04:01 已退回）**：動畫組 `git checkout` 回 15 段的版本、重開 REDkit → 04:03 確認串流錯誤 0 次、掛載器 167 個
-       - 05:1x 第二次：同樣貼上＋同名匯入（沒存檔）→ AnimBrowser 的 **Animation** 分頁看得到屬性和時間軸上的事件（`RaiseWeapon` 等）→ 事件確實跟著過來；屬性 `streamingType` = `SAST_Standard`，但存檔裡我們自己的動畫、原版都沒存這個值（預設）→ 串流報錯的原因不是它，**還沒找到**
-         - 屬性面板很小：點一列再按方向鍵往下才會捲（滾輪不行）
-         - 這次沒存：關 AnimBrowser 沒問要不要存 → 修改留在 REDkit 記憶體裡；**之後關 REDkit 時問 `gfg_ak47_geralt.w2anims` 要不要存 → 按 No**；硬碟上是 15 段的好版本（04:01:24）
-         - 下一個想法：不要貼原版的那筆，改在我們自己匯入的換彈動畫上**手動加事件**（AnimBrowser 時間軸上右鍵加事件：名稱 `OnWeaponReload`、時間照原版那段的標記），避開原版那筆帶來的串流設定
-       - 下次照同樣做法（Copy／Paste 原版兩段 → 同名匯入雙手姿勢），**存檔前**先把那兩段的 `useOwnBitwiseCompressionParams` 改 false（AnimBrowser 的 Animation 分頁）再 Recompress，或試 Recompress (choose preset)；存檔後開遊戲確認紀錄沒有 `IsThereDataBufferPtr`，再測換彈（連射 30 發 → 換彈時手在槍上 → 換完能接著射）
-       - 輪盤：沒跳教學時**不要按 Space**（會變冥想）→ 先截圖看有沒有教學
-       - 當時的紀錄：
-       - 03:55 做了：原版兩段換彈動畫 Copy／Paste 到我們的動畫組（事件跟著過來：那兩筆的自訂資料 199、141 bytes）→ 同名 Import simple/plain 換成雙手姿勢 → 存檔後事件資料還在
-       - **問題**：開遊戲後每一格都報 `animationBufferBitwiseCompressed.cpp:2715 … Animation didn't have usage set and is fully streamable`（03:56:10 起，上萬次）；那兩段帶著原版的 `useOwnBitwiseCompressionParams = True`（`ABBCP_VeryHighQuality`）
-       - 修法（試中）：AnimBrowser 把那兩段的 `useOwnBitwiseCompressionParams` 改 false → Recompress；**不行就 `git checkout` 動畫組**（回到 15 段的版本）再重開 REDkit
-       - 另外：這次測試左鍵拿不出 AK（原因沒查：可能和報錯有關）
-       - 原計畫：事件存在原版動畫組每筆 `CSkeletalAnimationSetEntry` 的自訂資料（`reload_lowered` 那筆 141 bytes，其他 4 bytes）→ 計畫：AnimBrowser 開原版 `animations\man\combat\man_geralt_gabriel.w2anims` → 兩段換彈動畫 Copy animation → 我們的動畫組 Paste animation to set（帶事件）→ 再用 Import simple/plain animations 同名匯入雙手姿勢（`assets\anims\gfg\man_geralt_gabriel_reload_lowered.re` 36 格、`…_front_2.re` 38 格：第 1 步的姿勢截短）→ 讀存檔確認那筆的自訂資料還在 → 遊戲裡換彈後能接著射；原版動畫組不要存
-       - 舊紀錄：原版換彈動畫中段有動畫事件 `OnWeaponReload`（裝新箭：`findings.md` §13.x）；事件不在任何 `.w2animev`，應該在原版動畫組的自訂資料裡 → 同名蓋掉會沒有事件 → 要在 REDkit 複製原版動畫（含事件）再換動作資料；**還沒做**
-       - 換彈用的動畫：`man_geralt_gabriel_reload_front_2`（1.25 秒）、`man_geralt_gabriel_reload_lowered`（1.18 秒）（十字弩 `WeaponReload` #17300）
+    3. ~~換彈~~ → **完成**（05:20～05:36；`docs\m3.md`「雙手持槍：換彈」）：動畫組 17 段（加 `man_geralt_gabriel_reload_lowered`、`…_front_2`：第 1 步的姿勢截短，`.re` 在 `assets\anims\gfg\`）
+       - 事件在 AnimBrowser 手動加（時間照原版）：兩段都有 `OnWeaponReload` 0.70 秒、`RaiseWeapon`；`front_2` 另有 `Crossbow`
+       - 遊戲裡：串流錯誤 0 次；連射 68 發、換彈 2 次都接著射；換彈中掌心離握把 0.3 公分；換彈中槍管和鏡頭差 15～20°（沒有瞄準差值）
+       - 放棄的做法：Copy／Paste 原版那筆再同名匯入 → 遊戲裡每格報 `fully streamable`（03:55）
+       - 輪盤：沒跳教學時**不要按 Space**（會變冥想）→ 先截圖看有沒有教學；教學（快捷選單）有兩頁，Space 兩次
     4. 跑步的右手：主動畫圖的跑步混合（#27906：0.8、1.0 有十字弩版本，1.5 衝刺沒有）＋上半身的左手臂覆蓋（`aim_run`）→ 推論；要改主動畫圖的結構才能修（REDkit 的動畫圖編輯器）；**先列為已知限制**
     - 遊戲裡的參考值（第 2 步之後、平視）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
   - 暫存資料夾（session 結束就沒了）：`pose_2206.log`、`pose_0025.log`（兩次的偵測紀錄，從 `editor.log` 複製；數字摘要在 `docs\m3.md`「遊戲裡實測」「右手臂被換成另一段動畫」）；`pose_parse.py`（解析偵測紀錄）；查動畫圖用的 `graph_walk_lib.py` 等（做法寫在 `docs\m3.md`）
@@ -108,7 +99,7 @@
 - `[Script_GFG] pose <名稱> pos x y z w x … y … z …`（世界座標的位置和三個軸）；點換到某個骨頭座標 = 先減掉骨頭位置，再和那個骨頭的三個軸分別做內積
 - 右手掌心 = `r_hand` 位置 + 0.061·x 軸 + 0.032·y 軸 − 0.002·z 軸
 - 用遊戲裡的數據算擺法時：直接在 `handle` 座標算（偵測紀錄的矩陣），再用 `.w2mesh` 的綁定矩陣反算成 `--place`（工具會再乘回綁定矩陣，所以 `handle` 座標會對）
-- 現在的狀態：REDkit 裡的 `gfg_ak47.w2mesh` 是擺法 A；`gfg_ak47.w2ent` 的 slot 是擺法 A 的值（**沒 commit**；要回到單手版：`git checkout` 這個檔＋用 `--pitch -20.5` 重做模型、重匯）
+- 現在的狀態：REDkit 裡的 `gfg_ak47.w2mesh`、`gfg_ak47.w2ent` 的 `bolt` slot 都是第 1 步的擺法（已 commit；`docs\m3.md`「雙手持槍：第 1 步」）
 
 ### Calc bone 的步驟（2026-10-15 實測可用：輸入框兩格；開動畫組時按 No 也能算）
 
@@ -130,12 +121,12 @@
 
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
-| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加擺法 A 的 `--place …`**（`docs\m3.md`「使用者選 A」的表）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
+| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加第 1 步的 `--place 0.30323 0.01147 -0.23203 -0.80333 -0.21400 0.55576 -0.02721 0.94542 0.32472`**（`docs\m3.md`「雙手持槍：第 1 步」）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
 | 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
-| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；擺法 A 是位置 (0.054, 0.037, -0.029)、Pitch 45.5／Yaw -124.6／Roll -76.2（**等使用者改**；已 commit 的是單手版 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | 使用者 | |
+| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；第 1 步的值：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Yaw −68.9、Roll 92.6（已 commit；單手版是 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | Claude（desk.ps1） | |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
 
 - 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍
@@ -168,13 +159,10 @@
 
 ## 沒 commit 的檔案
 
-- `workspace\scripts\local\gfg_ak47.ws`：兩件事混在一起
-  - 拿掉舊的 `GFG` 偵測紀錄（編譯通過；清單沒測完）
-  - 加了**暫時的** `GfgLogHoldPose`（雙手持槍量位置用；`GfgCameraTick` 裡呼叫）→ 決定方向後拿掉
-- `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent`：`bolt` slot 改成擺法 A 的值（實驗失敗；退回單手版時用 `git checkout` 還原）
-- REDkit 裡的 `gfg_ak47.w2mesh`（不在 git）：擺法 A 的模型
-- `workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`：01:13 起是第 1 步的版本（Calc bone 驗證過）→ 和這次的交接一起 commit；還原成 NPC 原本的：用同樣方法匯入 `assets\anims\gfg_aim_idle_rp.re`
+- 都 commit 了，除了下面兩個（照舊不 commit）
 - `gunforgeralt.w3edit`：只有 REDkit 自己改的 `dirtyTileCellIndices`（開過測試關卡）→ 不 commit
+- 已 commit、但還是暫時的：`gfg_ak47.ws` 的 `GfgLogHoldPose`（雙手持槍量位置用；`GfgCameraTick` 裡呼叫；印 `held=`、`friendly=`）→ 雙手持槍做完後拿掉（「下一步」3）
+- REDkit 匯入的產物（不在 git）：`gfg_ak47.w2mesh` 是第 1 步的擺法（`m3_build_ak.py --place …`：`docs\m3.md`）
 - `.claude\hooks\`（`context-check.sh`、`statusline.sh`）：使用者自己的設定，2026-10-15 18:35 出現，Claude 沒動過 → 不 commit
 - `.gitignore` 排除、不 commit 的：
   - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出（材質 XML `gfg_ak47.xml` 有 commit）
@@ -185,7 +173,7 @@
 
 ## 下一步
 
-1. **雙手持槍**：第 1 步（底層姿勢）、第 2 步（瞄準差值）都在遊戲裡通過 → 其他狀態（走路、換彈、開槍、拔槍）和收槍位置（見「現在在做」的「接下來」）
+1. **雙手持槍**：第 1 步（底層姿勢）、第 2 步（瞄準差值）、收槍位置、換彈都在遊戲裡通過 → 還沒好的：跑步的右手、走路（Alt）、拔槍沒量（見「現在在做」的「接下來」）
 2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
    - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
 3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
@@ -223,10 +211,10 @@
 
 ## 已知限制（還沒處理）
 
-- M3：十字弩的單手姿勢（左手伸直）：往右看、跑步時槍被身體擋住（槍在左手、鏡頭在右後方）→ 雙手持槍要解決
-- 雙手持槍（實驗中）：只有站著瞄準換成 NPC 的雙手姿勢；原版十字弩也變成這個姿勢
-  - NPC 姿勢的兩手一樣高，AK 的握把比護木低 7.6 公分 → 兩手都握到（擺法 A）槍口就朝下 9.6°；要完全貼合得改動畫（右手往下約 8 公分）
-  - 擺法 A 的模型做好、還沒進遊戲（遊戲裡還沒換掉，現在是單手版的模型）
+- 雙手持槍：站著瞄準、連射、換彈、收槍都好了；還沒好的：
+  - 跑步：右手離握把 22～61 公分（擺手）；走路（Alt）：手垂下、槍管差 26～32°；拔槍沒量
+  - 換彈中槍管和鏡頭差 15～20°（換彈時沒有瞄準差值）
+  - 原版十字弩的瞄準、換彈也變成 AK 的雙手姿勢（同名動畫蓋過原版）
 - M3：箭第一次出現在槍口前 1～2 公尺（見「下一步」2）
 - M3：槍托後端和手套袖口有一點重疊（改雙手時會重調）
 - M3：AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管
