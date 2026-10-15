@@ -22,6 +22,8 @@
   wheel <x> <y> <格數>                     正數往上捲
   key <組合鍵> [按住毫秒]                   例：enter、esc、f7、ctrl+s、shift+tab、oem3（~ 那一鍵）、num1
   type <文字>                              Unicode 逐字輸入（輸入框用；不經過輸入法）
+  keys <文字>                              逐字按鍵輸入（遊戲的主控台用：它不吃 Unicode 輸入）
+  keydown|keyup <鍵>                       分開按住、放開（按住之後一定要 keyup）
   uia <視窗> [深度=4] [關鍵字]              列出 UI Automation 元件：類型、名稱、位置
   invoke <視窗> <名稱>                      按下名稱相符的元件（沒有 Invoke 就點它的中心）
   cursor                                   印出游標位置、游標下的視窗
@@ -148,6 +150,7 @@ public static class Desk {
     [StructLayout(LayoutKind.Sequential)] struct INPUT { public uint type; public UNION u; }
     [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] static extern uint MapVirtualKey(uint code, uint type);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern short VkKeyScan(char c);
     static void Send(INPUT i) {
         if (SendInput(1, new[] { i }, Marshal.SizeOf(typeof(INPUT))) != 1)
             throw new Exception("SendInput failed: " + Marshal.GetLastWin32Error());
@@ -416,6 +419,26 @@ switch ($cmd) {
         Assert-Allowed ([Desk]::GetForegroundWindow()) '打字'
         foreach ($c in ($rest -join ' ').ToCharArray()) { [Desk]::Char($c); Start-Sleep -Milliseconds 15 }
         "打了 $($rest -join ' ')"
+    }
+    { $_ -in 'keydown', 'keyup' } {
+        # 分開按住、放開（例：按住 Tab 開輪盤時截圖）；按住之後一定要 keyup
+        Assert-Allowed ([Desk]::GetForegroundWindow()) "$cmd $($rest[0])"
+        [Desk]::Key((Get-Vk $rest[0]), $cmd -eq 'keyup')
+        "$cmd $($rest[0])"
+    }
+    'keys' {
+        # 逐字按鍵輸入（遊戲的主控台不吃 Unicode 輸入，2026-10-16 實測）：VkKeyScan 找鍵和要不要按 Shift
+        Assert-Allowed ([Desk]::GetForegroundWindow()) '按鍵輸入'
+        foreach ($c in ($rest -join ' ').ToCharArray()) {
+            $vs = [Desk]::VkKeyScan($c)
+            if ($vs -eq -1) { throw "鍵盤上找不到：$c" }
+            $vk = [uint16]($vs -band 0xFF); $shift = ($vs -band 0x100) -ne 0
+            if ($shift) { [Desk]::Key(0x10, $false); Start-Sleep -Milliseconds 10 }
+            [Desk]::Key($vk, $false); Start-Sleep -Milliseconds 20; [Desk]::Key($vk, $true)
+            if ($shift) { Start-Sleep -Milliseconds 10; [Desk]::Key(0x10, $true) }
+            Start-Sleep -Milliseconds 20
+        }
+        "按鍵輸入 $($rest -join ' ')"
     }
     'uia' {
         Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes

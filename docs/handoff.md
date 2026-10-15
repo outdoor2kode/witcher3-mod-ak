@@ -46,9 +46,15 @@
     - `.re` 已放進 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`（01:08，蓋掉頭轉 30° 的測試檔；`.gitignore` 排除；不見了就用 `docs\m3.md` 的指令重做，約 10 秒，結果一樣）
     - **進遊戲前的準備：Claude 用 desk.ps1 做完**（01:25～01:52）
       - AK 模型：`m3_build_ak.py` 加第 1 步的 `--place`（`docs\m3.md`）→ Import > Mesh（`importAsSkinnedMesh` true；`editor.log` 01:28:16 `HasSkinning: true (NODE 'handle')`）
-      - `bolt` slot：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Roll 92.6、Yaw −68.9 → 存檔讀回：(Roll, Pitch, Yaw) = (92.6, 306.6, 291.1) ✓（**還沒 commit**：進遊戲通過再 commit）
+      - `bolt` slot：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Roll 92.6、Yaw −68.9 → 存檔讀回：(Roll, Pitch, Yaw) = (92.6, 306.6, 291.1) ✓（02:0x commit）
       - 重開 REDkit、開 `reference_level`（關閉時問動畫組「Modified」：01:16 有人開預覽角色、記憶體裡重新壓縮（大小一樣）→ 按 No，保留 01:13 驗證過的檔）
-      - 下一步：`play game` → 主控台拿 AK、瞄準 → 截圖、`GfgLogHoldPose` 的紀錄和預測比
+    - **第 1 步進遊戲：通過**（02:00～02:02；`docs\m3.md`「進遊戲：通過」）：右手掌心離握把 1.7 公分（283 筆都一樣）；槍管和鏡頭差 5～6°（只測了鏡頭往下 10°）
+    - 遊戲裡的操作（desk.ps1 實測）：
+      - `play game`：Geralt 出生在 0,0,0 會死 → 死亡選單**用鍵盤**（down ×3 → enter = DEBUG RESURRECT；滑鼠點遊戲選單沒反應）
+      - 主控台：`key oem3` 開、**用 `keys` 輸入**（`type` 的 Unicode 輸入遊戲收不到）、`key enter`；再 `key oem3` 關
+      - 選 AK：`keydown tab` → `rmove 0 300 10 15`（往下）→ `keyup tab`；第一次開輪盤有教學提示要按 Space 翻頁（多按會變成冥想 → Esc、按 W 站起來）
+      - 左鍵開槍：`click 860 555`；`tools\pose_check.py editor.log [筆數]` 算掌心和握把的距離、槍管和鏡頭的角度
+      - **不要按 F1**（自由鏡頭＋任務選單，鍵盤被鏡頭拿走）；**F10 結束遊戲**回編輯器
     - **匯入 REDkit：成功**（使用者 01:13 匯入、存檔；Calc bone MS 時間 0 的 `r_hand` (0.2004, 0.1056, 1.4057)、(4.04, 108.67, 12.29)，和預測差 0.8 公釐、0.2°：動畫壓縮的誤差）
       - 原本的步驟（之後重匯時照做）：匯入 REDkit → Calc bone MS 量 `r_hand`、`head`（時間 0）→ 不重開 REDkit，讀 `editor.log`，和 `docs\m3.md`「匯入 REDkit 後的預測」比
       - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 最上面那行（動畫組）右鍵 **Import simple/plain animations** → 選上面的 `.re` → 問 override 按 **Overide** → File → **Save all** → 動畫右鍵 **Calc bone MS**
