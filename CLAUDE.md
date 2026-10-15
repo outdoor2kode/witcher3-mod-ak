@@ -49,7 +49,7 @@
 | REDkit | **5.0.0.1048625** | 官方 mod 工具；內含 Script Studio、`wcc_lite`（可命令列編譯腳本，見 `docs\findings.md` §12.5） |
 | Python | **3.14.7** | 工具腳本（後座力模擬、資料解析、繪圖） |
 | Blender | **5.2** | 模型處理（內建 glTF 匯入、FBX 匯出） |
-| REDkit Blender 外掛 | `<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip` | **動畫階段才裝**；Blender 5.x 移除了部分舊 API，不相容時另裝 Blender 3.6 專做動畫 |
+| REDkit Blender 外掛 | `<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip` | 2026-10-15 備好：複本在 `tools\_vendor\`、h5py 3.16.0 在 `tools\_vendor\pylib\`（都不進 git；不裝進 Blender）；Blender 5.2 背景模式能匯入（範例檔實測）；用法和注意事項見 `docs\m3.md`「Blender 外掛」 |
 | Wwise | ⚠️ **待重新確認**：原本寫 2021.1.7.7796，但 REDkit 5.0 Changelog 寫「requires Wwise 2023 with the Mastering Suite and Motion plugins」 | 聲音階段；授權每 3 個月重新申請；M4 前查清確切版號 |
 | ffmpeg | 聲音階段 | 把 REDkit 原版音效 `.opus` 轉 `.wav` |
 | Source 2 Viewer | GUI + CLI | 從 CS2 的 VPK 匯出模型、貼圖、聲音 |

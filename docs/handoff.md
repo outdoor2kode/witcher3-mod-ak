@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 22:5x（/clear 之後：使用者選「先查修正層」；查完，等使用者同意「關掉修正層」的實驗）
+最後更新：2026-10-15 23:1x（使用者選「用 Blender 改動畫」；外掛環境備好；等使用者從 REDkit 匯出 `.re`）
 
 ---
 
@@ -37,9 +37,20 @@
       - **更正**：之前寫的 #2127 在「Using items」區塊；十字弩區塊是 #18435（左鍵：`inAimThrow` 0）、#19069（按住中鍵）
       - **關得掉**：#18435 的 `OnOff` ← `isShootingFriendlyForOverlay` ≥ 1 時關（推定）；腳本可以用 `SetBehaviorVariable` 設；副作用：移動中設 1 → 上半身換成一般走路／跑步
       - **換不進來**：NPC 用同一種節點，但設定不同（`AT_Ref` vs 預設、±90°／180° vs ±45°）→ 只換動畫預期會錯；要改設定就得改原版動畫圖
-    - **等使用者同意的實驗**（還沒寫程式）：`gfg_ak47.ws` 的 `GfgCameraTick` 加暫時的幾行：拿著 AK、沒騎馬、站著不動（`playerMoveType == PMT_Idle`）時，每格把 `isShootingFriendlyForOverlay` 設 1；條件不成立時設回 `(float)GetIsShootingFriendly()`（只在剛離開時設一次）
-      - 量法：現成的 `GfgLogHoldPose`；使用者站著瞄水平、往上、往下（同上次）；比對 Calc bone 的原始姿勢（`l_weapon` (0.148, 0.525, 1.465)、`r_hand` (0.245, 0.078, 1.470)，玩家座標）
-      - 現在的模型是擺法 A（`handle` 方向算錯），AK 看起來會歪：這次只看手
+    - 提議的「關掉修正層」實驗（`isShootingFriendlyForOverlay` 設 1）：**使用者不做**，改選「**用 Blender 改動畫**」（沒寫程式）
+  - **現在：Blender 這條路**（計畫跟使用者說過）：
+    1. 確認工具能來回：使用者從 REDkit 匯出 `.re` → Claude 匯入 Blender、原封不動匯出 → 用 h5py 比對數字 → 使用者匯回 REDkit、進遊戲看有沒有變
+    2. 看懂 Geralt 那 4 段 `aimpose_*`（匯出來分析：動了哪些骨頭、每個角度動多少、`AT_Ref` 的基準）
+    3. 做雙手版：底層姿勢（兩手貼合 AK）＋ 4 段瞄準姿勢改成轉上半身（兩手和槍一起轉）；REDkit 用 `Reimport as additive II (Ref)` 轉成差值、用原本的名字放進我們的動畫組
+    4. 進遊戲用 `GfgLogHoldPose` 量；之後才是走路、開槍、換彈
+    - Blender 使用者不用操作：Claude 背景執行、渲染成圖片
+  - **環境（做完）**：`tools\_vendor\`（外掛複本、`pylib\` 的 h5py 3.16.0）；載入方式、替身模組、擋 pip 的環境變數：`docs\m3.md`「Blender 外掛」；範例 `head_anim.re` 匯入成功
+    - 事故：第一次測試外掛自己 pip 裝了東西到 `AppData\Roaming\Python`、`AppData\Local\pip` → 使用者同意後刪掉；**之後載入外掛一定要先放替身模組**
+    - 測試腳本在暫存資料夾（會消失）；正式的腳本要寫在 `tools\`（使用者同意 Claude 在 `tools\` 寫背景執行用的小腳本）
+  - **下一步：等使用者從 REDkit 匯出 `.re`**（這次回覆給了步驟；存到 `assets\anims\`，`.gitignore` 已排除 `*.re`）：
+    - A：我們的 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` 的 `man_geralt_gabriel_aim_idle_rp`
+    - B：原版 `animations\man\combat\man_geralt_gabriel.w2anims` 的 `man_geralt_gabriel_aim_idle_rp`、`aimpose_vertical_rp_left`／`center`／`right`、`aimpose_horizontal_rp`
+    - 匯出對話框沒看過：使用者截圖
   - 之前的 4 個方向（2026-10-15 22:2x 問過，使用者沒選、改問問題）：
     1. **退回單手版**（Claude 建議）：回到之前能正常用的狀態，雙手留到用 Blender 改動畫時再做
        - Claude：`m3_build_ak.py` 用 `--pitch -20.5` 重做模型；`git checkout -- workspace/dlc/gunforgeralt/data/items/weapons/gfg_ak47/gfg_ak47.w2ent`（slot 回到單手版）；拿掉 `gfg_ak47.ws` 的偵測紀錄

@@ -17,6 +17,9 @@
 *.dds
 *.xbm
 
+# 動畫（REDkit「Export animation」和 Blender 外掛的 .re 檔：HDF5）
+*.re
+
 # 聲音
 *.wav
 *.opus
@@ -39,6 +42,9 @@ metadata.store
 __pycache__/
 *.pyc
 .venv/
+
+# 第三方的東西（使用者 2026-10-15 同意放在專案裡）：REDkit 的 Blender 外掛複本、Blender 用的 h5py
+/tools/_vendor/
 
 # 系統
 Thumbs.db
