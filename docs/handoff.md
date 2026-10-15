@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 18:40（使用者選了做法 A、掛左手；等使用者在 AnimBrowser 用 Calc bone 量手的位置）
+最後更新：2026-10-15 19:2x（Calc bone 量完、算出三種擺法；等使用者選 A／B／C、同意改 `m3_build_ak.py`）
 
 ---
 
@@ -18,10 +18,11 @@
   - 背景、證據、做法的比較：`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」「第三輪查詢」
 - **現在：做法 A，把 AK 放到兩手之間**（使用者 2026-10-15 選；`docs\m3.md`「雙手持槍：把 AK 放到兩手之間」）
   - AK 維持掛左手 `l_weapon`（使用者選；原版十字弩程式有 8 處到 `l_weapon` 找十字弩）
-  - 第 1 步（**等使用者做**）：AnimBrowser 對 `man_geralt_gabriel_aim_idle_rp` 右鍵 **Calc bone MS**，量 `l_weapon`、`r_weapon` 等骨頭在時間 0 的位置、方向 → 結果寫進 `editor.log`，Claude 讀
-    - 給使用者的步驟在下面「Calc bone 的步驟」
-  - 第 2 步（Claude）：算 AK 在 `l_weapon` 底下要怎麼擺（握把在右掌、護木在左掌）；先用目前的 AK 驗證座標換算（算出來應該像截圖 #59：從左手斜向上）
-  - 第 3 步：渲染預覽圖給使用者看 → `m3_build_ak.py` 加參數（**改之前先問**）→ 使用者重匯模型、改 `bolt` slot → 進遊戲
+  - 第 1 步（做完）：使用者用 Calc bone MS 量了 5 根骨頭（`docs\m3.md`「Calc bone 的結果」）
+  - 第 2 步（做完）：角度格式是 (Pitch, Yaw, Roll)；現在的 AK 套進去和截圖 #59 一致；算出三種擺法 A／B／C、渲染預覽圖 `assets\ak47\preview\two_hand_side.png`、`two_hand_rear.png`
+    - **發現**：NPC 姿勢的兩手一樣高（照十字弩做的），但 AK 的握把比護木底部低 7.6 公分 → 兩手都握到（A）槍口就朝下 9.6°；槍水平（B）左手就在護木下 9 公分
+  - **等使用者決定**：A／B／C 選哪個先進遊戲試（Claude 建議 C）；同意 `m3_build_ak.py` 加參數 `--place`（握把位置、前方、上方，用 `l_weapon` 骨頭座標）
+  - 第 3 步：`m3_build_ak.py` 加參數 → 產生模型 → 使用者重匯模型（Import > Mesh、`importAsSkinnedMesh` true）、重開 REDkit、改 `bolt` slot → 進遊戲看：槍管和準心、兩手
 - **M3 單手版 AK：完成到可以用的程度**（2026-10-15）
   - 顏色正常、槍管大致對準準心、裝好的箭藏在槍管裡、箭大致沿槍管飛
   - 詳細過程、證據、指令都在 `docs\m3.md`
@@ -30,7 +31,7 @@
 - 規則（`CLAUDE.md` §11）：自己寫任何新東西前先問；有現成的就直接用
 - 範圍（`CLAUDE.md` §7）：只做 AK 本身
 
-### Calc bone 的步驟（2026-10-15 給使用者；畫面沒看過）
+### Calc bone 的步驟（2026-10-15 實測可用：輸入框兩格；開動畫組時按 No 也能算）
 
 - 查到的（`docs\m3.md`「雙手持槍：把 AK 放到兩手之間」）：動畫的右鍵選單有 `Calc bone MS`／`WS`／`MS with motion`／`WS with motion`；輸入框「Write bone name and time」；結果框「Result」，同時寫進 `editor.log`（`Bone MS - '骨頭' - time - '時間'`、`   >Position:`、`   >Rotation:`）
 - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → `man_geralt_gabriel_aim_idle_rp` 右鍵 → **Calc bone MS** → 第一次截輸入框 → 骨頭 `l_weapon`、時間 `0` → 結果框按 OK → 依序做 `r_weapon`、`l_hand`、`r_hand`、`head`
@@ -143,6 +144,7 @@
   - `editor.exe` 的字串表：Python 用正規表示式抽 ASCII（5 字以上）和 UTF-16LE 字串，每行「位移、字串」；REDkit 介面的選單、對話框文字都查得到
   - 動畫組的動畫清單、長度：用 `tools\cr2w_dump.py` 的 `Cr2wFile` 讀每個 `CSkeletalAnimation` 的 `name`、`duration`
   - 比對兩段動畫的資料：兩邊都用 `cr2w_dump.py` 輸出，把 `array:數字,0,` 換成固定字（名稱表的編號不同）再 diff
+  - 雙手持槍的計算（2026-10-15 /clear 之後）：骨架參考姿勢 FK、Calc bone 角度的解讀、指節位置、三種擺法、Blender 渲染預覽圖；算法和數字都在 `docs\m3.md`「Calc bone 的結果」
   - 原版 `.reddlc` 的 `entityTemplatePaths`（字串陣列）解碼：數量 u32，每個字串前一個長度位元組（0x80 = 單位元組字元、0x40 = 長度還有下一個位元組、低 6 位是長度）
 - `.w2mesh` 骨頭名稱和綁定矩陣：`tools\m3_build_ak.py` 的 `read_rig_matrices()`；在 Blender 背景模式用 `--python-expr` 匯入 `m3_build_ak` 呼叫
 

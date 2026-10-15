@@ -58,6 +58,17 @@
 
 **兩個 Blender 版本並用時**：用 FBX / glTF 交換檔案，不要直接互開 `.blend`。
 
+**Claude Code 的專案設定**（`.claude\settings.local.json`，不納入 git；2026-10-15）
+
+- effort 固定 **max**：`env` 的 `CLAUDE_CODE_EFFORT_LEVEL`
+  - `max` 只能用這個環境變數保存；設定檔的 `effortLevel` 不收 `max`（官方文件 model-config「Adjust effort level」）
+  - 環境變數優先於 `/effort`：要換等級就改這裡（官方文件 env-vars）
+- context 用量提醒（§11）：
+  - `statusLine` 換成 `.claude\hooks\statusline.sh`：畫面照舊（交給 `~\.claude\statusline.sh`），另外把使用率記到 `%TEMP%\claude\gfg-context\<session_id>.pct`
+    - hook 的輸入沒有 context 使用率，只有狀態列的輸入有（官方文件 statusline、hooks）
+  - `hooks` 的 PostToolUse、UserPromptSubmit 跑 `.claude\hooks\context-check.sh`：到門檻提醒一次（Claude 收到 additionalContext、使用者看到 systemMessage）；降回門檻以下再重新計算
+  - 2026-10-15 實測：設定存檔後，執行中的 session 立刻套用；提醒訊息送得到 Claude
+
 ---
 
 ## 4. 資料夾配置
@@ -65,7 +76,8 @@
 ```
 <REDKIT_PROJECT>\                 ← Claude 的工作目錄（可修改）
   CLAUDE.md
-  .claude\settings.local.json
+  .claude\settings.local.json     ← Claude Code 的專案設定（不納入 git；內容見 §3）
+  .claude\hooks\                  ← 設定用到的腳本：context 用量提醒（納入 git）
   docs\                           ← 調查筆記、決策紀錄
   data\cs2\weapons.vdata          ← CS2 武器數值（文字檔，納入 git）
   tools\                          ← 遊戲外驗證用腳本（後座力模擬、Blender 腳本）
@@ -178,7 +190,12 @@
       - 確認方式：`editor.log` 要有 `HasSkinning: true (NODE '骨頭名')`；`Created mesh chunk … 0 bones` 就是沒綁
       - Reimport → Mesh only 會沿用 REDkit 記憶體裡的匯入設定，不會讓人改 → 重開 REDkit 後要換模型，用 **Import > Mesh** 蓋掉舊檔
     - **匯入模型後，同一次開著的 REDkit 裡進遊戲沒有貼圖顏色**：重開 REDkit（或在 Mesh editor 重新指定貼圖）就正常；硬碟上的檔案沒問題（2026-10-15 比對前後兩版只差 `authorName`；`docs\m3.md`）
-15. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
+15. **量動畫裡骨頭的位置：AnimBrowser 對動畫按右鍵 → Calc bone MS**（2026-10-15 實測，`docs\m3.md`「Calc bone 的結果」）
+    - 輸入骨頭名稱、時間 → 跳出 Result 視窗，同時寫進 `editor.log`（`Bone MS - '骨頭' - time - '時間'`、`>Position:`、`>Rotation:`）
+    - MS = 角色的模型座標：**X 右、Y 前、Z 上**，公尺
+    - Rotation 的 3 個數字是 **(Pitch, Yaw, Roll)**，矩陣 = Rz(Yaw)·Rx(Pitch)·Ry(Roll)（用骨架參考姿勢和兩手、頭驗證過）
+    - 骨架 `.w2rig` 的參考姿勢在 `CSkeleton` 的自訂資料：每根骨頭 48 bytes（位置、四元數 x y z w、縮放），父骨頭在 `parentIndices`
+16. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---
 
@@ -326,6 +343,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - **每次 commit 時一起更新**：session 可能被用量上限突然切斷（2026-10-13 發生過），不能等結束才寫
   - 只寫還在變動的：現在做到哪、還沒寫進本檔的決定、沒 commit 的檔案與測試進度、下一步、試過放棄的做法、相關的 `docs\findings.md` 章節
   - 已定案的寫進本檔，查證過的事實寫進 `docs\findings.md`
+  - **context 用到 35%**：hook 會提醒（§3）→ 手上的任務照做，同時更新交接檔；這次回覆的最後提醒使用者 `/clear`（使用者 2026-10-15）
 - 確認了新的重要事實（路徑、API、格式）就更新本檔
 
 ---
