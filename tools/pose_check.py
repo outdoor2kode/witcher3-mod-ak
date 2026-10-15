@@ -81,4 +81,5 @@ def main():
               f"({rh_p[0]:.3f}, {rh_p[1]:.3f}, {rh_p[2]:.3f})  ({lw_p[0]:.3f}, {lw_p[1]:.3f}, {lw_p[2]:.3f})")
 
 
-main()
+if __name__ == "__main__":
+    main()

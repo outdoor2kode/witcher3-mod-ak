@@ -92,7 +92,7 @@
     dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
       data\items\weapons\gfg_ak47\  ← AK 的實體模板（納入 git）、模型、貼圖（REDkit 匯入的產物，不納入 git）
     scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
-    gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh  ← 改過的原版動畫圖（tools\overlay_patch.py 產生，不納入 git；§6.16）
+    gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh、pc_gameplay.w2beh  ← 改過的原版動畫圖（tools\overlay_patch.py、gameplay_patch.py 產生，不納入 git；§6.16）
   assets\ak47\                    ← M3 腳本的輸出（.blend、.fbx、.png 不納入 git）、匯入模型用的材質 XML（納入 git）
   thumbnails\                     ← REDkit Asset Browser 的縮圖（自動產生，不納入 git）
   packed\、publish\               ← REDkit 打包輸出（不納入 git）
@@ -207,7 +207,9 @@
     - 校驗碼有 3 層，都是 CRC32：每個物件（存在物件表）→ 物件表（存在檔頭的表格欄位）→ 檔頭（前 160 bytes，校驗碼欄位先填 `0xDEADBEEF` 再算）；改一個物件要 3 層都重算
     - 做法、檢查的方式照 `tools\overlay_patch.py`：原檔只讀、先驗證原檔的校驗碼和要改的內容、寫完讀回來檢查
     - 改過的原版檔用 `.gitignore` 排除，靠腳本重做
-    - 本專案改過的：`pc_overlay.w2beh` 的曲線 #18561（站著瞄準時右手臂不再被換成 `man_ger_sword_axii_arm_override`）
+    - 本專案改過的：`pc_overlay.w2beh` 的曲線 #18561（站著瞄準時右手臂不再被換成 `man_ger_sword_axii_arm_override`）；`pc_gameplay.w2beh` 3 個直線走跑節點的骨頭表（`tools\gameplay_patch.py`：拿十字弩直線走跑時兩隻手臂都用十字弩動畫；`docs\m3.md`「直線走路、跑步的右手」）
+    - 物件變大小也可以改：物件資料連續排列、沒有 buffer 的檔，後面的物件位移往後挪、更新物件表和檔頭的檔案大小（第 6、7 個 u32）（`tools\gameplay_patch.py`）
+    - **REDkit 開著時新建的 workspace 檔，遊戲讀不到 → 重開 REDkit 才生效**（2026-10-16 `pc_gameplay.w2beh` 實測）；改既有的檔不用重開
 17. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 
 ---

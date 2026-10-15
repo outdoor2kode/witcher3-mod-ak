@@ -1025,6 +1025,8 @@ function GfgLogHoldPose()
 	GfgLogBone( this, "l_hand", 'l_hand' );
 	GfgLogBone( this, "r_hand", 'r_hand' );
 	GfgLogBone( this, "r_weapon", 'r_weapon' );
+	GfgLogBone( this, "l_foot", 'l_foot' );	// 跑步、走路時腿有沒有在動
+	GfgLogBone( this, "r_foot", 'r_foot' );
 	GfgLogMatrix( "ak", rangedWeapon.GetLocalToWorld() );
 	GfgLogBone( rangedWeapon, "ak_handle", 'handle' );
 	LogChannel( 'GFG', "pose camera eye " + VecToStringPrec( rangedWeapon.GfgEyePosition(), 4 ) + " dir " + VecToStringPrec( rangedWeapon.GfgViewDirection(), 4 ) );
