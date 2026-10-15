@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15（凌晨，使用者去睡了，白天接著做）
+最後更新：2026-10-15 下午（使用者要重開 Claude）
 
 ---
 
@@ -15,7 +15,7 @@
     - 「第 3 步」：`tools\m3_build_ak.py`（AK 轉方向、放到握把、匯出 FBX）
     - 「第 4 步：準備好的檔案」：`tools\m3_textures.py`、材質 XML、檔案位置
     - 「第一次匯入的模型沒用到骨頭群組」「改用 NODE 模式」：為什麼 FBX 是現在這樣
-    - 「第一次進遊戲」：顏色問題的線索
+    - 「第一次進遊戲」「顏色測試」「換回 AK 的貼圖再測」：顏色問題的經過（已解決）
   - 使用者 2026-10-14～15 的決定：原尺寸（比例 1.0）、用 `body_hd`（已含彈匣）、Blender 的部分由 Claude 寫腳本、貼圖腳本、物品 XML 改 `equip_template`（都同意了）
 - **拿掉偵測紀錄：編譯通過、未實測、未 commit**（使用者 2026-10-14 同意；`findings.md` §25）
   - `gfg_ak47.ws` 的 `LogChannel` 42 行全部拿掉；只為記錄而寫的包裝、欄位一起拿掉
@@ -76,24 +76,20 @@
 
 ## 下一步
 
-0. **M3 顏色問題已解決（2026-10-15）：AK 的貼圖在遊戲裡有顏色**；凌晨的灰白色是光照造成的（`docs\m3.md`「換回 AK 的貼圖再測」）
-   - `Diffuse` 已換回 `gfg_ak47_d01.xbm`
-1. （已做，結論見上）M3 顏色測試的步驟
-   1. 打開 `gfg_ak47.w2mesh` → **Materials** 分頁 → 選 `weapon_rif_ak47`
-   2. 把 `Diffuse` 暫時換成原版的 `items\weapons\ranged\witcher_crossbow\model\witcher_crossbow_lvl1_d01.xbm`（Asset Browser 點選 → 綠色箭頭）→ 存檔
-   3. 開遊戲、`additem('gfg_ak47')`：
-      - 有顏色（咖啡色、花紋亂掉）→ 原版貼圖讀得到，問題在我們的 `.xbm`：可疑的是遊戲裡沒 cook 的貼圖怎麼串流（`docs\m3.md`「第一次進遊戲」的線索）；我們的 `.xbm` 比原版 uncook 的多了 `importFile`、`sourceData`
-      - 還是灰的 → 問題在材質或模型（例：NODE 模式的模型在遊戲裡的材質綁定）
-   4. 測完把 `Diffuse` 換回 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_d01.xbm`
-   - Materials 分頁的介面沒看過，找不到請使用者截圖
-   - **REDkit 重開時 `editor.log` 會被整個重寫**：遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
-2. M3 其他還沒做的：
-   - `bolt` slot 移到槍口：箭現在從 `chord` 骨頭（AK 彈匣附近）出來；槍口在十字弩模型座標 (9.34, -0.21, 66.91) 公分（`docs\m3.md`「第 3 步」），要換成 `handle` 骨頭座標（乘上 `handle` 的綁定矩陣）再設到 slot
-   - 握把位置、槍托會不會穿過手臂：進遊戲看；要調就用 `m3_build_ak.py --offset`
-3. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
-4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
-5. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 Wwise 版本：`CLAUDE.md` §3）
-6. M5 候選：持槍衝刺／跳躍的動畫（`findings.md` §17.10）；跳躍散布（§16.2）
+1. **M3：等使用者回答兩件事**（2026-10-15 下午問的，使用者重開 Claude 前還沒回）
+   - 要不要先做 `bolt` slot 移到槍口（Claude 建議先做這個）
+     - 箭現在從 `chord` 骨頭出來，截圖裡看得到箭從 AK 彈匣下方伸出
+     - 槍口在十字弩模型座標 (9.34, -0.21, 66.91) 公分（`docs\m3.md`「第 3 步」）→ 換成 `handle` 骨頭座標（乘上 `handle` 的綁定矩陣，`m3_build_ak.py` 的 `read_rig_matrices()` 讀得到）→ 請使用者在 REDkit 的實體模板設 slot
+   - 握持姿勢：現在是十字弩的單手姿勢（左手伸直）；問使用者這個位置可不可以接受、要不要調前後高低（`m3_build_ak.py --offset`）
+     - 雙手持槍要做新動畫：另一個大工程，M3 的完成條件只寫「握持位置正確」
+   - AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管；在一般地圖還是太亮再查
+2. 拿掉紀錄的測試（下面「測試方式補充」）；通過就 commit `gfg_ak47.ws`
+3. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
+4. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、子彈方向與速度、M4 聲音（要先確認 Wwise 版本：`CLAUDE.md` §3）
+5. M5 候選：持槍衝刺／跳躍的動畫（`findings.md` §17.10）；跳躍散布（§16.2）
+
+- **REDkit 重開時 `editor.log` 會被整個重寫**：遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
+- Mesh editor 換材質貼圖：**Materials** 分頁 → 選 `weapon_rif_ak47` → Asset Browser 點選 `.xbm` → 欄位的綠色箭頭 → 存檔（使用者 2026-10-15 做過）
 
 ### 測試方式補充
 
