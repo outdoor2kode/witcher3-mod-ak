@@ -149,6 +149,9 @@
       - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（2026-10-15 讀原版資料，我們還沒實測；`docs\m3.md`「雙手持槍：第二輪查詢」）
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
       - 遊戲生成的玩家是 `gameplay\templates\characters\player\player.w2ent`（`game\witcher3.redgame` 的 `defaultPlayerTemplate`），它 include `geralt_player.w2ent`；dlc16 替 `geralt_player.w2ent` 加動畫組（2026-10-15 讀原版資料，`docs\m3.md`「第三輪查詢」）
+      - **複製動畫到自己的動畫組**：Asset Browser 雙擊 `.w2anims` 開 AnimBrowser → **All animations** → 動畫右鍵 **Copy animation** → 另一個動畫組最上面那行右鍵 **Paste animation to set** → 右鍵 **Rename**；動畫資料原封不動（2026-10-15 實測，`docs\m3.md`「第 1～7 步的結果」）
+        - 新的動畫組：資料夾空白處右鍵 → Create → Set of animations
+        - 開動畫組時問「Entity doesn't have animated component with select animset…」→ 按 **No**（預覽角色預設是 Geralt；不需要預覽）
     - **腳本放 `workspace\scripts\local\`**，會被從 REDkit 啟動的遊戲載入（2026-10-12 確認）
 12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
     - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
