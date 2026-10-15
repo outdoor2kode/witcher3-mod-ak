@@ -143,6 +143,11 @@
     - 本專案：`workspace\dlc\gunforgeralt\test.reddlc` 掛載 `dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml`
     - **實體模板**用 `CR4DefinitionsEntitieTemplatesDLCMounter` 掛載資料夾（`entitieTemplatesDirectoryPath`，本專案 `dlc\gunforgeralt\data\items\`）
       - 物品 XML 的 `equip_template` = 模板的**檔名**（不含 `.w2ent`），放在掛載資料夾往下任何一層都找得到（2026-10-15 遊戲實測，`docs\m3.md`）
+      - 模板的 slot 在 Entity Editor 下方分頁 **Slots**（和 Node properties 同一排）改；使用者 2026-10-15 改過 `bolt`
+      - slot 的 transform 存檔時，旋轉的**第三個 float 是 Yaw**（填 Yaw -90 存成 270）；前兩個的順序還不知道（`docs\m3.md`）
+    - **DLC 可以替現有的角色模板加動畫組**：`CR4EntityTemplateParamDLCMounter` ＋ `CAnimAnimsetsParam`（元件名稱＋動畫組清單）
+      - 原版 bob 用它替 `man_base.w2ent` 加 Geralt 的動畫；NPC 十字弩兵的模板也用 `CAnimAnimsetsParam` 掛動畫組（2026-10-15 讀原版資料，我們還沒實測；`docs\m3.md`「雙手持槍：第二輪查詢」）
+      - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
     - **腳本放 `workspace\scripts\local\`**，會被從 REDkit 啟動的遊戲載入（2026-10-12 確認）
 12. **annotation 寫法規則**（2026-10-12 用 wcc_lite 編譯驗證，見 `docs\findings.md` §12.5）
     - annotation 後面**一律接 `function`**：包 `event` 也一樣，寫 `event` 會語法錯誤
@@ -335,6 +340,8 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - `spawnPath` 可以生成任何實體模板（`temp.ws:6790-6813` 用 `CreateEntity`），牆也可以（2026-10-13 實測），例：`dlc\bob\data\environment\architecture\grey_box_blockout\brick_wall_system\entities\wall_super_wide.w2ent`（寬 8 公尺、高 4.75 公尺；箭會插在上面，約 5 秒後消失：`docs\findings.md` §18.4）
     - 建築：`<REDKIT_DEPOT>` 裡路徑含 `architecture` 的 `.w2ent` 有 1598 個，例：`environment\architecture\human\redania\nomans_land\thatched_buildings\entities\nml_thatched_house_big_exterior.w2ent`（未實測；大小沒查過，生成在面前 3 公尺，可能壓到 Geralt）
   - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
+  - 十字弩兵：`spawn('xbow', 1, 15, true)`（別名 `gameplay.xml:1149` → `gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent`；未實測）
+  - `god()`：無敵（`temp.ws:6054-6066`；未實測）
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）
