@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 23:1x（使用者選「用 Blender 改動畫」；外掛環境備好；等使用者從 REDkit 匯出 `.re`）
+最後更新：2026-10-15 23:3x（`.re` 收到、Blender 來回測試做完：外掛的匯出會改掉 14 根輔助骨頭的位置；等使用者選寫檔的做法）
 
 ---
 
@@ -47,10 +47,16 @@
   - **環境（做完）**：`tools\_vendor\`（外掛複本、`pylib\` 的 h5py 3.16.0）；載入方式、替身模組、擋 pip 的環境變數：`docs\m3.md`「Blender 外掛」；範例 `head_anim.re` 匯入成功
     - 事故：第一次測試外掛自己 pip 裝了東西到 `AppData\Roaming\Python`、`AppData\Local\pip` → 使用者同意後刪掉；**之後載入外掛一定要先放替身模組**
     - 測試腳本在暫存資料夾（會消失）；正式的腳本要寫在 `tools\`（使用者同意 Claude 在 `tools\` 寫背景執行用的小腳本）
-  - **下一步：等使用者從 REDkit 匯出 `.re`**（這次回覆給了步驟；存到 `assets\anims\`，`.gitignore` 已排除 `*.re`）：
-    - A：我們的 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` 的 `man_geralt_gabriel_aim_idle_rp`
-    - B：原版 `animations\man\combat\man_geralt_gabriel.w2anims` 的 `man_geralt_gabriel_aim_idle_rp`、`aimpose_vertical_rp_left`／`center`／`right`、`aimpose_horizontal_rp`
-    - 匯出對話框沒看過：使用者截圖
+  - **`.re` 收到了**（`assets\anims\` 6 個檔，23:05～23:10；我們的那段存成 `gfg_aim_idle_rp.re`）
+  - **第 1 步的結果**（`docs\m3.md`「`.re` 的內容與 Blender 來回測試」）：
+    - 外掛匯入 → 不改 → 匯出：旋轉全部對（0.001° 以內），但 **14 根輔助骨頭的位置被改掉**（扭轉骨頭變成 5 公分），NPC 那段的 `Root` 也被歸零；檔案結構和 REDkit 的不同 → 外掛的匯出不能直接用
+    - FK 的慣例確定了：`.re` 的四元數要轉置；和 Calc bone 差 0.1°、4 公釐
+    - 4 段 `aimpose_*` 匯出的是差值（第 0 格為基準，在父骨頭座標裡先轉）
+  - **等使用者選寫檔的做法**（兩個都要寫新程式，`CLAUDE.md` §11）：
+    - A：照用外掛匯出，再用小腳本把 14 根骨頭的位置、`Root` 改回原檔的值
+    - B（Claude 建議）：不用外掛匯出；姿勢用 Python（numpy）算，寫檔時複製 REDkit 匯出的檔、只換改過的骨頭的數字；Blender 只用來渲染預覽圖
+  - 選好之後：做第一個改過的動畫 → 使用者匯回 REDkit（選單在 `docs\m3.md`「REDkit 匯入 `.re` 的選單」，介面沒看過，要截圖）→ 進遊戲看
+  - 暫存腳本（session 結束就沒了）：`re_summary.py`（列出各段動了哪些骨頭）、`re_roundtrip_blender.py`（外掛來回）、`re_compare.py`（逐骨頭比對）、`re_fk_check.py`（FK 和 Calc bone 比）；做法都寫在 `docs\m3.md`
   - 之前的 4 個方向（2026-10-15 22:2x 問過，使用者沒選、改問問題）：
     1. **退回單手版**（Claude 建議）：回到之前能正常用的狀態，雙手留到用 Blender 改動畫時再做
        - Claude：`m3_build_ak.py` 用 `--pitch -20.5` 重做模型；`git checkout -- workspace/dlc/gunforgeralt/data/items/weapons/gfg_ak47/gfg_ak47.w2ent`（slot 回到單手版）；拿掉 `gfg_ak47.ws` 的偵測紀錄
