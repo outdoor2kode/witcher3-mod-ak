@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-15 22:3x（遊戲裡實測完：NPC 姿勢拿不好 AK；/clear 前交接，新 session 先問使用者選哪個方向）
+最後更新：2026-10-15 22:5x（/clear 之後：使用者選「先查修正層」；查完，等使用者同意「關掉修正層」的實驗）
 
 ---
 
@@ -31,7 +31,16 @@
   - 第 6 步（做完）：使用者在遊戲裡量了（`docs\m3.md`「遊戲裡實測」）
     - 擺法 A 錯的主因：AK 的 `handle` 骨頭在遊戲裡比假設的**繞槍管轉了 180°**；Calc bone 的角度換算是對的
     - **結論：NPC 姿勢＋Geralt 單手的瞄準疊加層拿不好 AK**：瞄水平時槍對準準心就碰不到左手（差約 12 公分）、兩手都碰到槍就偏 17.5°；上下瞄時只有左手跟著動
-  - **等使用者決定方向**：2026-10-15 22:2x 問了，使用者回「先 /clear」→ **新 session 一開始先問這題**（用 AskUserQuestion，4 個選項）：
+  - **/clear 之後（2026-10-15 22:3x～22:5x）**：
+    - 使用者問：NPC 雙手姿勢應該拿得了 AK，槍管對準準心不就好了？→ 解釋「瞄準修正層」（`docs\m3.md`「使用者的疑問」）
+    - 使用者選「**先查修正層**」（只讀）→ 結果在 `docs\m3.md`「雙手持槍：瞄準修正層（第四輪查詢）」：
+      - **更正**：之前寫的 #2127 在「Using items」區塊；十字弩區塊是 #18435（左鍵：`inAimThrow` 0）、#19069（按住中鍵）
+      - **關得掉**：#18435 的 `OnOff` ← `isShootingFriendlyForOverlay` ≥ 1 時關（推定）；腳本可以用 `SetBehaviorVariable` 設；副作用：移動中設 1 → 上半身換成一般走路／跑步
+      - **換不進來**：NPC 用同一種節點，但設定不同（`AT_Ref` vs 預設、±90°／180° vs ±45°）→ 只換動畫預期會錯；要改設定就得改原版動畫圖
+    - **等使用者同意的實驗**（還沒寫程式）：`gfg_ak47.ws` 的 `GfgCameraTick` 加暫時的幾行：拿著 AK、沒騎馬、站著不動（`playerMoveType == PMT_Idle`）時，每格把 `isShootingFriendlyForOverlay` 設 1；條件不成立時設回 `(float)GetIsShootingFriendly()`（只在剛離開時設一次）
+      - 量法：現成的 `GfgLogHoldPose`；使用者站著瞄水平、往上、往下（同上次）；比對 Calc bone 的原始姿勢（`l_weapon` (0.148, 0.525, 1.465)、`r_hand` (0.245, 0.078, 1.470)，玩家座標）
+      - 現在的模型是擺法 A（`handle` 方向算錯），AK 看起來會歪：這次只看手
+  - 之前的 4 個方向（2026-10-15 22:2x 問過，使用者沒選、改問問題）：
     1. **退回單手版**（Claude 建議）：回到之前能正常用的狀態，雙手留到用 Blender 改動畫時再做
        - Claude：`m3_build_ak.py` 用 `--pitch -20.5` 重做模型；`git checkout -- workspace/dlc/gunforgeralt/data/items/weapons/gfg_ak47/gfg_ak47.w2ent`（slot 回到單手版）；拿掉 `gfg_ak47.ws` 的偵測紀錄
        - NPC 姿勢的掛載也要拿掉，不然單手的 AK 會配上 NPC 的雙手姿勢（像截圖 #59）：`test.reddlc` 的第 3 個掛載器（使用者在 REDkit 刪，或 Claude 用 git 取回 commit `d0684cb` 的版本：要先跟使用者確認）
