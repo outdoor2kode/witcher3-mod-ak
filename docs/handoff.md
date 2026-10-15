@@ -38,7 +38,7 @@
 
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
-| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
+| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加 `--pitch -20.5`**） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
 | 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → Import → Mesh；`importAsSkinnedMesh` = true、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel** | 使用者 | `gfg_ak47.w2mesh` |
@@ -85,7 +85,9 @@
    - ~~使用者在 REDkit 設定~~ → 已設定、存檔（14:39）；Claude 讀檔確認：骨頭 `handle`、位置 (0.423, 0, 0.098)、旋轉存成 (0, 0, 270)
    - 進遊戲測（2026-10-15 晚上）：裝好的箭不再從彈匣下方露出（已 commit）；**槍管往上翹、和準心不一致**
      - 原因：AK 對齊 `handle` 的 x 軸，原版的箭沿 `chord` 的 x 軸，差 20.39°（`docs\m3.md`「進遊戲測」）
-     - **等使用者決定**：`m3_build_ak.py` 加 `--pitch`，AK 繞握把往下轉 20.5° → 重匯模型 → slot 改位置和 Pitch
+     - 使用者選現在修：`m3_build_ak.py` 加了 `--pitch`，已用 `--pitch -20.5` 產生新的 FBX（`docs\m3.md`「槍管往下轉 20.5°」）
+     - **等使用者在 REDkit**：`gfg_ak47.w2mesh` Reimport → Mesh only → 存檔；slot `bolt` 改位置 (0.435, 0, -0.031)、Pitch -20.4（Yaw 維持 -90）→ 存檔
+     - 之後 Claude 讀檔確認 Pitch 存在哪個 float；進遊戲看槍管有沒有對準準心、箭有沒有從槍管上下穿出、槍托會不會碰到前臂
    - 箭羽從護木兩側露出太多 → 可以試原版的做法：再填 Roll 90（箭羽改成上下方向）；存檔後讀檔看 90 存在第一還是第二個 float，就知道順序
    - `gunforgeralt.w3edit` 的 `dirtyTileCellIndices` 是 REDkit 自己改的（開過測試關卡），沒 commit
 2. **雙手持槍：查完兩輪，等使用者看 NPC 十字弩兵的姿勢**（`docs\m3.md`「雙手持槍：初步查詢」「第二輪查詢」）

@@ -4,7 +4,7 @@
 用法：
     "D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background
         --python-exit-code 1 --python tools/m3_build_ak.py --
-        AK.gltf 十字弩.fbx 十字弩.w2mesh 輸出資料夾 [--scale 1.0] [--up -X] [--offset X Y Z]
+        AK.gltf 十字弩.fbx 十字弩.w2mesh 輸出資料夾 [--scale 1.0] [--up -X] [--offset X Y Z] [--pitch 0]
 
 - 只讀三個來源檔；輸出 gfg_ak47_m3.blend、gfg_ak47.fbx 到輸出資料夾（沒有就建立）
   - 十字弩.w2mesh：uncook depot 的原版 witcher_crossbow_lvl1.w2mesh，只讀 handle 的綁定矩陣
@@ -17,6 +17,8 @@
   - 十字弩的前方 +Z：弓臂在那頭（骨頭位置）
   - 十字弩的上方 -X：遊戲截圖裡前端的方形環、淺色木板在下面，它們在 +X 那面；
     骨頭 r_wing（右翼）在 -Y，上方 -X 時右手邊正好是 -Y（docs/m3.md）
+- --pitch：AK 繞握把再轉幾度（轉軸是十字弩的左右方向；正＝槍口往上）
+  - -20.5：槍管和原版十字弩的箭平行。箭沿 chord 骨頭的 x 軸（模板 slot 的 Yaw -90），比 handle 的 x 軸低 20.4°（docs/m3.md）
 - 位置：AK 的 ag1_hand_r（CS2 右手握把的骨頭）放到十字弩的原點，再加 --offset（公尺）
 - .blend：AK 當 Root 的子物件、所有頂點 100% 綁 handle（目視用）；另外放十字弩模型和原點標記（集合 reference）
 - 法線：先讀出原本的法線，轉換後再照同一個旋轉設回去，最後檢查和面的方向一致
@@ -32,6 +34,7 @@
 - Blender 內建的 Python 預設不讀 PYTHONUTF8 等環境變數，所以在腳本裡把輸出改成 UTF-8
 """
 import argparse
+import math
 import struct
 import sys
 from pathlib import Path
@@ -66,6 +69,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--up', choices=sorted(UP_CHOICES), default='-X', help='AK 的上方要轉到哪個軸（預設 -X）')
     p.add_argument('--offset', type=float, nargs=3, default=(0.0, 0.0, 0.0), metavar=('X', 'Y', 'Z'),
                    help='握把對到原點之後再移動多少（公尺）')
+    p.add_argument('--pitch', type=float, default=0.0,
+                   help='AK 繞握把再轉幾度，正＝槍口往上（預設 0；-20.5 讓槍管和原版十字弩的箭平行）')
     return p.parse_args(argv)
 
 
@@ -76,6 +81,12 @@ def vec(v) -> str:
 def frame(forward: Vector, up: Vector) -> Matrix:
     # 三個欄：前、上、前×上（右手座標）
     return Matrix((forward, up, forward.cross(up))).transposed()
+
+
+def pitched(forward: Vector, up: Vector, deg: float) -> tuple[Vector, Vector]:
+    # 前、上兩軸繞左右方向轉 deg 度，正＝前方往上抬
+    a = math.radians(deg)
+    return forward * math.cos(a) + up * math.sin(a), up * math.cos(a) - forward * math.sin(a)
 
 
 def world_points(obj) -> list[Vector]:
@@ -135,8 +146,8 @@ def build(args: argparse.Namespace):
     agree_before = normals_agree(me)
     normals = [c.vector.copy() for c in me.corner_normals]
 
-    up = UP_CHOICES[args.up]
-    rot = frame(XBOW_FORWARD, up) @ frame(AK_FORWARD, AK_UP).transposed()
+    forward, up = pitched(XBOW_FORWARD, UP_CHOICES[args.up], args.pitch)
+    rot = frame(forward, up) @ frame(AK_FORWARD, AK_UP).transposed()
     m_world = (Matrix.Translation(Vector(args.offset)) @ Matrix.Scale(args.scale, 4)
                @ rot.to_4x4() @ Matrix.Translation(-grip))
     m_local = root.matrix_world.inverted() @ m_world  # 換成十字弩骨架的區域座標（公分）
@@ -178,21 +189,26 @@ def build(args: argparse.Namespace):
     print(f'\n## AK（{body.name}）')
     print(f'頂點 {len(me.vertices)}、面 {len(me.polygons)}；材質：{", ".join(s.material.name for s in body.material_slots)}')
     print(f'UV：{", ".join(uv.name for uv in me.uv_layers)}；頂點群組：{", ".join(g.name for g in body.vertex_groups)}')
-    print(f'縮放 {args.scale}；上方 {args.up}；位移 {vec(args.offset)}')
+    print(f'縮放 {args.scale}；上方 {args.up}；位移 {vec(args.offset)}；轉 {args.pitch}°')
     print(f'法線和面同一側的比例：轉換前 {agree_before:.4f}，轉換後 {agree_after:.4f}')
-    return root, body
+    return root, body, forward
 
 
-def report_positions(root, body) -> dict:
+def report_positions(root, body, forward: Vector, rig: Matrix) -> dict:
     pts = world_points(body)
     lo, hi = bbox(pts)
-    # 槍口：最前面 5 公釐內的頂點平均
-    front = max(p.z for p in pts)
-    tip = [p for p in pts if p.z > front - 0.005]
+    # 槍口：沿槍管方向最前面 5 公釐內的頂點平均
+    front = max(p.dot(forward) for p in pts)
+    tip = [p for p in pts if p.dot(forward) > front - 0.005]
     muzzle = sum(tip, Vector()) / len(tip)
     to_local = root.matrix_world.inverted()
+    # handle 骨頭座標（= 匯出的 FBX、.w2mesh 的頂點座標，公尺）：骨架區域座標（公分）→ 公尺 → 乘綁定矩陣
+    to_bone = rig @ Matrix.Scale(0.01, 4) @ to_local
+    bone_dir = (to_bone.to_3x3() @ forward).normalized()
     print(f'外框（公尺）最小 {vec(lo)}  最大 {vec(hi)}  尺寸 {vec(hi - lo)}')
-    print(f'槍口（最前面 5 公釐的頂點平均，{len(tip)} 個）：世界 {vec(muzzle)}；骨架區域座標（公分）{vec(to_local @ muzzle)}')
+    print(f'槍口（沿槍管最前面 5 公釐的頂點平均，{len(tip)} 個）：世界 {vec(muzzle)}；骨架區域座標（公分）{vec(to_local @ muzzle)}')
+    print(f'handle 骨頭座標（公尺）：槍口 {vec(to_bone @ muzzle)}；槍管方向 {vec(bone_dir)}，'
+          f'仰角 {math.degrees(math.atan2(bone_dir.z, bone_dir.x)):.2f}°')
     heads = {b.name: root.matrix_world @ b.head_local for b in root.data.bones}
     for name in (BIND_BONE, 'chord'):
         print(f'骨頭 {name} 的頭：世界 {vec(heads[name])}')
@@ -296,9 +312,9 @@ def main() -> int:
     blend = (args.out_dir / f'{NAME}_m3.blend').resolve()
     fbx = (args.out_dir / f'{NAME}.fbx').resolve()
 
-    root, body = build(args)
-    report_positions(root, body)
+    root, body, forward = build(args)
     rig = read_rig_matrices(args.rig_mesh)[BIND_BONE]
+    report_positions(root, body, forward, rig)
     head = root.data.bones[BIND_BONE].head_local / 100  # 骨架區域座標，公分 → 公尺
     print(f'\n{args.rig_mesh.name} 的 {BIND_BONE} 綁定矩陣：' + ' | '.join(' '.join(f'{x:.4f}' for x in row) for row in rig))
     print(f'檢查：十字弩 FBX 的 {BIND_BONE} 骨頭位置乘上綁定矩陣 = {vec(rig @ head)}（應該接近 0）')
