@@ -36,7 +36,8 @@
     - 左腰不用改：預覽裡彈匣在肚子前約 15 公分、沒插進身體（遊戲裡看不到是被左前臂擋住）
     - 6 段重做好（04:4x）：地面 `reload_lowered`（`reload_front_2` 是同一份複製）、騎馬 4 段（底層 `backup_reload_static_2355\`）；手都到得了、左臂最伸直 0.97～0.99；舊的 A 版備份在 `assets\anims\gfg\backup_reload_A_0430\`
     - 預覽：暫存 `s19\rl_preview2.py`（彈匣分開畫、抓到之後跟著左手；4 個方向）、`rl_zoom.py`（放大手）；圖 `s19\rlp1.png`、`rlz1.png`、`rlp_gallop.png`
-  - **下一步**：① REDkit 開 AnimBrowser（Asset Browser → `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` 雙擊 → 問預覽角色按 No）→ 更新 g.sh 的 `GAB` → 6 段 `import_one plain 檔名.re`（同名、長度一樣 → 事件保留）→ `save_gab` ② 遊戲裡 `side_reload2 名 45 1.3 0` 看握法（左前方）＋ `side_reload2 名 90 1.0 0`（左邊）③ 騎馬換彈也看 ④ 寫進 `docs\m3.md`「換彈動畫」、commit
+  - **04:3x 匯入好（commit 0fb8d89）**：AnimBrowser `0x890D56`（g.sh 的 `GAB` 已換）；6 段 `import_one plain` → `save_gab`；`anim_events.py` 讀檔確認事件都在（2.4 秒、`OnWeaponReload` 1.5、`RaiseWeapon` 2.15、騎馬 4 個韁繩／IK 事件、`reload_front_2` 的 `Crossbow`）
+  - **下一步**：② 遊戲裡（腳本改過 → `reload_edit` → `game_start`） `side_reload2 名 45 1.3 0` 看握法（左前方）＋ `side_reload2 名 90 1.0 0`（左邊）③ 騎馬換彈也看 ④ 寫進 `docs\m3.md`「換彈動畫」、commit
   - 試過、放棄的看法：
     - 原版固定鏡頭 `static_camera.w2ent`（02:5x）：方向試不出來（俯仰 0 時往下看地、朝向差 90°）
     - 拍照模式的鏡頭在拍照模式外直接用（`theGame.GetPhotomodeCamera()` → Activate／SetCameraWorldPosition）：**03:12 REDkit 當掉**（EXCEPTION_ACCESS_VIOLATION；故障回報選不回報、關掉）→ 程式已拿掉
