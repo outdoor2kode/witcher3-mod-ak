@@ -71,7 +71,11 @@
 - 自動壓縮（2026-10-16）：`autoCompactWindow` 400000 → context 到 40 萬 tokens（這個模型 100 萬的 40%）時自動壓縮、接著做
   - 官方文件 model-config「Set the auto-compact window」：`autoCompactWindow` 任何設定檔都能放；預設要到約 96.7 萬才壓縮
   - 官方文件 settings「When edits take effect」：設定檔存檔後，執行中的 session 會重讀（`model`、`effortLevel`、`modelSettings` 例外）
-  - Claude 不能自己下 `/clear`、`/compact`（官方文件 slash-commands：內建指令只有 `/init` 等少數能用 Skill 叫）
+  - Claude 不能從工具直接下 `/clear`、`/compact`（官方文件 slash-commands：內建指令只有 `/init` 等少數能用 Skill 叫）
+  - **Claude 自己清理**（使用者 2026-10-16 要求：「你都能控制 WINDOWS 了」）：`tools\claude_compact.ps1` 在背景跑 → 等 Claude 這一輪結束（對話紀錄出現 `end_turn`）→ 在 Windows Terminal 打 `/compact`（或 `/clear`）→ 等壓縮完成（紀錄出現 `compact_boundary`）→ 打「讀交接檔接著做」
+    - 自主模式中 context 到 40%：先更新交接檔、commit → 背景跑這支 → 結束這一輪
+    - 預設 `/compact`：保留摘要、接續性較好（10-16 兩次自動壓縮也是 compact）；`/clear` 完全靠交接檔，換大任務時再用
+    - 這個 session 的 `autoCompactWindow` 沒生效：實際自動壓縮在 96 萬、62 萬 tokens（10-16 04:13、06:59）
 
 ---
 
