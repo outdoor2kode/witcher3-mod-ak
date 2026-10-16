@@ -114,6 +114,49 @@ function Wait-For([string]$pattern, [long]$offset, [int]$timeoutSec, [int]$quiet
     return -1
 }
 
+# 分頁標題（Claude Code 忙碌時開頭是 ◐◓◑◒，閒置是 ✳）：用 UI Automation 讀 Windows Terminal 的分頁，找含 aiTitle 的那個
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+function Get-TabTitles {
+    $out = @()
+    foreach ($p in Get-Process WindowsTerminal -ErrorAction SilentlyContinue) {
+        if ($p.MainWindowHandle -eq [IntPtr]::Zero) { continue }
+        $root = [System.Windows.Automation.AutomationElement]::FromHandle($p.MainWindowHandle)
+        $cond = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)
+        foreach ($t in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) { $out += $t.Current.Name }
+    }
+    return $out
+}
+function Get-SessionTitle {
+    $r = Read-New ([Math]::Max(0, (Get-Item $Jsonl).Length - 4000000))
+    $m = [regex]::Matches($r[0], '"aiTitle":"([^"]+)"')
+    if ($m.Count -eq 0) { return '' }
+    return [regex]::Unescape($m[$m.Count - 1].Groups[1].Value)
+}
+function Test-Busy {
+    $title = Get-SessionTitle
+    foreach ($t in Get-TabTitles) {
+        if ($title -and -not $t.Contains($title)) { continue }
+        if ($t.Length -gt 0 -and '◐◓◑◒'.Contains($t.Substring(0, 1))) { return $true }
+    }
+    return $false
+}
+# 打一段文字再送出：文字和 Enter 分開寫（14:2x 實測：一起寫入時 Enter 沒有送出，文字留在輸入框）
+# 按 Enter 後 8 秒內分頁要變成忙碌；沒有就再按一次（最多 3 次）
+function Submit([string]$text) {
+    [ConIn]::Inject($claude, $text) | Out-Null
+    Start-Sleep -Milliseconds 1200
+    for ($try = 1; $try -le 3; $try++) {
+        [ConIn]::Inject($claude, "`r") | Out-Null
+        for ($k = 0; $k -lt 16; $k++) {
+            Start-Sleep -Milliseconds 500
+            if (Test-Busy) { Log "送出了（第 $try 次 Enter）"; return $true }
+        }
+        Log "按了 Enter，分頁沒有變成忙碌（第 $try 次）"
+    }
+    return $false
+}
+
 $claude = Find-ClaudePid
 Log "Claude 的程序：$claude"
 if ($Test) {
@@ -129,15 +172,15 @@ if ($offset -lt 0) { Log '30 分鐘內這一輪沒有結束：不清理'; exit 1
 Log "這一輪結束了（紀錄 $offset bytes）"
 
 if ($Mode -eq 'compact') {
-    $n = [ConIn]::Inject($claude, "/compact 摘要以 docs\handoff.md（交接檔）和現在在做的事為主：自主模式、使用者回報的 10 個問題的進度、接續的步驟、測試的操作方法`r")
-    Log "寫了 /compact（$n 筆按鍵），等壓縮完成"
+    if (-not (Submit "/compact 摘要以 docs\handoff.md（交接檔）和現在在做的事為主：自主模式、使用者回報的 10 個問題的進度、接續的步驟、測試的操作方法")) { Log '/compact 沒有送出：結束'; exit 1 }
+    Log '等壓縮完成'
     $done = Wait-For '"subtype":"compact_boundary"' $offset 600 3
     if ($done -lt 0) { Log '10 分鐘內沒看到壓縮完成的紀錄：不打接續的訊息'; exit 1 }
     Log '壓縮完成'
 } else {
-    $n = [ConIn]::Inject($claude, "/clear`r")
-    Log "寫了 /clear（$n 筆按鍵）"
+    if (-not (Submit '/clear')) { Log '/clear 沒有送出：結束'; exit 1 }
     Start-Sleep -Seconds 5
 }
-$n = [ConIn]::Inject($claude, "$Message`r")
-Log "寫了接著做的訊息（$n 筆按鍵）；結束"
+Start-Sleep -Seconds 2
+if (-not (Submit $Message)) { Log '接著做的訊息沒有送出'; exit 1 }
+Log '送出接著做的訊息；結束'
