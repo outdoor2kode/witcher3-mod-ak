@@ -41,9 +41,15 @@
 
 ### 接續的步驟（2026-10-16 14:5x）
 
-1. 第 3 項：從 REDkit 匯出 48 段騎馬動畫（表格第 3 列）到 `assetsnims\` → 寫 `tools\horse_pose.py` 產生雙手版／脊椎差值／單位差值到 `assetsnims\gfg\` → 匯入 `gfg_ak47_geralt.w2anims`（aim_cycle 用 plain；差值用 Import additive animations I (Local)）→ File → Save all → 重開 REDkit → 遊戲裡騎馬截圖
-   - AnimBrowser（Asset Browser 的 combat 分頁 → 雙擊 `man_geralt_gabriel.w2anims` → 問 Entity … 按「否」）：篩選框 (867, 92) 打名稱後**要按 Enter**；第一筆約 (847, 185)；右鍵選單的 Export animation 在點擊處往下約 120 像素（15:00 第一次點了沒出現存檔視窗，第二次右鍵沒出現選單 → 先截圖確認再點）
-   - 上馬：主控台 `instantMount('playerHorse')`（`temp.ws:7366`；先按 X 叫馬，馬生成後立刻可用）
+1. 第 3 項（騎馬姿勢）：
+   - 15:05 起背景匯出 48 段到 `assets\anims\man_geralt_gabriel_horse_*.re`（`g.sh` 的 `export_anim`、`horse_names`；檢查：`ls assets/anims | grep -c horse` 應該 48；少的用 `export_anim 名稱` 補）
+   - 接著寫 `tools\horse_pose.py`（用 Blender 內建 Python：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I`，h5py 在 `tools\_vendor\pylib`）：
+     a. 8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
+     b. 量原版：aim_cycle 第 0 格套上原版水平／垂直差值（試 local 和 ref 兩種套法，看哪個合理）→ 每格十字弩的方向（十字弩在 l_weapon 的軸：用 `ex_man_geralt_gabriel_aim_idle.re` 第 0 格「朝前」反推）→ 每格的左右角、上下角
+     c. 16 段水平／垂直：照 `aim_delta.py` 的 `spine_deltas`、`to_mode(…, 'local')`，每格轉到 b 量到的角度（左右轉 torso、torso2；上下轉 torso3）
+     d. 24 段射擊／別射我：全部單位（樣板＝原版檔，格數照抄）
+     e. 檢查（FK）：槍管方向和原版十字弩方向差幾度、右手掌心離握把幾公分
+   - 匯入 `gfg_ak47_geralt.w2anims`：a 用 Import simple/plain animations；b～d 用 Import additive animations I (Local)（地面的走跑瞄準差值也是這樣：`docs\m3.md` commit 0d1803e）→ File → Save all → 重開 REDkit → 騎馬截圖
 2. 第 4 項（上下馬流程）：還沒開始
 3. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
 4. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
