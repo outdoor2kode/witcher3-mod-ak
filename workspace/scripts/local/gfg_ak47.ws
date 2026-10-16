@@ -1647,8 +1647,33 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 	result = wrappedMethod( moveData, dt );
 	parent.GfgCameraTick( moveData, dt );
 	if ( parent.GfgHorseTick( vehicleCombatMgr, moveData, dt ) )
+	{
+		parent.GfgHorseCamLog( vehicleCombatMgr, true );
 		return true;
+	}
+	parent.GfgHorseCamLog( vehicleCombatMgr, false );
 	return result;
+}
+
+// 暫時的偵測紀錄（第 3 項：騎馬換彈時瞄準鏡頭被關掉，查原因）：用不用瞄準鏡頭、相關狀態改變時記一行
+@addField(CR4Player)
+var gfgHorseCamLogged : string;
+
+@addMethod(CR4Player)
+function GfgHorseCamLog( mgr : W3VehicleCombatManager, aimCam : bool )
+{
+	var s : string;
+
+	s = "aimCam=" + aimCam + " mgr=" + mgr.GetCurrentStateName() + " locked=" + IsCameraLockedToTarget() + " cbtAiming=" + vehicleCbtMgrAiming;
+	if ( rangedWeapon )
+		s += " ak=" + rangedWeapon.GetCurrentStateName() + " isAk=" + rangedWeapon.GfgIsAk();
+	else
+		s += " ak=none";
+	if ( s != gfgHorseCamLogged )
+	{
+		LogChannel( 'GFG', "horseCam " + s );
+		gfgHorseCamLogged = s;
+	}
 }
 
 // 騎馬時拿著 AK、用原版瞄準鏡頭時（GfgSetHorseAimCam）：上下、左右的目標角度都設成現在的角度，後座力轉的角度才不會被拉回（docs/findings.md §24.6、§24.7）

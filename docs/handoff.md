@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 16:4x（**自主模式**；第 1、2、5、6、7 項做好；第 3 項進行中；4、8、9、10 項還沒開始；壓縮門檻改成 45%）
+最後更新：2026-10-16 17:3x（**自主模式**；第 1、2、3、5、7 項做好；第 6 項改了待長測；4、8、9、10 項還沒開始）
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲 | **做好、遊戲裡看過**（commit 2729ec3、67ce769）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`）。移動沒開槍→上半身朝前（13:00 截圖：往鏡頭跑不扭）；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`＋`inAimThrowForOverlay`，不設的話起步卡 1.5～2 秒）＋雙手版側移動畫 6 段（13:3x 截圖：側移、後退兩手都在槍上，1.6～1.9 公尺／秒）。側移動畫沒有原版的腳步事件（腳步聲） |
 | 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
-| 3 | 騎馬的姿勢完全錯 → 修好 | **進行中**（15:0x）：14:54 截圖：騎馬拿 AK 是十字弩的姿勢（左手拿、槍直立在臉旁）。騎馬瞄準在 `pc_rider.w2beh` #4267：BlendOverride #4423（上半身 70 根）的覆蓋來源＝`man_geralt_gabriel_horse_horse_{breathing_slow,walk,trot,gallop}_aim_cycle`（#4439；拿劍時 `…_with_sword`：#4499），上面再疊加（AT_Local）：水平 `horse_{idle,walk,trot,gallop}_aimpose_horizontal_rp`（#4628）＋垂直 `…_aimpose_vertical_rp_{center,left,right}`（#4676）→ 別射我 `…_dont_shoot_me_bro{,_left,_right}`（#5139）→ 射擊 `…_shoot_additive_{center,left,right}`（#4386）。做法（同地面）：8 段 aim_cycle 換雙手版（`move_pose.py --full` 的作法：骨盆照原版、torso 補正）；16 段水平／垂直換「只轉脊椎」差值（`aim_delta.py` 的作法，角度從原版量）；24 段射擊／別射我換成不動的差值（單位）。全部在 `animations\man\combat\man_geralt_gabriel.w2anims` |
+| 3 | 騎馬的姿勢完全錯 → 修好 | **做好、遊戲裡看過**（17:3x）：騎馬瞄準換成雙手持槍：8 段 aim_cycle（`move_pose.py --full`）、16 段水平／垂直差值（`tools\horse_pose.py`，只轉脊椎、local）、24 段射擊／別射我（單位）、4 段換彈 `horse_*_reload_lowered`（雙手版＋事件 `OnWeaponReload` 0.7 秒、`RaiseWeapon` 1.05 秒）；拔槍、收槍照原版。驗證：停著、走、Canter、Gallop 槍管和鏡頭差 2.3° 以內；左右、背後、往上 30° 都跟得上；朝馬頭往下最多約 −20°（原版動畫圖的限制 #4315）；連射 30 發 → 換彈 1 秒 → 回到瞄準。細節 `docs\m3.md`「雙手持槍：騎馬」 |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | 未開始 |
 | 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（16:3x）。使用者 15:1x 更正：衝刺＝按 Shift；照原版擺手跑，但手上的槍要拿正（附圖：AK 直立在背後、槍口朝上）。做法：衝刺時手臂照原版擺；真的 AK（模型＋裝好的箭）藏起來，顯示「替身」AK（同模板自己生成，標籤 `gfg_carry_dummy`），每格帶偏移掛到左手：槍口朝前下 30°、往右 8°（相對玩家），握在彈匣前的機匣；開始 0.25 秒、結束 0.15 秒漸變；預測下一格手腕方向。為什麼要替身：物品系統把真的 AK 的動畫元件直接掛在 l_weapon，對實體 `CreateAttachment` 只動實體矩陣、畫面不變（15:4x 那版「驗證」看的是實體矩陣，其實沒效果；`docs\findings.md` §26、`CLAUDE.md` §6.18）。驗證（替身的 handle 骨頭）：槍管和目標差平均 2.3～2.6°、一直朝下 25°～38°；正常速度側面連拍：左手握機匣、槍口朝前下；衝刺跳躍、衝刺中按 C 收槍（槍回背上）、收拔後再衝刺都正常，沒有腳本錯誤 |
 | 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
@@ -39,26 +39,15 @@
 | 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
 
-### 接續的步驟（2026-10-16 16:4x）
+### 接續的步驟（2026-10-16 17:3x）
 
-1. 第 3 項（騎馬姿勢）：
-   - 48 段已匯出（15:15，`assets\anims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
-   - **48 段都做好了**（16:5x，commit d3073a5）：輸出在 `assets\anims\gfg\`（.re 不進 git，重做：`move_pose.py … --full` 做 8 段 aim_cycle，再 `"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/horse_pose.py assets/anims assets/anims/gfg assets/anims/gfg`）
-     - 量原版（十字弩的軸取站著瞄準第 0 格朝前）：騎馬差值是 **local**，時間角度規則和地面站著瞄準一樣（水平每秒 180°、垂直約每秒 90°、第 60 格不偏、第 0～30 格倒放）；ref 方式不合理
-     - 16 段水平／垂直：只轉脊椎（`aim_delta.write_delta`，local）；24 段射擊／別射我：單位
-     - 檢查：4 個底層槍管水平朝前（0°、0°）；水平＋垂直同時套、套在 aim_cycle 每一格：槍管誤差 0.0°、右手掌心離握把 0.01 公分
-   - 匯入 `gfg_ak47_geralt.w2anims`：a 用 Import simple/plain animations；b～d 用 Import additive animations I (Local)（地面的走跑瞄準差值也是這樣：`docs\m3.md` commit 0d1803e）→ File → Save all → 重開 REDkit → 騎馬截圖
-     - **匯入進行中（16:4x）**：遊戲已 F10 結束；我們的動畫組已在 AnimBrowser 開著（0x37316DE；Asset Browser 的 animations 分頁 (360,170) → 雙擊 (595,268) 用 `desk.ps1 click x y left 2`）
-     - Open files 對話框**不能多選**（整串引號檔名 → File not found）→ 一段一段匯入；對話框預設在 `assets\anims\gfg`，檔名框 (470,512)
-     - g.sh 的 `import_one <plain|local> <檔名>`（右鍵動畫組那一行 → 選單第 4 項 plain／第 6 項 Additive I (Local)）**還沒成功**：
-       - (807,167) 那一行會因列表捲動變成別段動畫；右鍵到動畫的選單會開「Choose Recompression Preset」→ 按 **Cancel (1055,624)**（Esc 關不掉；不要按 Recompress）
-       - 先點列表、按 Home 再右鍵 (807,167)＋下 ×4＋Enter：沒有開出對話框 → 下次右鍵後先截圖（grid）看選單位置再點
-       - 動畫組那一行的選單（16:4x 截圖）：Recompress all／Recompress all (choose preset)／Reimport all／**Import simple/plain animations**／Import additive animations (skeleton)／**Import additive animations I (Local)**／II (Ref)／…
-     - 全部 48 段：8 段 `man_geralt_gabriel_horse_horse_{breathing_slow,walk,trot,gallop}_aim_cycle{,_with_sword}.re` 用 plain；40 段 `man_geralt_gabriel_horse_{idle,walk,trot,gallop}_{aimpose_horizontal_rp,aimpose_vertical_rp_{center,left,right},dont_shoot_me_bro{,_left,_right},shoot_additive_{center,left,right}}.re` 用 Local；做完 Ctrl+S → File → Save all → 重開 REDkit
-2. 第 4 項（上下馬流程）：還沒開始
-3. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
-4. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
-5. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
+1. 第 4 項（上下馬流程）：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了
+   - 先查叫馬（X）、下馬（E）被擋的原因：十字弩拿出時自己鎖下馬、上馬（`rangedWeapon.ws:1145-1146`、`:56-61`）；叫馬的鎖要查
+   - 騎馬的暫時紀錄 `GfgHorseCamLog`（`[GFG] horseCam`：瞄準鏡頭、戰鬥管理狀態、AK 狀態改變時一行）可以用
+2. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
+3. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
+4. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
+- 騎馬測試（`g.sh`）：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）；動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
 - 測試小技巧（暫存資料夾 `desk\g.sh`，session 結束就沒了）：`game_start`＝開遊戲到拿出 AK（約 1 分鐘：play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`wolf_test N 秒`＝關無敵、生狼
   - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`
   - `additem` 前要先 `setlevel(31)`（14:3x：沒設等級時主控台顯示 `Invalid Item ID: 0`、輪盤沒有 AK）
