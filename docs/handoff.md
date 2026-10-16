@@ -4,41 +4,64 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 05:4x（**自主模式**；清理兩次都做完、編譯過；下一步：簡單再測、重新打包、結束自主模式）
+最後更新：2026-10-17 05:5x（**自主模式結束**；使用者回來時先看下一節）
 
 ---
 
-## 自主模式：10-17 02:1x 恢復（使用者 02:0x 暫停、看過後 02:1x 回報第 19 項、說「自主模式繼續做」）
+## 使用者回來時先看這裡（2026-10-17 05:5x）
 
-- 使用者 02:1x：「我檢查了一下整體都很好」；**先不要裝進遊戲，開發完整再來裝**（之前問的「裝進 mods\、dlc\」→ 不裝，最後再說）
-- 背景程序（02:1x 重開）：保持清醒 `desk.ps1 awake 2147483`（背景工作 bw5jir1f2）；續做排程 CronCreate 每小時 :13（job **e185db7f**；7 天後過期 → 10-23 之後重排）；看門狗 `claude_compact.ps1 <紀錄> watch`
-- **第 19 項：做好、遊戲裡驗證過**（02:5x）：使用者 `spawn('wolf', 30, 30, true)`，還沒拿出 AK 就走進狼群 → 原版自動拔劍；拿著劍按射擊 → 單手拿 AK、AK 看不到、不能射擊（截圖 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\images\18.png`）
-  - 使用者要的：「強制裝上 AK 的情況下，不准拿劍；進到狼群或戰鬥，要自動做的事情是舉槍」→ 寫進 `CLAUDE.md` §7
-  - 決定（自己定）：條件是「AK 是選用物品，或 AK 拿在手上」（`GfgNoSwordMode`）；選別的物品時照原版。1／2 鍵擋掉、沒反應（不另外改成舉 AK：使用者沒要求）
-  - 做法：原版自動拔劍都先問「最適合的劍」→ 包 `WeaponHolster.GetMostConvenientMeleeWeapon`：劍換成空手（`CombatFists`）、記下要舉 AK；包 `OnEquipMeleeWeapon` 擋鋼劍、銀劍（收劍照原版）；每格（`GfgNoSwordTick`）收掉手上的劍（戰鬥中收成空手）、5 秒內找時機舉 AK（地面同按左鍵、騎馬同騎馬左鍵；上下馬等狀態不舉、試一次後隔 1 秒）；拿著劍按左鍵 → 先收劍、收好再舉 AK、左鍵還按著就接著射。原版路線、實測 `docs\findings.md` §29
-  - 實測：30 隻狼、5 隻狼各一次：沒拔劍、自動舉 AK（`raise AK … pstate=CombatFists`）；收著 AK 按 1：`sword draw blocked`；暫時指令 `gfgsword()`（繞過擋劍直接拔鋼劍）：沒戰鬥 0.3 秒內收回背上、戰鬥中收完接著舉 AK；拔劍中按住左鍵：收劍 → 舉 AK → 連射 29 發；騎馬戰鬥開始：騎馬舉 AK、1.2 秒 17 發、W 照常走
+自主模式（10-17 02:1x 恢復）做完、結束了。背景程序都停了：保持清醒、看門狗、每小時續做排程。
+
+**做完的**（都在 REDkit 裡的遊戲驗證過）
+
+- 兩批問題（第 1～19 項）都處理完：狀態見下面兩張表
+- 這一輪做的：
+  - 第 19 項：AK 是選用物品（或拿在手上）時不拿劍；進戰鬥、被打、敵人靠近、騎馬戰鬥 → 自動舉 AK；1／2 鍵不拔劍；手上有劍時先收劍再舉 AK（`CLAUDE.md` §7、`docs\findings.md` §29）
+  - 第 8 項 B：換彈時彈匣真的拿下來：左手握著彈匣拉下、到左腰換新的、裝回去；地面、騎馬都有（`docs\m3.md`「換彈動畫：彈匣拿下來」）
+  - 開槍中按 A／D 側移：扭轉分給三節脊椎，每節最大扭轉減半以上（`docs\m3.md`「雙手持槍：開槍中側移」）
+  - 清理：測試用的主控台指令、查問題用的紀錄都拿掉了；腳本只留兩個「找不到模板」的錯誤紀錄
+  - 重新打包（05:46，版本 0.2）：輸出在 `packed\`（見下面「裝進遊戲」）；包進去的 14 個檔都核對過；打包後重開 REDkit，開遊戲、連射、換彈都正常（`docs\findings.md` §27）
+
+**沒做完的**（已知的小問題；要做的話跟 Claude 說）
+
+- 開槍中按 D／A 側移：腿和上半身的總扭轉還是約 47°（每次混法不一定，有時只有 0～5°）
+  - 要降得換一套側移的腳步動畫（NPC 的；速度、步伐要另外對上）→ 成本高，先不做
+- 換彈結束、切回瞄準的約 0.2 秒，右手會離開握把一下（騎馬量到 4～21 公分）
+- 狼：正面瞄口鼻不算爆頭（口鼻離頭部骨頭 0.35 公尺）
+- 曳光：沒做
+  - 原版能從槍口連到目標的特效都是魔法光束；箭的軌跡在子彈速度下看不到
+  - 想法：另外生成一個慢速、發光的曳光
+- M4 聲音（CS2 槍聲）：要用 Wwise 做 SoundBank → 要使用者用自己的帳號申請 Wwise 授權、安裝
+  - 打包紀錄也寫 `Wwise installation not found`
+  - 要裝的版本先確認（`CLAUDE.md` §3）
+
+**要使用者決定或操作的**
+
+1. 裝進 Steam 版遊戲：使用者 02:1x 說「先不要裝進遊戲，開發完整再來裝」→ 沒裝
+   - 要裝時：`packed\mods\modgunforgeralt` 複製到 `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` 複製到 `<W3_GAME_DIR>\dlc\`（推論，沒驗證過）
+   - 會寫遊戲資料夾（唯讀，`CLAUDE.md` §11）→ 使用者同意後 Claude 複製，或使用者自己複製
+   - 裝之前備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`
+   - 裝了之後要驗證：拿 AK、開槍、換彈、騎馬（Steam 版從沒跑過我們的 mod）
+2. 上面「沒做完的」哪些要做、先做哪個
+3. M4 的 Wwise 授權
+
+**現在的狀態**
+
+- REDkit 05:49 重開過：開著 `reference_level` 世界、Asset Browser；遊戲已用 F10 結束
+- `gunforgeralt.w3edit` 是 REDkit 自己改的（開過測試關卡）→ 照舊不 commit
+- 腳本沒有測試用的主控台指令、沒有 `[GFG]` 紀錄了 → 之後測試用截圖判斷；要量東西時再暫時加紀錄
+
+### 這一輪自己做的決定（自主模式 10-17 02:1x～05:5x）
+
+- 第 19 項的條件：「AK 是選用物品，或 AK 拿在手上」（`GfgNoSwordMode`）；選用物品換成別的（炸彈等）照原版
+  - 1／2 鍵只擋掉、沒反應：不另外改成舉 AK（使用者沒要求）
   - 戰鬥中按 C 收起 AK 會再自動舉起（同原版戰鬥中收劍會馬上再拔）
-  - 暫時的（清理時拿掉）：`gfgsword()`、`gfgSwordTestBypass`、紀錄 `sword draw blocked`、`sheathe sword for AK`、`raise AK`、`sword wait`、`raise wait`
-- **第 8 項 B：做好**（10-17 05:0x）：換彈時彈匣真的拿下來（真的 AK 換成沒彈匣的替身、彈匣替身掛左手）；左手握著彈匣拉下、到左腰、帶回裝上
-  - 遊戲裡看過：地面（左前方 45°、左邊 90°、拉槍機那段）、騎馬停著（左前方 60°）；騎馬 Canter、Gallop 的紀錄 `mag out t=0.315 dist=0.008`、`t=0.316 dist=0.009`
-  - 做法、量法、側面看的方法：`docs\m3.md`「換彈動畫：彈匣拿下來」
-  - 暫時指令（清理時拿掉）：`gfgnoturn`、`gfgfree`、`gfgshots`、`gfgmagshow`；紀錄 `[GFG] pose mag`、`mag out` 的 `attached=`、`mag no grab`
-  - 測法（g.sh）：`side_reload2 前綴 [角度=45] [距離=1.3] [高度=0] [張數=14] [間隔毫秒=4000] [慢動作=0.02]`；騎馬：`horse_start` 之後 `side_reload2 名 60 1.3 0.1`；看拉槍機：等 `mag in` 之後才開 `gfgfree`
-  - REDkit 03:15 重開：主視窗 `0xAD0A1C`、Asset Browser `0x35D0E38`（移到螢幕右下外面）；AnimBrowser 用時再開（上次 `0x890D56`，已關）
-  - 原版十字弩行為：換彈後不在戰鬥、沒瞄準 → 延遲後自動收起（`rangedWeapon.ws:146-157`）；測試時 AK 會被收起來，點一下畫面再拿出
-- **開槍中側移（第 13 項剩下的）：做了能做的部分**（05:2x）：6 段側移用 `--spread 0.2 0.4 0.4` 重做、匯入（單節最大扭轉減半以上，槍不變）；總腰扭（D、A 有兩種模式 ±47°）沒降：要換腳步來源，成本高 → 先不做；細節 `docs\m3.md`「雙手持槍：開槍中側移」
-  - AnimBrowser 05:1x 開過：`0x2E41C84`（g.sh 的 `GAB` 已換；還開著）
-- **現在做：清理暫時指令與紀錄**（05:3x 開始）
-  - **第一次做完、編譯過，遊戲裡還沒測**（05:4x）：拿掉每格／定時的紀錄（`pose`、`twist`、`diag`、`horseCam`）、查問題用的紀錄（`forceHolster`、`rangedForceHolster`、`sword wait`、`raise wait`、`mag no grab`、`holster for vehicle`、`mount interaction allowed`、`manual hit`、`coll`、`bullet sparks/hit`、`ray hit/miss`、`ak dmg`、`CNewNPC.OnTakeDamage` 的包裝）、測試指令 `gfgfree`、`gfgnoturn`、`gfgmagshow`、`gfgbullet`、`gfgdmg`、`gfgwolf`、`gfghorsehere`
-  - 第二次（回歸測試後）再拿：`gfgshots`、`gfgsword`／`gfgSwordTestBypass`、紀錄 `mag out`、`mag in`、`raise AK`、`sword draw blocked`、`sheathe sword for AK`；**永久保留**找不到模板的錯誤紀錄（`carry dummy template not found`、`mag template not found`）
-  - g.sh 的 `side_reload2` 用到已拿掉的 `gfgnoturn`、`gfgfree`（要再側面看就從 git 找回 commit e0bfb09 的版本）
-  - **回歸測試（05:3x，第一次清理後）通過**：地面開槍到換彈 `mag out t=0.32 dist=0.011`、`mag in t=1.51`；收槍後 `spawn('wolf', 3, 8, true)` → `raise AK … combat=true`（沒拔劍）；按 1 → `sword draw blocked`；收著 AK 時 `gfgsword()` → `sheathe sword for AK`（拿著 AK 時 `gfgsword()` 沒反應：原版不拔，02:5x 也是收著測的）；騎馬開槍到換彈 `mag out t=0.32`、`mag in t=1.51`；拿著 AK 長按 E 下馬 → AK 在背上；衝刺跳躍連拍（`rj1`～`rj6`）正常；腳本錯誤只有原版的（教學、馬的 `exploration.ws:3386`）
-    - **g.sh 的 `game_start`、`horse_start`、`ak_select` 用 `[GFG] pose` 判斷 AK 拿出來了沒 → 這個紀錄拿掉了，會誤報「沒拿出來」**：用截圖確認，或改成別的判斷
-    - 教學提示（升級的 Ability Point）會吃掉主控台指令 → 先 `closeTutorialPopup()`
-  - **第二次清理做完、編譯過**（05:4x）：`gfgshots`、`gfgsword`／`gfgSwordTestBypass`、紀錄 `mag out/in`、`raise AK`、`sword draw blocked`、`sheathe sword for AK` 都拿掉；腳本裡只剩兩個找不到模板的錯誤紀錄、沒有主控台指令
-  - **簡單再測通過**（05:4x，`sm1`～`sm6`）：重載腳本、開遊戲、按住左鍵 3.5 秒：連射有槍口火光、約 3 秒進換彈姿勢；沒有我們腳本的錯誤。**沒有紀錄可看了，之後都用截圖判斷**
-  - 接續（壓縮後從這裡做）：① 重新打包：REDkit 選單 Publish → Save and publish mod project（輸出在專案的 `packed\`；做法 `docs\findings.md` §27；打包前先 F10 結束遊戲）→ 打包後重開 REDkit（同一次按 play game 會當掉）② 照 §14 結束自主模式：CronDelete e185db7f、停保持清醒（bw5jir1f2）和看門狗（刪旗標）、交接檔最上面寫「使用者回來時先看這裡」（做完的、沒做完的：開槍側移的總腰扭、換彈結束 0.2 秒右手離開握把、曳光、聲音 M4 要 Wwise 授權；要使用者決定的：裝進遊戲 `mods\`、`dlc\`）、終端機叫回前面
-- 之後：曳光（先跳過）；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
+- 開槍中側移：只把扭轉分給三節脊椎（`move_pose.py --spread 0.2 0.4 0.4`）；總量要換腳步來源 → 先不做（理由見 `docs\m3.md`「雙手持槍：開槍中側移」）
+  - 試過、放棄：把 `f_45r` 的下半身轉 −45°（位移變正右）→ 按 D 實際移動偏到 69～86°（動畫圖照原本的 135° 補正）
+- 曳光：先跳過（01:3x 決定；理由見上面「沒做完的」）
+- 清理：所有主控台指令（`gfgfree`、`gfgnoturn`、`gfgmagshow`、`gfgbullet`、`gfgdmg`、`gfgwolf`、`gfghorsehere`、`gfgshots`、`gfgsword`）和定時／查問題的紀錄都拿掉；永久保留 `carry dummy template not found`、`mag template not found` 兩個錯誤紀錄
+  - 要再用的話：從 git 找回（例：commit e0bfb09 的 `gfg_ak47.ws` 還有 `gfgnoturn`、`gfgfree`）
+- 打包的版本號改成 0.2（第一次打包是 0.1）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）
 
@@ -55,21 +78,7 @@
 | 17 | 騎馬換彈會變成 180° 往後看（人不可能扭成這樣），也沒有換彈動畫（截圖 15） | **180° 修好**（23:2x）：換彈的 torso 補正改用騎乘的骨盆（`move_pose.py --pelvis-from`）；走 3、Canter 6～7、Gallop 12.3 m/s 連射到換彈：腰扭 −23～−25°、連拍上半身朝前。「沒有換彈動畫」和第一批第 8 項一起做 |
 | 18 | 騎馬往後射擊：上半身轉 180°、下半身不轉，不合人體工學（截圖 16；「還是沒改正」） | **做好**（23:2x）：騎馬瞄準底層換成正面持槍（瞄前方腰扭 −58° → −24°）；左右範圍限制右 60°、左 110°（腰扭最多約 85°），超出時姿勢停在邊界、不開火、準心藏起；從背後換邊時上半身經過前方轉過去（約 0.5 秒）；瞄準姿勢改成跟子彈同方向（只有 Z 鎖定時朝目標）。遊戲裡：右 50° 腰扭 −74°、左 100° +76°、右 70°／左 130°／150° 停在邊界、範圍外 0 發。細節 `docs\m3.md`「騎馬：正面持槍、瞄準範圍、換彈朝前」 |
 
-## 自主模式（2026-10-16 12:3x 起；20:2x 暫停、20:4x 恢復）
-
-- 使用者：「假設我要離開電腦一年才回來接手，你要一直 RUN 下去獨立操控電腦解決任務」
-  - 規則（使用者 2026-10-16）：使用者說「恢復自主模式」才開；任務做完就結束；沒說就是互動模式
-- 不問使用者；決定和理由寫進這份檔案；範圍照舊：只做 AK 本身、只改專案資料夾（`CLAUDE.md` §7、§11）
-- **等待一次最多 15 秒**（使用者 2026-10-16 從 30 秒改成 15 秒）：到時間先截圖檢查狀態再決定，不是直接關程式
-- 保持清醒：背景 `desk.ps1 awake 2147483`（12:3x 起，約 24.8 天；PowerShell 的 `Start-Sleep` 最多 2147483 秒）
-- 續做排程：CronCreate 每小時 :13（job `6de2cbf7`，20:4x 重排；7 天後自動消失 → 2026-10-22 之後被叫醒時重排）
-- **context 到 45%**（使用者 16:2x 從 38% 改成 45%）：更新交接檔、commit → 背景跑 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/claude_compact.ps1 <對話紀錄.jsonl>`（Bash 的 run_in_background）→ 結束這一輪；它會在終端機打 `/compact`、等壓縮完、再打「讀交接檔接著做」（`CLAUDE.md` §3、§14）
-  - 14:22 實測成功：/compact 送出、壓縮完、接著做的訊息送出（使用者剛好在輸入框打字 → 兩段接在一起送出）
-- **不准停超過 10 秒**（使用者 14:2x 加的規則，`CLAUDE.md` §14）：看門狗背景 `claude_compact.ps1 <紀錄> watch`（20:4x 重開，背景工作 b4r7kapce；保持清醒 bchoezw4w）；收到 `[gfg-watchdog]` 訊息就查原因、排除、接著做
-  - 對話紀錄：`C:\Users\beyon\.claude\projects\D--OneDrive-Desktop-gunforgeralt\<session id>.jsonl`；context 使用率：`%TEMP%\claude\gfg-context\<session id>.pct`
-- **結束自主模式**：CronDelete、停掉保持清醒（TaskStop 背景工作，或殺掉命令列含 `desk.ps1 awake` 的 `powershell.exe`）、這份檔案最上面寫「使用者回來時先看這裡」、終端機叫回前面（`desk.ps1 focus proc:windowsterminal`）
-
-## 現在在做：使用者回報的 10 個問題（2026-10-16 12:2x）
+## 第一批問題（使用者 2026-10-16 12:2x 回報）：都處理完
 
 使用者看過雙手持槍：站立、射擊、跑跳、收槍的姿態都好。要處理的：
 
@@ -86,66 +95,30 @@
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭做好**（21:3x，第 11 項一起改：射線離頭部骨頭 0.17 公尺內 ×4，人類 1365、加暴擊 1692）。推算和實測 `docs\m3.md`「子彈、傷害」。**槍口火光做好、遊戲裡看過**（10-17 01:2x）：自己的特效模板 `dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent`（原版刀劍火花的複本：拿掉刀劍聲、光 0.06 秒半徑 3、粒子只噴 0.1 秒），每發掛在 `l_weapon` 的槍口；連射時槍前端每發一團星狀閃光、晚上地面被照亮。細節 `docs\m3.md`「槍口火光」、REDkit 操作 `docs\findings.md` §28 |
 
-### 接續的步驟（2026-10-17 00:0x 改順序）
+## 測試小技巧（`desk\g.sh` 在 session 暫存資料夾，session 結束就沒了）
 
-- **最優先：打包、在 Steam 版遊戲裡驗證**（使用者 10-17 00:0x：「你真的做太久了，你是不是大方向錯了啊…偶爾拉出來看看全局」）
-  - 全局檢查的結論：動畫的做法沒歪（問題多是各狀態各缺一段雙手動畫；共同的根本＝側身底層，22:3x 已從根本換成正面持槍）；**真正更根本、一直沒做的是打包**：mod 從沒打包、Steam 版遊戲完全讀不到（`docs\findings.md` §13.16），改過的原版動畫圖（`pc_overlay.w2beh`、`pc_gameplay.w2beh`）、DLC 動畫組、腳本打包後能不能生效都沒驗證；REDkit 裡的遊戲本身也有毛病（開久了上不了馬）
-  - 步驟：① **REDkit 打包：做好**（00:1x；輸出在專案的 `packed\`；`docs\findings.md` §27）② 裝進遊戲要寫 `<W3_GAME_DIR>\mods\`、`dlc\`（唯讀，`CLAUDE.md` §11）→ 00:1x 問了使用者；**使用者 02:1x：先不要裝，開發完整再裝**（同意讓 Claude 複製，或使用者自己複製；測前先備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`，55 個檔 13 MB）③ Steam 版跑基本流程：拿 AK、開槍、換彈、騎馬 ④ **換彈 A 的 6 段：匯入、遊戲裡驗證，做好**（00:5x）；彈匣分離（B）等 Steam 版驗證過再做
-  - 打包後同一次開著的 REDkit 按 play game 當掉 → 00:3x 重開 REDkit（主視窗 `0x1809A4`；g.sh 已換；AnimBrowser 要用時重開、更新 `GAB`）
-  - 開遊戲前先把編輯器鏡頭移到地面（滑鼠指地面按 J）：00:40 從高處摔死、死亡選單選錯 → 遊戲直接結束
-
-- **第 10 項槍口火光：做好**（10-17 01:2x；上表第 10 項）
-  - 打包要重做：這次的改動（槍口火光模板 `dlc\gunforgeralt\data\fx\`、腳本、2.4 秒的換彈動畫組）都在第一次打包（00:1x）之後
-- **succesfullyCooked: false 查過**（01:3x）：候選原因＝`.ws` 被當資源 cook 失敗、沒有 Wwise；遊戲執行檔沒有這個欄位名 → 推論不影響遊戲（`docs\findings.md` §27）
-- **曳光：先跳過**（01:3x 決定）：原版能連到目標的特效（`drain_energy`、`lightning`）都是魔法光束；箭的軌跡在 715 公尺／秒看不到（之前測過）；不是使用者明確要求的 → 記下來，之後有空再做（想法：另外生成一個慢速、發光的曳光實體）
-- **第 8 項 B 彈匣分離：做好**（01:3x～05:0x；見最上面「自主模式」）
-
-0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
-   - 第一批第 8 項（換彈動畫）：A、B 都做好（`docs\m3.md`「換彈動畫」兩節）
-   - 第 10 項：槍口火光（＋曳光）
-   - 第 6 項：長測（30 隻狼，看鎖定解不掉有沒有再出現）
-   - 第 13、14 項：沒開槍走跑做好（見上表）；**開槍中側移**（全身側移 6 段）另外量過（22:4x，相對準心，正 = 右）：W 骨盆 65、肩 63（扭 −2）；W+D 91／82（−9）；D 112／81（−31）；A 38／44（6）；W+A 34／49（15）；穩定時槍管對準準心 0～2°，起步 0.5～1 秒偏 40～60°。D 的 −31° 之後有空再改（想法：NPC 十字弩兵側移 `assets\anims\man_npc_bow_strafe_walk_*.re` 已匯出，但速度是 Geralt 的 2 倍 2.4 公尺／秒，要另外處理）
-   - 之後：第一批第 8 項（換彈動畫）、第 10 項槍口火光、第 6 項長測、清理暫時紀錄（新增：`ray hit`、`ray miss`、`manual hit`、`coll`、`gfgwolf` 的 3～5 種類、`twist`（`GfgLogTwist`、`GfgLineHeading`））
-   - 測試小技巧（21:xx 學到）：`restart_all`（g.sh；點遊戲畫面拿焦點 → F10 → 重載腳本 → 開遊戲，約 1.5 分鐘）；遊戲中用選單熱重載沒反應；`sweep 檔名 dy 次數`＝按住左鍵往上掃；**burst 的前綴要寫完整路徑 `"$P/名稱"`**，不然存到專案資料夾；`gfgwolf` 用 Geralt 身體的朝向，不是鏡頭
-
-1. 第 10 項：
-   - **爆頭判定（20:2x 使用者接手時停在這裡）**：原版的爆頭靠 Ragdoll 碰撞的骨頭（`arrowProjectile.ws:91-94`），子彈先撞到角色膠囊（`Character`）就算命中、沒有骨頭 → 不會爆頭
-     - 試過、放棄：AK 子彈的碰撞群組拿掉 `Character`（只打 `Ragdoll`）→ 打不到人（20:0x）
-     - 現在的程式（20:12 commit、編譯過）：`GfgIsHeadOnLine`：頭部骨頭到子彈直線（`gfgShotFrom` → 碰撞點）的最近距離 < 0.15 公尺 = 爆頭；`head` 骨頭找得到（紀錄 `[GFG] head check`）
-     - **20:15 查到的原因**：不管準心瞄頭還是胸口，子彈都打在目標胸口同一點（比頭部骨頭低 0.45 公尺，紀錄 hit 座標完全一樣）；不是硬鎖定（按 Z 才出現鎖定菱形，解除後還是一樣）
-       → 推測是原版的自動瞄準：`W3BoltProjectile.ThrowProjectile`（`playerBoltProjectile.ws` 約 250 行起）有目標時用 `ShootProjectileAtBone( 目標, 骨頭 )`，我們的 `ShootProjectileAtBone` 包裝保留了骨頭
-     - **d8a67b8（20:17）**：`ShootProjectileAtBone` 包裝：AK 的子彈改呼叫 `ShootProjectileAtPosition( …, gfgAimTarget, … )`（`ThrowProjectile` 包裝裡記下的準心射線點，新欄位 `gfgAimTarget`）
-     - **20:2x 測試結果：子彈常穿過人**（準心從靶子腳邊往上掃、一邊連射）
-       - 715 公尺／秒：7 發全部沒打中，打在靶子後面的地上（x 45.5 → 42.3）或遠處
-       - 60 公尺／秒（`gfgbullet(60)`）：前 3 發打中小腿（z≈5.2、靶子中心前 0.19 公尺），後 5 發一樣穿過去打到後面的地上
-       - 算過：其中一發的鏡頭射線在靶子膝蓋高度離靶子中心線只有 0.1 公尺，`GfgAimPoint` 卻回傳後面的地面 → 準心射線（`RayCastSync`，碰撞群組和原版 `CalculateAimPosition` 一樣：`playerAiming.ws:33-49`、`:553-616`）看起來沒打到人（還沒用紀錄證實）
-       - 原版十字弩打人不靠這條射線：有目標時一律 `ShootProjectileAtBone` 自動瞄準（`playerBoltProjectile.ws:353-377`）
-     - 原版的碰撞規則（20:2x 查）：弩箭的碰撞群組預設 `Ragdoll, Static, Terrain, Water, Character`（`playerBoltProjectile.ws:34-40`）；目標有 `AddRagdollCollision` 標籤時拿掉 `Character`（`:370-373`）；有這個標籤的 NPC 被膠囊（`CMovingAgentComponent`）擋到、玩家又沒有畫面目標時不算命中（`:165-168`）；打到 Ragdoll 時有元件、用 `actorIndex` 查骨頭（`arrowProjectile.ws:85-94`）→ 和 20:0x「Ragdoll 碰撞沒元件」的結論矛盾，要再確認
-     - 下一步（擇一，要使用者決定）：
-       - 甲：退回 d8a67b8（打人穩定中胸口，沒有爆頭）
-       - 乙：先在 `GfgAimPoint` 加紀錄印出射線的每個結果（實體、元件類別、距離、位置），確認為什麼沒打到人
-       - 丙：保留原版自動瞄準（`AtBone` 一定打得中），但骨頭改成「準心射線最靠近的骨頭」：射線離頭部骨頭 < 0.15 公尺就打 `head`、算爆頭；射線沒經過目標才用 `AtPosition`
-     - 測試時的瞄準：`con` 之後鏡頭上下重設；小的 `rmove`（每次 5 像素以下）常被吃掉；Z＝硬鎖定（目標名字旁出現菱形），子彈改朝鎖定點（`GfgLockPoint`：軀幹＋0.2 公尺，既有設計）
-     - 測法：`con "gfgwolf(6,1,31)"`（31 級人類、站著不動）→ `d rmove -10 -30 2 20`、`d rmove -10 -15 1 20`、再 `d rmove 0 -15 1 20` → 點一下左鍵 → 紀錄 `[GFG] head check … hitDist= lineDist=`、`[GFG] ak dmg … head=`
-   - 傷害公式已驗證（20:0x）：狼（5 級，165 血）一發倒；1 級人類 41.25 血；31 級人類 2763.75 血、每發 384.87；實際＝基礎＋58（人的血）、基礎×1.25＋58（怪物的精華）
-   - 槍口火光（＋曳光）：REDkit Entity Editor 在 AK 的實體模板加特效（找原版粒子，例：`fx\weapons\obstacle_hit\sparks_colision.w2p`、`fx\weapons\trails\sparks\fire_sparks_trail.w2p`、`fx\skills\maiming_shot\maiming_shot_crossbow_fx.w2p`；`r4data\fx` 有 2003 個 `.w2p`），每發 `PlayEffect`；槍口位置要從模型算（CS2 `m_vecMuzzlePos0`）
-   - 再來第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
-2. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
-3. 全部做完拿掉暫時的指令和紀錄：`gfgbullet`、`gfgwolf`、`gfgdmg`、`CNewNPC.OnTakeDamage` 包裝（`[GFG] dmg`）、`[GFG] ak dmg`、`bullet sparks`／`bullet hit` 紀錄、`GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`gfghorsehere`、`holster for vehicle`、`mount interaction allowed with AK`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
-- 騎馬測試（`g.sh`）：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）；動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
-- 測試小技巧（暫存資料夾 `desk\g.sh`，session 結束就沒了）：`game_start`＝開遊戲到拿出 AK（約 1 分鐘：play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`wolf_test N 秒`＝關無敵、生狼
-  - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`
-  - **REDkit 開久了，空手按 E 也上不了馬**（18:0x：互動輸入完全沒進腳本）→ 重開 REDkit 就好（使用者 18:0x：「如果已經沒拿槍，就是之前遇到的問題又出現了，看你要修還是直接關掉 redkit 重開」）；判斷順序：拿著 AK 不能上下馬＝第 4 項本身（已修好）；空手也不行＝環境問題 → 重開
-  - 18:06 重開 REDkit 後主視窗 handle 是 `0x461CEC`（g.sh 已換；AnimBrowser 都關了，要用時重開、更新 `GAB`、`AB`）；`ak_select`＝輪盤選 AK＋左鍵拿出（`game_start` 的主控台步驟跑掉時單獨補做；18:12 發生過：主控台沒打開、按鍵打進右邊 Scene 搜尋框）
-  - `additem` 前要先 `setlevel(31)`（14:3x：沒設等級時主控台顯示 `Invalid Item ID: 0`、輪盤沒有 AK）
-  - 主控台指令曾打進 REDkit 右邊 Scene 的搜尋框（焦點在那裡）→ 編輯模式下點一下畫面空白處（天空）把焦點移走
-  - 原地跳旁邊有高台會變成攀爬（攀爬照原版收槍）→ 到空曠處測
-  - 連拍：`desk.ps1 burst <前綴> <張數> <間隔毫秒> rect=… hold=w,shift pre=1500 key=space`
-  - **慢動作**：遊戲中按數字鍵盤減號（`d key numminus`）3 次 = 0.125 倍，`numplus` 3 次回到 1 倍；**F10 重開遊戲後不會重設**（右上角紅字 Time scale）
-  - 連拍的前綴不要和其他截圖同名（會被 `前綴1.png`… 蓋掉）；遊戲裡改白天：`settime(1, 12)`（`gameTime.ws:182`；重開遊戲會變回深夜）
-  - 看衝刺側面：按住 A＋Shift 往左跑（鏡頭直接看到左側）；連拍用工具內建的 `hold=a,shift pre=1500 [key=space|c]`（desk.ps1 每次呼叫要 0.3～0.5 秒，分開下指令時間會對不準）
-  - 側面拍左手：衝刺中 `d rmove -150 0 6 15`～`-250` 轉鏡頭（鏡頭在右後方時左手的槍被身體擋住：看起來「槍不見」不一定真的不見）
-- 偵測紀錄 `GfgLogDiag`（`[GFG] diag`）：`fullBodyAnimWeight`、`playerSpeedForOverlay`（衝刺 1.5、跑 1.0）、滑動／畫面目標等
+- `g.sh`（`source` 後用）：`game_start`＝開遊戲到拿出 AK（play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`restart_all`＝點遊戲畫面拿焦點 → F10 → 重載腳本 → 開遊戲（約 1.5 分鐘）
+  - ⚠️ `game_start`、`horse_start`、`ak_select` 用 `[GFG] pose` 紀錄判斷 AK 拿出來了沒 → 這個紀錄 10-17 拿掉了，一定印「AK 沒拿出來」→ 用截圖確認
+  - `side_reload2`（側面看換彈）用到已拿掉的 `gfgnoturn`、`gfgfree`
+  - 視窗 handle 每次重開 REDkit 都會變：g.sh 裡的主視窗（10-17 05:49 起 `0x13095E`）、`GAB`（AnimBrowser，現在沒開）要跟著換
+- 騎馬：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）
+- 動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
+- 開遊戲前先把編輯器鏡頭移到地面（滑鼠指地面按 J）：10-17 00:40 從高處摔死、死亡選單選錯 → 遊戲直接結束
+- 教學提示（升級的 Ability Point 等）會吃掉主控台指令 → 先 `closeTutorialPopup()`
+- **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`；遊戲中用選單熱重載沒反應
+- **REDkit 開久了，空手按 E 也上不了馬**（10-16 18:0x：互動輸入完全沒進腳本）→ 重開 REDkit 就好（使用者：「如果已經沒拿槍，就是之前遇到的問題又出現了，看你要修還是直接關掉 redkit 重開」）
+  - 判斷順序：拿著 AK 不能上下馬＝第 4 項本身（已修好）；空手也不行＝環境問題 → 重開
+- `additem` 前要先 `setlevel(31)`（沒設等級時主控台顯示 `Invalid Item ID: 0`、輪盤沒有 AK）
+- 主控台指令曾打進 REDkit 右邊 Scene 的搜尋框（焦點在那裡）→ 編輯模式下點一下畫面空白處（天空）把焦點移走
+- 點遊戲畫面＝左鍵＝AK 的扳機：AK 是選用物品時一點就拿出 AK（`docs\findings.md` §29）
+- 原版十字弩的行為：換彈後不在戰鬥、沒瞄準 → 延遲後自動收起（`rangedWeapon.ws:146-157`）；測試時 AK 會被收起來，點一下畫面再拿出
+- 原地跳旁邊有高台會變成攀爬（攀爬照原版收槍）→ 到空曠處測
+- 連拍：`desk.ps1 burst <前綴> <張數> <間隔毫秒> rect=… hold=w,shift pre=1500 key=space`
+  - **前綴寫完整路徑 `"$P/名稱"`**，不然存到專案資料夾；前綴不要和其他截圖同名（會被 `前綴1.png`… 蓋掉）
+- **慢動作**：遊戲中按數字鍵盤減號（`d key numminus`）3 次 = 0.125 倍，`numplus` 3 次回到 1 倍；**F10 重開遊戲後不會重設**（右上角紅字 Time scale）
+- 遊戲裡改白天：`settime(1, 12)`（`gameTime.ws:182`；重開遊戲會變回深夜）
+- 看衝刺側面：按住 A＋Shift 往左跑（鏡頭直接看到左側）；連拍用工具內建的 `hold=a,shift pre=1500 [key=space|c]`（desk.ps1 每次呼叫要 0.3～0.5 秒，分開下指令時間會對不準）
+- 側面拍左手：衝刺中 `d rmove -150 0 6 15`～`-250` 轉鏡頭（鏡頭在右後方時左手的槍被身體擋住：看起來「槍不見」不一定真的不見）
 
 ## 操作備忘（Claude 自己操作 REDkit、遊戲時用；2026-10-16 實測）
 
@@ -175,7 +148,7 @@
 - 站著瞄準（上下左右跟準心）、連射、換彈（手在槍上、換完接著射）、收槍掛背上、直線和轉彎的走路、跑步都在遊戲裡量過
 - 動畫組 `gfg_ak47_geralt.w2anims` 22 段（同名蓋過原版十字弩的動畫）；改過的原版動畫圖：`pc_overlay.w2beh`（`tools\overlay_patch.py`）、`pc_gameplay.w2beh`（`tools\gameplay_patch.py`）
 - 工具：`tools\two_hand_pose.py`（第 1 步姿勢）、`tools\aim_delta.py`（瞄準差值）、`tools\move_pose.py`（走跑）、`tools\pose_check.py`（偵測紀錄分析）
-- 暫時的偵測紀錄 `GfgLogHoldPose`（`GfgCameraTick` 裡呼叫）還在，10 個問題做完後拿掉
+- 偵測紀錄（`GfgLogHoldPose` 等）10-17 都拿掉了；要量的時候再暫時加（讀法見下一節）
 
 ### 偵測紀錄的讀法、用遊戲數據算擺法
 
@@ -244,9 +217,8 @@
 
 - 都 commit 了，除了下面兩個（照舊不 commit）
 - `gunforgeralt.w3edit`：只有 REDkit 自己改的 `dirtyTileCellIndices`（開過測試關卡）→ 不 commit
-- 已 commit、但還是暫時的：`gfg_ak47.ws` 的 `GfgLogHoldPose`（雙手持槍量位置用；`GfgCameraTick` 裡呼叫；印 `held=`、`friendly=`）→ 雙手持槍做完後拿掉（「下一步」3）
 - REDkit 匯入的產物（不在 git）：`gfg_ak47.w2mesh` 是第 1 步的擺法（`m3_build_ak.py --place …`：`docs\m3.md`）
-- `.claude\hooks\`（`context-check.sh`、`statusline.sh`）：使用者自己的設定，2026-10-15 18:35 出現，Claude 沒動過 → 不 commit
+- `.claude\hooks\`（`context-check.sh`、`statusline.sh`）：已在 git 裡（10-13 起；`CLAUDE.md` §4）
 - `.gitignore` 排除、不 commit 的：
   - `assets\ak47\` 的 `.blend`、`.fbx`、`.png`：腳本的輸出（材質 XML `gfg_ak47.xml` 有 commit）
   - `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 的 `.w2mesh`、`.xbm`：REDkit 匯入的產物（照上表的步驟可以重做）
@@ -258,16 +230,8 @@
 
 ## 下一步
 
-1. **雙手持槍**：站著、走路、跑步、換彈、收槍都在遊戲裡通過 → 還沒做的：坡度、衝刺（手會擺）、拔槍沒量、轉彎跑時槍管最多差 19°（見「已知限制」）
-2. 箭第一次出現在槍口前 1～2 公尺：箭速 60 公尺／秒 × 每格約 30 毫秒（`docs\m3.md`「箭離槍口一段距離才出現的原因」）
-   - Claude 建議留到 M5 用槍口火光、曳光處理；另一個選項是降低箭速；使用者還沒決定
-3. 拿掉紀錄的測試（下面「測試方式補充」）：**地面全部通過**（2026-10-16 07:01～07:02，Claude 用 desk.ps1）；騎馬沒測（測試關卡叫不出馬）
-   - 剩下的暫時紀錄是雙手持槍的 `GfgLogHoldPose`（含兩腳）：使用者看過雙手持槍的樣子、不再調整時拿掉
-4. 輪盤的待驗證項目（`findings.md` §24.9）：使用者下次騎馬時順便目測
-5. 之後再做（使用者決定時機）：傷害平衡（CS2 36、爆頭 ×4）、M4 聲音（要先確認 Wwise 版本：`CLAUDE.md` §3）
-6. M5 候選：槍口火光、曳光；持槍衝刺／跳躍的動畫（`findings.md` §17.10）；跳躍散布（§16.2）
-7. 暫時方案（使用者沒選，雙手做不成時再考慮）：拿著 AK 時鏡頭移到 Geralt 左後方，讓左手的槍看得到
-
+- 見最上面「沒做完的」「要使用者決定或操作的」
+- 使用者給新任務時照 `CLAUDE.md` 做：沒說「恢復自主模式」就是互動模式（寫新東西前先問等）
 - **REDkit 重開時 `editor.log` 會被整個重寫**：遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄（或先複製到暫存資料夾）
 
 ### 測試方式補充
@@ -300,25 +264,22 @@
 
 ## 已知限制（還沒處理）
 
-- 雙手持槍：站著瞄準、連射、換彈、收槍都好了；還沒好的：
-  - 衝刺：主動畫圖衝刺那一支沒有十字弩版本 → 手會擺（沒測）；坡度沒測；拔槍沒量
+- 最上面「沒做完的」那幾項
+- 雙手持槍（10-16 量的，之後沒重量）：
   - 轉彎跑時槍管和鏡頭最多差 19°（直線 0.8～5.5°）
   - 起步那一下手會離開握把（不到 0.3 秒；`aim_idle`、`aim_slow_run` 換掉後 4 次中 2 次 7、25 公分；推論是主動畫圖的起步動畫）
-  - 換彈中槍管和鏡頭差 15～20°（換彈時沒有瞄準差值）
+  - 換彈中槍管和鏡頭差 15～20°（換彈時沒有瞄準差值；換彈動畫 10-17 重做後沒重量）
+  - 坡度沒測
   - 原版十字弩的瞄準、換彈、走跑也變成 AK 的雙手姿勢（同名動畫蓋過原版；主動畫圖改了直線走跑的骨頭表）
-- M3：箭第一次出現在槍口前 1～2 公尺（見「下一步」2）
-- M3：槍托後端和手套袖口有一點重疊（改雙手時會重調）
-- M3：AK 被光直射時整把亮白（`docs\m3.md`「換回 AK 的貼圖再測」）：沒查，先不管
+- M3：槍托後端和手套袖口有一點重疊
+- M3：AK 從逆光的角度看整把銀白：是光線反射（真的 AK 同角度也銀白），不是少貼圖（10-17 做第 8 項 B 時看過）
 - M3：Mesh editor 的預覽裡 AK 轉了方向：模型存在 `handle` 骨頭的座標系裡，正常（`docs\m3.md`「改用 NODE 模式」）
-- 傷害還是 M1 的佔位值：十字弩 1 的 2 倍（`gunforgeralt_items.xml` 的 `attack_power`）；CS2 的 36、爆頭 ×4 沒套
-- 原版自動瞄準：有戰鬥音樂、畫面目標是人型時，箭飛向身體不照準心（`findings.md` §15.2、§20.13；使用者：先不管）
-- 箭速 60 公尺／秒、發射角度 5°：遠的目標要飛一段時間，中段會比直線高（`findings.md` §18.2；使用者：先不管）
 - 停火後鏡頭轉回原位：沿用推測的衰減公式（約 0.2～0.3 秒轉回）
 - 前兩發沒有後座力：彈道資料的前兩發在同一點（`findings.md` §14.3）
 - 每發轉完的時間 `GfgKickTime` 目前 0.1 秒，可調
 - 開始墜落、攀爬、翻滾仍會收槍（`findings.md` §17.4）
 - 拿著 AK 時不能存檔（存檔鎖：`findings.md` §17.8、§20.7）；另外 17 個動作也被鎖，使用者選維持原版（§20.12）
-- 戰鬥中 AK 常被收起又拔出（`findings.md` §20.2），原因沒查
+- 戰鬥中 AK 常被收起又拔出（`findings.md` §20.2），原因沒查（第 2 項擋掉了受擊時的兩條收槍路徑，其他情況沒再查）
 - 騎馬沒測過的（§24.5）：騎馬跳躍時拿著 AK 的動作、拿著 AK 施法
 - 每輪連射第 30 發寫一行錯誤 `Value '30' not handled`（不影響：`findings.md` §24.6）
 - `UpdateLookAtVariables` 的包裝每個 session 寫一次 `Accessing invalid handle` 警告；原因沒查，沒看到影響
