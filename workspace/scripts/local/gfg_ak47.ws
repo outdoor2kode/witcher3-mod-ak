@@ -365,10 +365,11 @@ function UpdateLookAtVariables( lookAtTargetActive : float, lookAtTarget : Vecto
 // - 站著、或開槍中：上半身朝準心（Z 鎖定時朝鎖定點）；身體轉向準心（GfgAkTurnTick）
 
 // 開槍中（扣著扳機，或最後一發之後還沒過 GfgAimHoldTime() 秒）
+// 3 秒：使用者 2026-10-16 20:4x 回報「按一下開槍，一停火就立刻放下槍」（原本 0.5 秒）；第三人稱射擊遊戲停火後一般維持舉槍 2～3 秒
 @addMethod(Crossbow)
 function GfgAimHoldTime() : float
 {
-	return 0.5;
+	return 3.0;
 }
 
 @addMethod(Crossbow)
