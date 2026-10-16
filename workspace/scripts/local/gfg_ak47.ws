@@ -1935,6 +1935,7 @@ function ThrowProjectile( targetPosIn : Vector )
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
 	{
 		target = player.rangedWeapon.GfgAimPoint();
+		gfgAimTarget = target;
 		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
 		if ( !player.IsDiving() )
 			gfgAkRange = player.rangedWeapon.GfgRange();
@@ -1953,6 +1954,8 @@ function ThrowProjectile( targetPosIn : Vector )
 @addField(W3AdvancedProjectile)
 var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
 
+@addField(W3AdvancedProjectile)
+var gfgAimTarget : Vector;		// AK：準心的射線點（ThrowProjectile 包裝設定）
 @addField(W3AdvancedProjectile)
 var gfgShotFrom : Vector;		// 發射起點（判斷爆頭用）
 
@@ -1994,16 +1997,14 @@ function ShootProjectileAtPosition( angle : float, velocity : float, target : Ve
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
 {
-	var a, v : float;
-	a = angle;
-	v = velocity;
+	// AK 的子彈不用原版的自動瞄準（有目標時射向 NPC 的骨頭：playerBoltProjectile.ws:353-377）→ 一律射準心的射線點（CLAUDE.md §7）
+	// 2026-10-16 20:1x 實測：自動瞄準時不管準心瞄頭還是胸口都打在胸口同一點，不會爆頭
 	if ( gfgAkRange > 0.f )
 	{
-		a = 0.f;
-		v = GfgBulletSpeed();
+		ShootProjectileAtPosition( angle, velocity, gfgAimTarget, range, collisionGroups );
+		return;
 	}
-	gfgShotFrom = GetWorldPosition();
-	wrappedMethod( a, v, target, targetBone, GfgShotRange( range ), collisionGroups );
+	wrappedMethod( angle, velocity, target, targetBone, range, collisionGroups );		// 不是 AK 的箭：照原版
 }
 
 // 碰撞：AK 的子彈打到牆壁、地面時播火花（第 9 項）
