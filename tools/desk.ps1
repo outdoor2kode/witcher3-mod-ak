@@ -34,12 +34,12 @@
 REDkit 是 wxWidgets，UI Automation 看不到裡面的元件（uia 列不出東西）→ 截圖加 grid 找座標再點
 
 安全：
-- 滑鼠、鍵盤的動作前，檢查會收到輸入的視窗屬於哪個程序：只允許 $Allowed（REDkit 和從 REDkit 開的遊戲 editor、遊戲 witcher3、Blender）
+- 滑鼠、鍵盤的動作前，檢查會收到輸入的視窗屬於哪個程序：只允許 $Allowed（REDkit 和從 REDkit 開的遊戲 editor、遊戲 witcher3、Blender、REDkit 的 Script Studio scriptstudio）
   終端機（Claude Code 在裡面跑）、瀏覽器不在名單內 → 擋下來、不送出
 - 座標一律是螢幕的實際像素（開頭設成 DPI aware）
 #>
 $ErrorActionPreference = 'Stop'
-$Allowed = @('editor', 'witcher3', 'blender')
+$Allowed = @('editor', 'witcher3', 'blender', 'scriptstudio')
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8  # 系統語系是 cp950；Bash 讀 UTF-8
 
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms

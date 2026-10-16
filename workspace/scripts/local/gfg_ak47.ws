@@ -423,6 +423,8 @@ function GfgAkTurnTick()
 	{
 		gfgFireMoving = fireMoving;
 		rangedWeapon.GfgRefreshFullBody();
+		// 實驗：上半身動畫圖的全身瞄準狀態機（#18428）從起始狀態直接進入移動的條件要 inAimThrow（#19444、#20031）；原版中鍵瞄準時設定（rangedWeapon.ws:1395-1396）
+		SetBehaviorVariable( 'inAimThrowForOverlay', (float)fireMoving );
 	}
 
 	if ( fireMoving )
@@ -464,6 +466,7 @@ function GfgAkTurnReset()
 		gfgFireMoving = false;
 		if ( rangedWeapon )
 			rangedWeapon.GfgRefreshFullBody();
+		SetBehaviorVariable( 'inAimThrowForOverlay', 0.f );
 	}
 	gfgTurning = false;
 	GfgSetWalkInPlace( false );
@@ -477,6 +480,27 @@ function UpdateLocomotion()
 	wrappedMethod();
 	if ( player.gfgFireMoving && moveSpeed > 0.f )
 		player.SetBehaviorVariable( 'playerSpeedForOverlay', moveSpeed, true );
+}
+
+// ===== 衝刺、跳躍時兩手臂維持持槍（使用者 2026-10-16 回報：衝刺時拿槍的姿勢很怪；跳躍落地後瞬間變回持槍姿勢、不順）=====
+// 主動畫圖的衝刺、跳躍、落地沒有十字弩版本（pc_gameplay.w2beh #27906、#19915、#19892：docs/findings.md §17.10）→ 手臂照衝刺、跳躍的動作擺，AK 跟著左手甩；
+// 落地後切回有十字弩覆蓋的跑步，手臂一格就跳回持槍。
+// 上半身動畫圖的十字弩瞄準區塊有一個手臂覆蓋節點（pc_overlay.w2beh #18505），原本給原版單手十字弩的右手一個姿勢（我們已把它關掉）；
+// tools/overlay_patch.py 把它改成「inSlomoForOverlay ≥ 1 時，兩手臂用雙手持槍的姿勢蓋住」（淡入約 0.13 秒、淡出約 0.5 秒）。
+// inSlomoForOverlay 是動畫圖宣告了、但原版腳本從不設定、圖裡也沒有節點讀它的變數（docs/m3.md），借來當開關
+@addField(CR4Player)
+var gfgArmsHold : bool;		// 手臂覆蓋開著（inSlomoForOverlay 是我們設的）
+
+@addMethod(CR4Player)
+function GfgArmsHoldTick( akDrawn : bool )
+{
+	var on : bool;
+
+	on = akDrawn && !IsUsingVehicle() && ( GetIsSprinting() || IsInAir() || substateManager.GetStateCur() == 'Land' );
+	if ( on == gfgArmsHold )
+		return;
+	gfgArmsHold = on;
+	SetBehaviorVariable( 'inSlomoForOverlay', (float)on, true );
 }
 
 // ===== 滑動目標：死掉的不留著（使用者 2026-10-16 回報：打完狼群有時 Geralt 一直面向最後殺死的狼，血條（血 0）一直顯示，按 Z 也解不掉）=====
@@ -718,7 +742,65 @@ function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : 
 {
 	if ( gfgKeepAkOnJump )
 		return true;
+	// 被打中時不收 AK（下面「戰鬥中被打中」那一段）
+	if ( gfgInHitStart && rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+		return true;
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
+}
+
+// ===== 戰鬥中：拿著 AK 時不自動拔劍、被打中不收槍（使用者 2026-10-16 回報：狼群裡開槍時變成戰鬥準備的姿勢，不是射擊的姿勢）=====
+// 2026-10-16 實測（關掉無敵、被狼咬）：被打中後 AK 被收起又拔出、Geralt 自動拔出鋼劍（玩家狀態 CombatFists → CombatSteel）
+// 原版會自動換武器的地方：
+// - 進入戰鬥、目標有敵意：拔最適合的劍（OnCombatStart：r4Player.ws:2155-2161）
+// - 被目前的目標打中：拔最適合的劍（OnReactToBeingHit：r4Player.ws:2227-2240）
+// - 被打中的動作開始：OnHitStart → WhenCombatActionIsFinished → 強制收起十字弩（r4Player.ws:13202-13209、:12843-12858）
+// 拿著 AK 時這三處都不做（手動按 1／2 拔劍照原版：EBAT_Draw_Steel 等）
+
+@addField(CR4Player)
+var gfgAutoDrawGuard : bool;	// 原版自動拔劍的程式執行中
+
+@addField(CR4Player)
+var gfgInHitStart : bool;		// 被打中的動作開始的程式執行中
+
+@wrapMethod(CR4Player)
+function OnCombatStart()
+{
+	var result : bool;
+
+	gfgAutoDrawGuard = true;
+	result = wrappedMethod();
+	gfgAutoDrawGuard = false;
+	return result;
+}
+
+@wrapMethod(CR4Player)
+function OnReactToBeingHit( damageAction : W3DamageAction )
+{
+	var result : bool;
+
+	gfgAutoDrawGuard = true;
+	result = wrappedMethod( damageAction );
+	gfgAutoDrawGuard = false;
+	return result;
+}
+
+@wrapMethod(CR4Player)
+function OnHitStart()
+{
+	var result : bool;
+
+	gfgInHitStart = true;
+	result = wrappedMethod();
+	gfgInHitStart = false;
+	return result;
+}
+
+@wrapMethod(CR4Player)
+function OnEquipMeleeWeapon( weaponType : EPlayerWeapon, ignoreActionLock : bool, optional sheatheIfAlreadyEquipped : bool )
+{
+	if ( gfgAutoDrawGuard && rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+		return true;
+	return wrappedMethod( weaponType, ignoreActionLock, sheatheIfAlreadyEquipped );
 }
 
 // ===== 後座力：鏡頭照 AK-47 的彈道轉動，準心固定在畫面中央，子彈飛向準心，停火後鏡頭轉回原位（M2）=====
@@ -1173,6 +1255,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		GfgAkTurnTick();
 	else
 		GfgAkTurnReset();
+	GfgArmsHoldTick( akDrawn );
 	GfgUpdateCrosshair( akDrawn );
 }
 
@@ -1253,6 +1336,8 @@ function GfgLogDiag()
 		+ " cbtStOvl=" + FloatToString( GetBehaviorVariable( 'CombatStanceForOverlay' ) ) + " pcsOvl=" + FloatToString( GetBehaviorVariable( 'playerCombatStanceForOverlay' ) )
 		+ " wpnOvl=" + FloatToString( GetBehaviorVariable( 'playerWeaponForOverlay' ) ) + " inCA=" + FloatToString( GetBehaviorVariable( 'isInCombatActionForOverlay' ) )
 		+ " caType=" + FloatToString( GetBehaviorVariable( 'combatActionType' ) ) + " walkInPlace=" + FloatToString( GetBehaviorVariable( 'walkInPlace' ) )
+		+ " aimThrowOvl=" + FloatToString( GetBehaviorVariable( 'inAimThrowForOverlay' ) )
+		+ " reqMove=" + FloatToString( GetBehaviorVariable( 'requestedMovementDirectionForOverlay' ) ) + " reqFace=" + FloatToString( GetBehaviorVariable( 'requestedFacingDirectionForOverlay' ) )
 		+ " slide=" + GfgEntName( slideTarget ) + " disp=" + GfgEntName( GetDisplayTarget() ) + " target=" + GfgEntName( GetTarget() )
 		+ " hard=" + IsHardLockEnabled() + " actorLock=" + IsActorLockedToTarget() + " threat=" + IsThreatened()
 		+ " trig=" + rangedWeapon.gfgTriggerHeld + " fireMove=" + gfgFireMoving + " turning=" + gfgTurning + " sprint=" + GetIsSprinting() + " air=" + IsInAir()
