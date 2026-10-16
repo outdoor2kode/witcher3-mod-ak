@@ -44,7 +44,7 @@
 1. 第 3 項（騎馬姿勢）：
    - 15:05 起背景匯出 48 段到 `assets\anims\man_geralt_gabriel_horse_*.re`（`g.sh` 的 `export_anim`、`horse_names`；檢查：`ls assets/anims | grep -c horse` 應該 48；少的用 `export_anim 名稱` 補）
    - 接著寫 `tools\horse_pose.py`（用 Blender 內建 Python：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I`，h5py 在 `tools\_vendor\pylib`）：
-     a. 8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
+     a. **做好了**（15:1x，不用新工具：`move_pose.py <第1步> <原版> assets/anims/gfg/<同名>.re --full`，8 段都檢查槍管方向差 0°）8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
      b. 量原版：aim_cycle 第 0 格套上原版水平／垂直差值（試 local 和 ref 兩種套法，看哪個合理）→ 每格十字弩的方向（十字弩在 l_weapon 的軸：用 `ex_man_geralt_gabriel_aim_idle.re` 第 0 格「朝前」反推）→ 每格的左右角、上下角
      c. 16 段水平／垂直：照 `aim_delta.py` 的 `spine_deltas`、`to_mode(…, 'local')`，每格轉到 b 量到的角度（左右轉 torso、torso2；上下轉 torso3）
      d. 24 段射擊／別射我：全部單位（樣板＝原版檔，格數照抄）
