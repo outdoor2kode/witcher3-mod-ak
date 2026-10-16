@@ -48,6 +48,13 @@
      - 16 段水平／垂直：只轉脊椎（`aim_delta.write_delta`，local）；24 段射擊／別射我：單位
      - 檢查：4 個底層槍管水平朝前（0°、0°）；水平＋垂直同時套、套在 aim_cycle 每一格：槍管誤差 0.0°、右手掌心離握把 0.01 公分
    - 匯入 `gfg_ak47_geralt.w2anims`：a 用 Import simple/plain animations；b～d 用 Import additive animations I (Local)（地面的走跑瞄準差值也是這樣：`docs\m3.md` commit 0d1803e）→ File → Save all → 重開 REDkit → 騎馬截圖
+     - **匯入進行中（16:4x）**：遊戲已 F10 結束；我們的動畫組已在 AnimBrowser 開著（0x37316DE；Asset Browser 的 animations 分頁 (360,170) → 雙擊 (595,268) 用 `desk.ps1 click x y left 2`）
+     - Open files 對話框**不能多選**（整串引號檔名 → File not found）→ 一段一段匯入；對話框預設在 `assets\anims\gfg`，檔名框 (470,512)
+     - g.sh 的 `import_one <plain|local> <檔名>`（右鍵動畫組那一行 → 選單第 4 項 plain／第 6 項 Additive I (Local)）**還沒成功**：
+       - (807,167) 那一行會因列表捲動變成別段動畫；右鍵到動畫的選單會開「Choose Recompression Preset」→ 按 **Cancel (1055,624)**（Esc 關不掉；不要按 Recompress）
+       - 先點列表、按 Home 再右鍵 (807,167)＋下 ×4＋Enter：沒有開出對話框 → 下次右鍵後先截圖（grid）看選單位置再點
+       - 動畫組那一行的選單（16:4x 截圖）：Recompress all／Recompress all (choose preset)／Reimport all／**Import simple/plain animations**／Import additive animations (skeleton)／**Import additive animations I (Local)**／II (Ref)／…
+     - 全部 48 段：8 段 `man_geralt_gabriel_horse_horse_{breathing_slow,walk,trot,gallop}_aim_cycle{,_with_sword}.re` 用 plain；40 段 `man_geralt_gabriel_horse_{idle,walk,trot,gallop}_{aimpose_horizontal_rp,aimpose_vertical_rp_{center,left,right},dont_shoot_me_bro{,_left,_right},shoot_additive_{center,left,right}}.re` 用 Local；做完 Ctrl+S → File → Save all → 重開 REDkit
 2. 第 4 項（上下馬流程）：還沒開始
 3. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
 4. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
@@ -83,6 +90,7 @@
   - 瞄準差值 `aimpose_*`：**Import additive animations II (Ref)**
   - 動畫事件：時間軸右鍵 Add simple event／Add duration event → 雙擊事件 → 右邊改值 → Ctrl+S（`CLAUDE.md` §6.11）
   - 我們的動畫組在 Asset Browser 的 animations 分頁 (579, 263)；原版 `man_geralt_gabriel` 在 combat 分頁 (690, 230)；AnimBrowser 動畫組那一行 y=187；Export 的 Save file 檔名框 (644, 477)
+- Bash 的 heredoc 裡 `\\` 會變成 `\`（16:4x 交接檔被寫進 BEL、換頁字元）→ Python 字串裡的反斜線用 `chr(92)`
 - 沒有 numpy 的系統 Python 跑不了分析腳本 → 用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
 - 遊戲裡的參考值（平視站著）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
 
