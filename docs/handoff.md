@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 00:5x（**自主模式**；第 8 項換彈 A 做好、遊戲裡驗證過；打包做好、等使用者同意裝進遊戲；下一個：第 10 項槍口火光）
+最後更新：2026-10-17 01:0x（**自主模式**；第 8 項換彈 A、第 6 項長測做完；打包做好、等使用者同意裝進遊戲；現在做：第 10 項槍口火光）
 
 ---
 
@@ -48,7 +48,7 @@
 | 3 | 騎馬的姿勢完全錯 → 修好 | **做好、遊戲裡看過**（18:5x）。使用者 17:4x 回報騎馬側面瞄準腰扭（`rein1.png`）→ 左右轉改成分給 torso 15%、torso2 40%、torso3 45%（`horse_pose.py` 的 `H_WEIGHTS`；骨盆不能分：覆蓋節點 #4423 只取 torso 以上）：側面 90° 時腰只轉 13.4°（原本 45°），截圖比對腰帶附近不再扭折；槍管差右 91° 0.2°、左 89° 0.9°、背後 0.4°。另外修了韁繩：同名蓋過原版 aim_cycle 時少了 `LeftReinOff` 事件 → 韁繩一直連在拿槍的雙手上 → 8 段 aim_cycle 補左右 `ReinOff`、4 段騎馬換彈補左右 `ReinOff`＋`HandIkOff`（截圖：韁繩垂在馬頸上；連射→換彈→回到瞄準正常）。細節 `docs\m3.md`「騎馬：腰扭、韁繩」。原本（17:3x）：騎馬瞄準換成雙手持槍：8 段 aim_cycle（`move_pose.py --full`）、16 段水平／垂直差值（`tools\horse_pose.py`，只轉脊椎、local）、24 段射擊／別射我（單位）、4 段換彈 `horse_*_reload_lowered`（雙手版＋事件 `OnWeaponReload` 0.7 秒、`RaiseWeapon` 1.05 秒）；拔槍、收槍照原版。驗證：停著、走、Canter、Gallop 槍管和鏡頭差 2.3° 以內；左右、背後、往上 30° 都跟得上；朝馬頭往下最多約 −20°（原版動畫圖的限制 #4315）；連射 30 發 → 換彈 1 秒 → 回到瞄準。細節 `docs\m3.md`「雙手持槍：騎馬」 |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | **做好、遊戲裡看過**（18:1x）：拿著 AK 時 X 叫馬、E 上馬、騎馬拿著 AK 按住 E 下馬都可以，開始上下馬時 AK 立刻收到背上（截圖：1.2 秒內坐上馬；騎馬拿著 AK 右下角有「Dismount [Hold] E」；下馬後站在地上、AK 在背上）。原因有三層：① AK 一直在瞄準狀態，`Lock()` 擋掉例外以外的所有動作（`rangedWeapon.ws:401-422`，含叫馬、上下馬），拿出時另外鎖上下馬（`:1145-1146`）→ `GfgCameraTick` 每格解開 `EIAB_CallHorse`、`EIAB_MountVehicle`、`EIAB_DismountVehicle`；② 不在戰鬥中時，互動元件看到拿著十字弩就把互動吃掉（`components.ws:139-157` `IsCrossbowHeld`）→ 包 `CInteractionComponent.OnInteraction`：上馬這一個互動在 AK 拿著、不是真的攻擊時放行；③ 戰鬥動作中把 `"MountHorse"` 列入封鎖（`interactionsManager.ws:111-114`）→ 包 `GetBlockedActions` 拿掉。上下馬開始時收槍：`MountTheVehicle`／`DismountTheVehicle` 的 `OnEnterState` 包裝（`GfgHolsterForVehicle`）。空手照原版；用 E 下馬後騎馬開輪盤正常（§24.8 的舊問題沒有再出現）。紀錄裡的 `DismountTheVehicle::OnLeaveState, 'vehicle' is still set` 斷言空手下馬也有（原版）。暫時指令 `gfghorsehere()`（reference_level 的馬跑不過來）留到最後清理 |
 | 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（16:3x）。使用者 15:1x 更正：衝刺＝按 Shift；照原版擺手跑，但手上的槍要拿正（附圖：AK 直立在背後、槍口朝上）。做法：衝刺時手臂照原版擺；真的 AK（模型＋裝好的箭）藏起來，顯示「替身」AK（同模板自己生成，標籤 `gfg_carry_dummy`），每格帶偏移掛到左手：槍口朝前下 30°、往右 8°（相對玩家），握在彈匣前的機匣；開始 0.25 秒、結束 0.15 秒漸變；預測下一格手腕方向。為什麼要替身：物品系統把真的 AK 的動畫元件直接掛在 l_weapon，對實體 `CreateAttachment` 只動實體矩陣、畫面不變（15:4x 那版「驗證」看的是實體矩陣，其實沒效果；`docs\findings.md` §26、`CLAUDE.md` §6.18）。驗證（替身的 handle 骨頭）：槍管和目標差平均 2.3～2.6°、一直朝下 25°～38°；正常速度側面連拍：左手握機匣、槍口朝前下；衝刺跳躍、衝刺中按 C 收槍（槍回背上）、收拔後再衝刺都正常，沒有腳本錯誤 |
-| 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
+| 6 | 打完狼群有時解除不了鎖定 | **改了、長測沒重現**（commit 2729ec3；10-17 00:5x 長測）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。長測：`spawn('wolf', 30, 10, true)`、`spawn('wolf', 12, 5, true)` 兩輪，AK 打死 15 隻、其餘 `killall(60)`；打完 `[GFG] diag` 的 slide、target 都是 none、hard／actorLock 都 false，鏡頭轉 300 像素正好 90°（沒被鎖住）。原問題不是每次都會出現 → 使用者再遇到時回報 |
 | 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **做好、遊戲裡看過**（14:42）：站立跳、衝刺跳各連拍 14～18 張（每 0.1 秒，`desk.ps1 burst`）：起跳、空中、落地、再跑，兩手一直在槍上，沒有從擺手突然跳成持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | **A 動作做好、遊戲裡驗證過**（10-17 00:5x）：新工具 `tools\reload_pose.py`，2.4 秒：拿下彈匣 → 左腰換新的 → 裝上 → 繞到右邊拉槍機；地面 2 段、騎馬 4 段；紀錄：右手一直在握把、左手照設計走、約 2.1 秒後接著射；站著換彈時肩膀轉正 33°（槍仍朝準心）。細節 `docs\m3.md`「換彈動畫」。**B 彈匣分離（彈匣真的拿下來）未做** |
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
@@ -61,6 +61,14 @@
   - 步驟：① **REDkit 打包：做好**（00:1x；輸出在專案的 `packed\`；`docs\findings.md` §27）② 裝進遊戲要寫 `<W3_GAME_DIR>\mods\`、`dlc\`（唯讀，`CLAUDE.md` §11）→ **00:1x 問了使用者，等回覆**（同意讓 Claude 複製，或使用者自己複製；測前先備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`，55 個檔 13 MB）③ Steam 版跑基本流程：拿 AK、開槍、換彈、騎馬 ④ **換彈 A 的 6 段：匯入、遊戲裡驗證，做好**（00:5x）；彈匣分離（B）等 Steam 版驗證過再做
   - 打包後同一次開著的 REDkit 按 play game 當掉 → 00:3x 重開 REDkit（主視窗 `0x1809A4`；g.sh 已換；AnimBrowser 要用時重開、更新 `GAB`）
   - 開遊戲前先把編輯器鏡頭移到地面（滑鼠指地面按 J）：00:40 從高處摔死、死亡選單選錯 → 遊戲直接結束
+
+- **現在做：第 10 項槍口火光**（10-17 01:0x 開始；第 6 項長測做完、第 8 項 A 做完）
+  - 查過（01:0x）：原版沒有現成的槍口火光；十字弩模板 `witcher_crossbow_base.w2ent`（AK 模板 include 它）只有技能光暈 `crippling_shot_crossbow_buff`；子彈模板 `bolt_base.w2ent` 有 8 個特效（各色箭軌跡 `arrow_trail*`、`sparks`）；`sparks` = 動態光（橘 255/149/105、半徑 4、0.008 秒起）＋粒子 `fx\weapons\block\kontra\counterattack_fx1.w2p`（掛 `CPhantomComponent0`）
+  - 腳本不能在任意位置直接播粒子，只能對實體 `PlayEffect`（模板裡定義的特效）
+  - 決定的做法：REDkit 實體編輯器替 AK 模板 `gfg_ak47.w2ent` 加特效 `gfg_muzzle_flash`：動態光（橘、半徑約 3、很短）＋粒子（候選 `fx\signs\igni\cone\igni_cast.w2p`、`fx\signs\igni\instant\fire_hit_fx1.w2p`、`counterattack_fx1.w2p`），掛在槍口：新 slot `muzzle`（`handle` 骨頭；位置照 `bolt` slot 往槍口方向推，AK 槍口 = CS2 `m_vecMuzzlePos0`）；腳本每發 `PlayEffect`（先查 `entity.ws` 的 `PlayEffect`／`StopEffect`，連射時要能重播）
+    - 為什麼掛 slot：`bolt` slot 上的箭一直跟著畫面上的槍（`CLAUDE.md` §6.18：物品實體的矩陣不跟畫面）
+    - 備案（不用介面）：每發在槍口生成一個子彈模板的實體（不發射、藏模型）播 `sparks`，0.3 秒後刪掉
+  - 曳光（第 9 項沒做的）：可以試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到，再確認）
 
 0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
    - **第一批第 8 項：AK 真正的換彈動畫**（使用者：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）（23:4x 開始）
