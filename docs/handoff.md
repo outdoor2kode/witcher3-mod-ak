@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 01:3x（**自主模式**；第 8 項換彈 A、第 6 項長測、第 10 項槍口火光做完；打包做好、等使用者同意裝進遊戲；現在做：查打包的 succesfullyCooked、曳光）
+最後更新：2026-10-17 01:5x（**自主模式**；第 8 項換彈 A、第 6 項長測、第 10 項槍口火光做完；打包做好、等使用者同意裝進遊戲；現在做：第 8 項 B 彈匣分離）
 
 ---
 
@@ -64,10 +64,19 @@
 
 - **第 10 項槍口火光：做好**（10-17 01:2x；上表第 10 項）
   - 打包要重做：這次的改動（槍口火光模板 `dlc\gunforgeralt\data\fx\`、腳本、2.4 秒的換彈動畫組）都在第一次打包（00:1x）之後
-- **現在做（01:3x）**：
-  1. 查第一次打包的 `info.json` 寫 `"succesfullyCooked": false` 的原因（打包是全局最根本的一步：`logs\publish …log`）
-  2. 曳光（第 9 項沒做的；CS2 每 3 發一發曳光 `m_nTracerFrequency` 3）：先試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到）；不行就用槍口火光同一套做法（自己的特效模板）；限時，做不好就記下來、先跳過
-  3. 之後：第 8 項 B（彈匣分離）、開槍中側移 D −31°；清理暫時紀錄放最後（Steam 版驗證之後）
+- **succesfullyCooked: false 查過**（01:3x）：候選原因＝`.ws` 被當資源 cook 失敗、沒有 Wwise；遊戲執行檔沒有這個欄位名 → 推論不影響遊戲（`docs\findings.md` §27）
+- **曳光：先跳過**（01:3x 決定）：原版能連到目標的特效（`drain_energy`、`lightning`）都是魔法光束；箭的軌跡在 715 公尺／秒看不到（之前測過）；不是使用者明確要求的 → 記下來，之後有空再做（想法：另外生成一個慢速、發光的曳光實體）
+- **現在做：第 8 項 B 彈匣分離**（01:3x 開始）
+  - 做好的：
+    - `tools\m3_build_ak.py` 加 `--part all|nomag|mag`、`--name`（依 CS2 模型 `clip` 骨頭權重 > 0.5 拆：彈匣 5,246 頂點、7,223 面，沒有跨兩邊的面；`--part all` 和現在的模型頂點完全相同）→ `assets\ak47\gfg_ak47_nomag.fbx`、`gfg_ak47_mag.fbx`（同一組 `--place`）＋材質 XML（`gfg_ak47.xml` 的複本）
+    - REDkit：Import > Mesh 兩個（`HasSkinning: true (NODE 'handle')`；Import mesh 對話框按 Cancel）→ `gfg_ak47_nomag.w2mesh`、`gfg_ak47_mag.w2mesh`；`gfg_ak47.w2ent` Save as 兩份 → `gfg_ak47_nomag.w2ent`、`gfg_ak47_mag.w2ent`，元件 `witcher_crossbow_lvl1` 的 `mesh` 換成各自的模型（Asset Browser 選模型 → 欄位的綠色箭頭）→ Save
+    - 腳本 `GfgMagTick`（`GfgCameraTick` 每格）：拿出 AK 時生成兩個替身（藏著、掛 `l_weapon`）；換彈開始 0.9 秒內左手腕到彈匣底下（槍座標 F 0.25、U −0.15、R −0.03）3 公分內 → 真的 AK 藏、沒彈匣的替身顯示、彈匣 `CreateAttachmentAtBoneWS( 玩家, 'l_hand', l_weapon 的世界姿勢 )`；`OnWeaponReload`（1.5 秒）或換彈中斷 → 換回
+    - 遊戲裡（01:4x，REDkit 沒重開、新模型沒貼圖顏色）：紀錄 `mag out t=0.266 dist=0.0287`、`mag in t=1.5` → 邏輯對；**從背後看不到換彈的手**（被身體擋住）
+  - 下一步：
+    1. 側面看：暫時指令用原版固定鏡頭 `gameplay\camera\static_camera.w2ent`（寫法照 `poster.ws:98-104`：`CreateEntity` → `Run()`；結束 `Stop()`、`Destroy()`）；瞄準、轉身用的是遊戲鏡頭（`GfgCamera()`），固定鏡頭不影響 → Geralt 不會跟著轉
+    2. 抓的距離 2.9 公分（剛好在門檻邊）：改成「3 公分內、而且距離不再變小」才抓，裝回時比較準
+    3. 重開 REDkit（新模型才有貼圖顏色：`CLAUDE.md` §6.14）再看一次；騎馬換彈也看
+  - 之後：開槍中側移 D −31°；清理暫時紀錄放最後（Steam 版驗證之後）
 
 0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
    - **第一批第 8 項：AK 真正的換彈動畫**（使用者：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）（23:4x 開始）

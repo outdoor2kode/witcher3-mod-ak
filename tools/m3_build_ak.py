@@ -5,9 +5,11 @@
     "D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background
         --python-exit-code 1 --python tools/m3_build_ak.py --
         AK.gltf 十字弩.fbx 十字弩.w2mesh 輸出資料夾 [--scale 1.0] [--up -X] [--offset X Y Z] [--pitch 0]
-        [--place GX GY GZ FX FY FZ UX UY UZ]
+        [--place GX GY GZ FX FY FZ UX UY UZ] [--part all|nomag|mag] [--name gfg_ak47]
 
-- 只讀三個來源檔；輸出 gfg_ak47_m3.blend、gfg_ak47.fbx 到輸出資料夾（沒有就建立）
+- 只讀三個來源檔；輸出 <name>_m3.blend、<name>.fbx 到輸出資料夾（沒有就建立；name 預設 gfg_ak47）
+- --part（換彈時彈匣分離用，2026-10-17）：nomag = 拿掉彈匣、mag = 只留彈匣；彈匣 = 綁在 clip 骨頭（權重 > 0.5）的頂點
+  - 位置、方向和整把一樣（彈匣留在槍上的位置）：同一組 --place 做出來的三個模型疊在一起就是整把
   - 十字弩.w2mesh：uncook depot 的原版 witcher_crossbow_lvl1.w2mesh，只讀 handle 的綁定矩陣
 - AK：只留 body_hd（已含彈匣：綁在 clip 骨頭上的 5,246 個頂點），用匯入後的原始頂點
   - 檔案裡的頂點就是 CS2 的預設姿勢：每根骨頭「節點 × 反綁定」都是單位矩陣（docs/m3.md）
@@ -43,6 +45,7 @@ import struct
 import sys
 from pathlib import Path
 
+import bmesh
 import bpy
 from io_scene_fbx import parse_fbx
 from mathutils import Matrix, Vector
@@ -59,6 +62,8 @@ XBOW_FORWARD = Vector((0, 0, 1))  # 弓臂那頭
 UP_CHOICES = {'+X': Vector((1, 0, 0)), '-X': Vector((-1, 0, 0)), '+Y': Vector((0, 1, 0)), '-Y': Vector((0, -1, 0))}
 NAME = 'gfg_ak47'
 UV_NAMES = ('DiffuseUV', 'SecondUV')  # 和十字弩匯出的 FBX 一樣
+PARTS = ('all', 'nomag', 'mag')
+MAG_BONE = 'clip'  # CS2 模型裡彈匣的骨頭（換彈時彈匣分離用：docs/m3.md「換彈動畫」）
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,6 +82,9 @@ def parse_args() -> argparse.Namespace:
                    help='AK 繞握把再轉幾度，正＝槍口往上（預設 0；-20.5 讓槍管和原版十字弩的箭平行）')
     p.add_argument('--place', type=float, nargs=9, metavar=('GX', 'GY', 'GZ', 'FX', 'FY', 'FZ', 'UX', 'UY', 'UZ'),
                    help='握把位置、槍管方向、上方（l_weapon 骨頭座標，公尺）；有填時取代 --up、--pitch、--offset')
+    p.add_argument('--part', choices=PARTS, default='all',
+                   help='all = 整把（預設）；nomag = 拿掉彈匣；mag = 只留彈匣（彈匣 = CS2 模型裡綁在 clip 骨頭的頂點）')
+    p.add_argument('--name', default=NAME, help=f'輸出檔名、模型名稱（預設 {NAME}）')
     return p.parse_args(argv)
 
 
@@ -137,11 +145,43 @@ def import_ak(path: Path):
     return body, grip
 
 
+def keep_part(body, part: str) -> None:
+    """--part：依 clip 骨頭的權重拆開彈匣。nomag 刪掉彈匣的頂點、mag 只留彈匣。
+    刪完把原本的角落法線設回去（bmesh 來回不保證留住自訂法線），並確認剩下的角落和刪之前一一對得上。"""
+    if part == 'all':
+        return
+    me = body.data
+    g = body.vertex_groups[MAG_BONE].index
+    is_mag = [any(e.group == g and e.weight > 0.5 for e in v.groups) for v in me.vertices]
+    drop = {i for i, m in enumerate(is_mag) if m == (part == 'nomag')}
+    mixed = sum(1 for f in me.polygons if 0 < sum(v in drop for v in f.vertices) < len(f.vertices))
+    kept = [li for f in me.polygons if not any(v in drop for v in f.vertices) for li in f.loop_indices]
+    normals = [me.corner_normals[li].vector.copy() for li in kept]
+    points = [me.vertices[me.loops[li].vertex_index].co.copy() for li in kept]
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in sorted(drop)], context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    if len(me.loops) != len(kept):
+        raise RuntimeError(f'刪完角落數 {len(me.loops)}，預期 {len(kept)}')
+    moved = max((me.vertices[l.vertex_index].co - p).length for l, p in zip(me.loops, points))
+    if moved > 1e-6:
+        raise RuntimeError(f'刪完角落的順序對不上（頂點差 {moved}）')
+    me.normals_split_custom_set(normals)
+    me.update()
+    print(f'--part {part}：彈匣（{MAG_BONE} 權重 > 0.5）{sum(is_mag)} 個頂點；刪掉 {len(drop)} 個，'
+          f'剩 {len(me.vertices)} 個頂點、{len(me.polygons)} 個面；跨兩邊的面 {mixed} 個（跟著刪掉）')
+
+
 def build(args: argparse.Namespace):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     root, xbow_meshes = import_crossbow(args.crossbow)
     body, grip = import_ak(args.ak)
     print(f'十字弩骨架 {root.name}：{len(root.data.bones)} 根骨頭；AK 握把 {GRIP_BONE} 在 {vec(grip)}')
+    keep_part(body, args.part)
 
     # 原始頂點：拿掉 CS2 骨架的修改器與頂點群組
     body.modifiers.clear()
@@ -176,7 +216,7 @@ def build(args: argparse.Namespace):
     body.parent = root
     body.matrix_parent_inverse = Matrix.Identity(4)
     body.matrix_basis = Matrix.Identity(4)
-    body.name = me.name = NAME
+    body.name = me.name = args.name
     for uv, name in zip(me.uv_layers, UV_NAMES):
         uv.name = name
     group = body.vertex_groups.new(name=BIND_BONE)
@@ -328,8 +368,8 @@ def main() -> int:
             print(f'找不到檔案：{p}')
             return 2
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    blend = (args.out_dir / f'{NAME}_m3.blend').resolve()
-    fbx = (args.out_dir / f'{NAME}.fbx').resolve()
+    blend = (args.out_dir / f'{args.name}_m3.blend').resolve()
+    fbx = (args.out_dir / f'{args.name}.fbx').resolve()
 
     root, body, forward = build(args)
     rig = read_rig_matrices(args.rig_mesh)[BIND_BONE]

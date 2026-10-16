@@ -2216,7 +2216,10 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `mods\modgunforgeralt\content\`：`blob0.bundle`（改過的原版 `pc_overlay.w2beh`、`pc_gameplay.w2beh`）、`precompiled.rsblob`（腳本編譯好的 blob，46 KB；查得到 `GfgTryFire` 等函式名）、`en.w3strings`、`info.json`
   - 安裝方式（推論，**未驗證**）：`packed\mods\modgunforgeralt` → `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` → `<W3_GAME_DIR>\dlc\`（遊戲的 `dlc\` 已有其他 mod 的 DLC：`DLCmod_spawn_companions` 等）
 - 紀錄裡的錯誤（不影響輸出）：`SoundModCooker Fatal Error: Wwise installation not found`（沒有聲音，跳過）；`Dynamic class resolve for resource 'scripts\local\gfg_ak47.ws' failed`
-- `info.json` 的 `"succesfullyCooked": false`（原因不明；11 步都寫 finished）
+- `info.json` 的 `"succesfullyCooked": false`（11 步都寫 finished）
+  - 其他用 REDkit 打包、裝在遊戲裡的 mod（`modBetterIcons2025_Remastered`、`modMoreSkillSlots`、`modSortEverything`…）都是 `true`
+  - 原因的候選（10-17 01:3x 讀紀錄）：① 種子清單把 `scripts\local\gfg_ak47.ws` 當資源去 cook → `Dynamic class resolve … failed`、`Failed to cook`（這次 cook 唯一失敗的檔；腳本另外在 CompileScripts 編進 `precompiled.rsblob`）② CompileSounds 的 `Fatal Error: Wwise installation not found`
+  - **遊戲執行檔 `witcher3.exe` 裡沒有 `succesfullyCooked`、`useLooseScripts` 字串**（ASCII、UTF-16 都沒有；`info.json`、`gameVersion`、`modName`、`dependencies` 有，旁邊是 `modioModsConfig.json`）；REDkit 的 `editor.exe` 有 3 處 → 推論只有 REDkit 用（例：Install、發布），遊戲載入 mod 不看它（**未實測**）
 - ⚠️ 打包後（重建了虛擬 depot），同一次開著的 REDkit 重開世界、按 play game **當掉**（`EXCEPTION_ACCESS_VIOLATION`，堆疊在 Scaleform；紀錄停在 `World loaded` 之後）→ 打包完要重開 REDkit 再測
 
 ## 28. 特效模板：複製原版、在 Entity Editor 改特效（2026-10-17 槍口火光實測）
