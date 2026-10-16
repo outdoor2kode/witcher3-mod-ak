@@ -46,7 +46,7 @@
    - 衝刺跳躍、落地的過渡（落地時手臂覆蓋淡出 0.5 秒、提槍淡入 0.25 秒）；衝刺中按 C 收槍：槍要回到背上、不能卡在手上
    - 拿掉暫時的主控台指令 `gfgcomps`、`gfgcomp`、`gfgatt`（gfg_ak47.ws 最後面）和 `GfgLogHoldPose` 的「衝刺時每 0.05 秒」→ 編譯 → commit
 1. 第 3 項（騎馬姿勢）：
-   - 48 段已匯出（15:15，`assetsnims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
+   - 48 段已匯出（15:15，`assets\anims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
    - 接著寫 `tools\horse_pose.py`（用 Blender 內建 Python：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I`，h5py 在 `tools\_vendor\pylib`）：
      a. **做好了**（15:1x，不用新工具：`move_pose.py <第1步> <原版> assets/anims/gfg/<同名>.re --full`，8 段都檢查槍管方向差 0°）8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
      b. 量原版：aim_cycle 第 0 格套上原版水平／垂直差值（試 local 和 ref 兩種套法，看哪個合理）→ 每格十字弩的方向（十字弩在 l_weapon 的軸：用 `ex_man_geralt_gabriel_aim_idle.re` 第 0 格「朝前」反推）→ 每格的左右角、上下角
