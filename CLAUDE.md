@@ -144,7 +144,8 @@
 2. REDkit 專案中，要修改的原版檔案需先在 REDkit **check out**，REDkit 才會打包
 3. 從 **REDkit 編輯器啟動遊戲**時，可在遊戲中**熱重載腳本**（Tools → Debuggers → Reload scripts，2026-10-13 實測）；XML 要重新啟動遊戲，模型等資源未確認
    - 這時遊戲跑在 `editor.exe` 裡，直接讀 `workspace` 的原始檔（`docs\findings.md` §13.16）
-   - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod 還沒打包、沒安裝，打包後的檔案與安裝位置未驗證
+   - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod **2026-10-17 第一次打包成功**（Publish → Save and publish mod project，輸出在專案的 `packed\`：`docs\findings.md` §27），**還沒裝進遊戲、沒在 Steam 版驗證**（裝進去要寫遊戲資料夾 → 先問使用者）
+   - 打包後同一次開著的 REDkit 按 play game 會當掉 → 打包完重開 REDkit 再測
 4. REDkit 匯入動畫時，**骨骼名稱與階層必須完全一致**
    → CS2 的動畫不能套到 Geralt，持槍／開槍／換彈動作要用 Geralt 骨架重做
 5. 模型流程：Source 2 Viewer 匯出 glTF → Blender 內建 glTF 匯入 → 調整 → 匯出 FBX → REDkit Asset Browser「Import > Mesh」

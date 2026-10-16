@@ -2203,3 +2203,18 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 ### 26.3 紀錄的讀取時機
 
 - `GfgLogHoldPose` 在 `GfgCameraTick` 裡、提槍計算之前寫 → 紀錄裡實體的位置是上一格的；跑步 5 公尺／秒時實體和 `l_weapon` 差約 9 公分（不偏移時也一樣）→ 是紀錄的時機，不是畫面落後
+
+## 27. 打包（REDkit 的 Publish；2026-10-17 第一次）
+
+- 操作：主視窗菜單 **Publish → Save and publish mod project**（菜單在螢幕 (185, 32)，第 3 區最後一項）→ 精靈 3 步
+  1. Basic information：Mod's name、Version、Description（都必填；這版沒有縮圖欄）
+  2. Cook：按 **Start cooking** → 開著世界時問「Cannot publish mod while a world is open. Do you want to close the world first?」→ Yes（世界被關掉）→ 11 個步驟（Clean、Analyze、CompileShaders、Cook、CompileSounds、CompileSpeech、CompileScripts、CollisionCache、TextureCache、CreateBundles、CreateMetadataStores），約 1.5 分鐘
+  3. 同一頁下方：Content folder（`<專案>\packed\`）、**Install mod to game (optional)** 的 Install 按鈕（會寫進遊戲資料夾）；再 Next 是 Save and publish（匯出 zip、發布到 Steam 工作坊：**不用**）
+- 紀錄：`<專案>\logs\publish <日期時間>.log`；另外產生 `cooked\`、`cookeddlc\`、`packed\`、`publish\`（都在 `.gitignore`）
+- 輸出（`packed\`）：
+  - `dlc\gunforgeralt\content\`：`blob0.bundle`（`test.reddlc`、物品 XML、AK 模板、模型、貼圖、動畫組 `gfg_ak47_geralt.w2anims`）、`buffers0.bundle`（模型的 buffer）、`texture.cache`、`metadata.store`
+  - `mods\modgunforgeralt\content\`：`blob0.bundle`（改過的原版 `pc_overlay.w2beh`、`pc_gameplay.w2beh`）、`precompiled.rsblob`（腳本編譯好的 blob，46 KB；查得到 `GfgTryFire` 等函式名）、`en.w3strings`、`info.json`
+  - 安裝方式（推論，**未驗證**）：`packed\mods\modgunforgeralt` → `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` → `<W3_GAME_DIR>\dlc\`（遊戲的 `dlc\` 已有其他 mod 的 DLC：`DLCmod_spawn_companions` 等）
+- 紀錄裡的錯誤（不影響輸出）：`SoundModCooker Fatal Error: Wwise installation not found`（沒有聲音，跳過）；`Dynamic class resolve for resource 'scripts\local\gfg_ak47.ws' failed`
+- `info.json` 的 `"succesfullyCooked": false`（原因不明；11 步都寫 finished）
+- ⚠️ 打包後（重建了虛擬 depot），同一次開著的 REDkit 重開世界、按 play game **當掉**（`EXCEPTION_ACCESS_VIOLATION`，堆疊在 Scaleform；紀錄停在 `World loaded` 之後）→ 打包完要重開 REDkit 再測
