@@ -60,6 +60,8 @@
    - 側面連拍的好位置：背對發光大字、對著牆（牆當背景），`$D burst "$P/前綴" 16 30 rect=600,300,520,460 scale=0.45 hold=d,shift pre=60`
    - 第 13、14 項（移動中瞄準時腰扭太多）：開槍中移動是全身瞄準＋雙手版側移動畫 `man_geralt_gabriel_strafe_*` 6 段（commit 67ce769：`move_pose.py --full` 把 Geralt 原版十字弩側移的上半身換成雙手持槍）；原版的腿朝移動方向跑、上半身轉 90° 瞄準（單手十字弩看不太出來，雙手持槍就很明顯）
      - **決定的方向（21:5x）**：改用 NPC 十字弩兵（雙手持弩，和人類 NPC 同一套骨架 `man_base`）的瞄準移動動畫（全身：臀部朝前、腳側步）蓋掉這 6 段；站姿瞄準已經借用過 NPC 的雙手瞄準（`CLAUDE.md` §6.11、`docs\m3.md`「雙手持槍：第二輪查詢」）
+     - 22:0x 查到：NPC 十字弩兵動畫組 `animations\man\combat\man_crossbow.w2anims`（名稱 `man_npc_bow_*`）有瞄準側移 `strafe_walk_f`、`_b`、`_fl`、`_fr`、`_bl`、`_br`、`_fl45`、`_fr45`、`_bl45`、`_br45`（＋各自的停步）；我們的 6 段是 `man_geralt_gabriel_strafe_f`、`_f_45l`、`_f_45r`、`_b`、`_b_45l`、`_b_45r`（對照要先確認 NPC 的 `fl` 和 `fl45` 哪個是 45°、哪個是 90°）
+     - **注意**：NPC 的十字弩在右手（`def_item_npcweapons.xml` 的 `hold_slot="r_weapon"`），AK 在左手 → 不能直接複製；要用 NPC 的腿、骨盆、脊椎，手臂照雙手持槍重算（`tools\move_pose.py --full` 的做法：先讀它的用法）
      - 步驟：找 NPC 十字弩兵的動畫組（`enemy_crossbow.w2ent`／十字弩兵模板的 `CAnimAnimsetsParam`，`docs\m3.md` 第二輪查詢有記）裡瞄準時前後左右走的動畫 → AnimBrowser Copy／Paste 到 `gfg_ak47_geralt.w2anims`、改名成 `man_geralt_gabriel_strafe_*`（先刪舊的）→ 動畫事件（腳步）要不要補 → 遊戲裡側面、背面連拍比對腰扭；不行再考慮自己轉骨盆／脊椎（`tools\move_pose.py`、`tools\horse_pose.py`）
    - 第 16～18 項（騎馬）：拔槍時槍是反的（原版騎馬拔十字弩的動畫，槍的方向是十字弩的握法）、換彈轉 180°、往後射上半身轉 180°
    - 之後：第一批第 8 項（換彈動畫）、第 10 項槍口火光、第 6 項長測、清理暫時紀錄（新增：`ray hit`、`ray miss`、`manual hit`、`coll`、`gfgwolf` 的 3～5 種類）
