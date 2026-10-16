@@ -13,5 +13,5 @@
 *.rsblob     binary
 *.bundle     binary
 *.db         binary
-# bash 腳本固定 LF（CRLF 會讓 bash 讀到  而出錯；.claude/hooks/*.sh）
+# bash 腳本固定 LF（CRLF 會讓 bash 讀到 CR 字元而出錯；.claude/hooks/*.sh）
 *.sh text eol=lf
