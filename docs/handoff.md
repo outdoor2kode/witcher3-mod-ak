@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 19:0x（**自主模式**；第 1、2、3、4、5、7 項做好；第 6 項待長測；8、9、10 項還沒開始）
+最後更新：2026-10-16 19:5x（**自主模式**；第 1、2、3、4、5、7、9 項做好；第 6 項待長測；第 10 項傷害寫好待驗證、槍口火光未做；第 8 項還沒開始）
 
 ---
 
@@ -36,27 +36,18 @@
 | 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
 | 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **做好、遊戲裡看過**（14:42）：站立跳、衝刺跳各連拍 14～18 張（每 0.1 秒，`desk.ps1 burst`）：起跳、空中、落地、再跑，兩手一直在槍上，沒有從擺手突然跳成持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | 未開始 |
-| 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
-| 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
+| 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
+| 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害寫好、還沒進遊戲驗證最終公式**（19:5x）：每發 穿刺 10×等級＋20、銀 ×1.25、爆頭 ×4、距離衰減 0.98^(距離/12.7)（`W3DamageManager.ProcessAction` 包裝；物品 XML 拿掉攻擊力 2.02）；推算和實測在 `docs\m3.md`「子彈、傷害」。槍口火光：未開始 |
 
-### 接續的步驟（2026-10-16 18:2x）
+### 接續的步驟（2026-10-16 19:5x）
 
-1. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
-   - 18:5x 查到的（還沒動手）：
-     - 現在的發射：原版弩箭 `Bodkin Bolt`（`items\weapons\projectiles\witcher_bolts\bodkin_bolt.w2ent`：`projSpeed` 60 公尺／秒、模型元件 `bolt` = `witcher_bolt_01.w2mesh`）；我們包了 `ThrowProjectile`（飛向準心）、`ShootProjectileAtPosition/AtBone`（射程 208 公尺）、`OnProjectileCollision`（插在牆上不刪，`GfgAddStuckBolt`）
-     - 弩箭共用模板 `witcher_bolts\base\bolt_base.w2ent` 有特效（實體上直接 `PlayEffect`）：`arrow_trail`（`fx\weapons\trails\arrow\bold_trail.w2p`）、`arrow_trail_orange`、`arrow_trail_red`、`arrow_trail_fire`、`arrow_trail_underwater`、`sparks`（`fx\weapons\block\kontra\counterattack_fx1.w2p`）、`arrow_trail_mutation_9`、`red_arrow_trail_mutation_9`
-     - Firearms（參考 mod）的槍口煙火在 DLC 打包檔裡，腳本沒有特效，不能照抄
-   - 計畫（自己決定）：AK 的箭 → 藏起 `bolt` 模型、播 `arrow_trail_orange` 當曳光（照 CS2 `m_nTracerFrequency` 3：每 3 發一發曳光，其他只有很淡的或沒有）、速度改快（`ShootProjectileAtPosition` 包裝裡換 velocity，例 350 公尺／秒，角度 0）；打到牆壁地面播 `sparks`、不再插著（原本「插在牆上的箭不刪」是箭的設計，換子彈後沒有意義 → 播完火花刪掉）
-   - 實作步驟（19:0x：1～3 已寫好、編譯過，**還沒進遊戲測** → 下一步做第 4 步；子彈速度 `GfgBulletSpeed` 350、曳光計數 `GfgNextShotIsTracer`）：
-     1. 包 `W3BoltProjectile.OnProjectileShot`（原版 `arrowProjectile.ws:19-34`：沒有軌跡時 `ActivateTrail( defaultTrail )` ＝ `arrow_trail`＋破空聲 `cmb_arrow_swoosh`）：AK 的箭（`gfgAkRange > 0`，`ThrowProjectile` 包裝裡先設好）→ 呼叫原版後把 `CDrawableComponent` 都 `SetVisible(false)`（同 `arrowProjectile.ws:395-402` `SmartDestroy` 的寫法）；每 3 發 `ActivateTrail('arrow_trail_orange')`，其他 `StopEffect( activeTrail )`（或換很淡的）
-     2. `ShootProjectileAtPosition/AtBone` 的包裝：AK 的箭把 velocity 換成子彈速度（先試 350 公尺／秒）、angle 換 0（直線）
-     3. `OnProjectileCollision` 的包裝：打到 Static／Terrain → `PlayEffect('sparks')`，短時間後刪掉（取代 `GfgAddStuckBolt`；`gfgStuckBolts` 相關的程式拿掉）
-     4. 測：站著連射打牆（截圖看曳光、火花、牆上沒有箭）、打狼（命中、傷害照舊）、騎馬開槍
-        - 19:0x 第一次測沒測成：`game_start` 復活後主控台指令打進 REDkit 右邊 Scene 搜尋框（框裡留著「setlevel」），AK 沒拿出來、之後死亡畫面、右上角紅字 Time scale → 下一步：F10 → 編輯模式點 Scene 搜尋框 Ctrl+A、Delete 清掉 → 點畫面天空移開焦點 → `game_start`；還是亂就重開 REDkit（記憶：原版情況也失效就重開）
-   - 槍口火光：再找原版粒子（`D:\depot\fx\...`，例：`fx\fire`、`fx\signs\igni` 的小火花），做法二選一：AK 的實體模板加特效（REDkit Entity Editor）或在槍口生成一個帶特效的實體
-   - 傷害：先查弩箭的傷害怎麼算（箭的物品屬性＋十字弩），再設計（CS2 36／爆頭 ×4 換算成巫師 3 的數值）
+1. 第 10 項：
+   - 先驗證傷害公式（19:5x 寫好、編譯過；**XML 改了 → 要重開遊戲**，F10 → `reload_edit` → `game_start` 就會重讀）：`con "gfgwolf(5)"`（固定靶狼）、`con "gfgwolf(6,1)"`（盜賊，看人類的護甲）→ 瞄準開槍 → 紀錄 `[GFG] ak dmg base=…`（基礎）、`[GFG] dmg … vit=…`（實際）；31 級預期基礎 330、實際約 388（狼沒護甲）；爆頭 ×4（瞄頭）
+     - 瞄準：開完主控台鏡頭上下會重設；`rmove` 每次 7 像素以上（小的會被吃掉）；狼生在玩家面向的前方（別面對牆）
+   - 槍口火光（＋曳光）：REDkit Entity Editor 在 AK 的實體模板加特效（找原版粒子，例：`fx\weapons\obstacle_hit\sparks_colision.w2p`、`fx\weapons\trails\sparks\fire_sparks_trail.w2p`、`fx\skills\maiming_shot\maiming_shot_crossbow_fx.w2p`；`r4data\fx` 有 2003 個 `.w2p`），每發 `PlayEffect`；槍口位置要從模型算（CS2 `m_vecMuzzlePos0`）
+   - 再來第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
 2. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
-3. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`gfghorsehere`、`holster for vehicle`、`mount interaction allowed with AK`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
+3. 全部做完拿掉暫時的指令和紀錄：`gfgbullet`、`gfgwolf`、`gfgdmg`、`CNewNPC.OnTakeDamage` 包裝（`[GFG] dmg`）、`[GFG] ak dmg`、`bullet sparks`／`bullet hit` 紀錄、`GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`gfghorsehere`、`holster for vehicle`、`mount interaction allowed with AK`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
 - 騎馬測試（`g.sh`）：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）；動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
 - 測試小技巧（暫存資料夾 `desk\g.sh`，session 結束就沒了）：`game_start`＝開遊戲到拿出 AK（約 1 分鐘：play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`wolf_test N 秒`＝關無敵、生狼
   - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`

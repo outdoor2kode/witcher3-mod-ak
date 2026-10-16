@@ -3,12 +3,11 @@
 	<definitions>
 		<abilities>
 			<!-- ######################## gunforgeralt: AK-47 ######################## -->
-			<!-- M1 placeholder: copied from "Crossbow 1 _Stats" (def_item_weapons_crossbow.xml:9-12) -->
-			<!-- M1 placeholder damage: attack_power = 2x Crossbow 1 (1.01) so the change is easy to see; real balance in M2 -->
+			<!-- based on "Crossbow 1 _Stats" (def_item_weapons_crossbow.xml:9-12) -->
+			<!-- no attack_power: the AK bullet damage is set by script (gfg_ak47.ws GfgSetAkDamage; item 10, 2026-10-16) -->
 			<!-- ammo = magazine size 30 (CS2 m_iMaxClip1); vanilla scripts never read it (inventoryComponent.ws:4165) -->
 			<ability name="gfg_ak47 _Stats">
 				<tags></tags>
-				<attack_power type="mult" min="2.02" />
 				<ammo type="add" min="30" />
 			</ability>
 		</abilities>

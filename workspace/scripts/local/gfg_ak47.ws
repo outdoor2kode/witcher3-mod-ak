@@ -1962,11 +1962,14 @@ function GfgShotRange( range : float ) : float
 	return gfgAkRange;
 }
 
-// AK 子彈的速度（公尺／秒；第 9、10 項）：原版弩箭 projSpeed 60（bodkin_bolt.w2ent）；角度 0 = 直線
+// AK 子彈的速度（公尺／秒；第 9、10 項）：真實 AK 的初速約 715；原版弩箭 projSpeed 60（bodkin_bolt.w2ent）；角度 0 = 直線
+// 2026-10-16 19:2x 實測 715：打牆、打 10 公尺外的狼都命中正常
 @addMethod(W3AdvancedProjectile)
 function GfgBulletSpeed() : float
 {
-	return 350.f;
+	if ( thePlayer.GfgDbgBulletSpeed() > 0.f )
+		return thePlayer.GfgDbgBulletSpeed();
+	return 715.f;
 }
 
 // 這兩個是 final 函式（advancedProjectile.ws:60-78）；包 final 函式有作用（StateEnter：docs/findings.md §17.8、§17.9）
@@ -2004,7 +2007,8 @@ function ShootProjectileAtBone( angle : float, velocity : float, target : CEntit
 @wrapMethod(W3BoltProjectile)
 function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
 {
-	var wasScheduled, result : bool;
+	var wasScheduled, result, hasComp : bool;
+	var victimActor : CActor;
 
 	wasScheduled = isScheduledForDestruction;
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
@@ -2012,48 +2016,203 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
 	{
 		PlayEffect( 'sparks' );
+		LogChannel( 'GFG', "bullet sparks " + VecToString( pos ) );		// 暫時（第 9 項）
+	}
+	else if ( gfgAkRange > 0.f )
+	{
+		if ( collidingComponent )
+		{
+			hasComp = true;
+			victimActor = (CActor)collidingComponent.GetEntity();
+		}
+		if ( victimActor )
+			LogChannel( 'GFG', "bullet hit actor " + victimActor.GetName() + " hp=" + victimActor.GetHealth() + "/" + victimActor.GetMaxHealth() );		// 暫時（第 9、10 項）
+		else
+			LogChannel( 'GFG', "bullet hit comp=" + hasComp + " static=" + hitCollisionsGroups.Contains( 'Static' )
+				+ " terrain=" + hitCollisionsGroups.Contains( 'Terrain' ) + " groups=" + hitCollisionsGroups.Size() + " was=" + wasScheduled + " now=" + isScheduledForDestruction );		// 暫時（第 9 項）
 	}
 	return result;
 }
 
 // ===== 子彈的樣子（第 9 項：使用者 2026-10-16「射出去的還是箭，不是子彈」）=====
 // 原版的箭射出時播軌跡 defaultTrail（arrow_trail）＋破空聲（arrowProjectile.ws:19-34）；特效定義在弩箭共用模板 bolt_base.w2ent
-// AK 的子彈：藏起箭的模型（寫法同 SmartDestroy：arrowProjectile.ws:395-402），每 3 發一發曳光（arrow_trail_orange），其他關掉軌跡
+// AK 的子彈：藏起箭的模型、關掉軌跡（2026-10-16 19:2x 實測）
+// - 只藏 CMeshComponent：藏全部 CDrawableComponent 時，特效（CParticleComponent 也是 CDrawableComponent：CParticleComponent.ws:6）也看不到
+// - 原版的軌跡（arrow_trail、_orange、_red、_fire、_mutation_9）在子彈的速度下看不到 → 不當曳光，關掉
 @wrapMethod(W3ArrowProjectile)
 function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNode )
 {
 	var result : bool;
 	var comps : array< CComponent >;
-	var player : CR4Player;
 	var i : int;
 
 	result = wrappedMethod( targetCurrentPosition, target );
 	if ( gfgAkRange > 0.f )
 	{
-		comps = GetComponentsByClassName( 'CDrawableComponent' );
+		comps = GetComponentsByClassName( 'CMeshComponent' );
 		for ( i = 0; i < comps.Size(); i += 1 )
 			((CDrawableComponent)comps[i]).SetVisible( false );
-		player = (CR4Player)GetOwner();
-		if ( player && player.GfgNextShotIsTracer() )
-			ActivateTrail( 'arrow_trail_orange' );
-		else if ( IsNameValid( activeTrail ) )
-		{
-			StopEffect( activeTrail );
-			activeTrail = '';
-		}
+		StopActiveTrail();
 	}
 	return result;
 }
 
-@addField(CR4Player)
-var gfgShotCount : int;		// AK 射出的子彈數（算曳光用）
-
-// CS2 的 AK 每 3 發一發曳光（weapons.vdata m_nTracerFrequency 3）
-@addMethod(CR4Player)
-function GfgNextShotIsTracer() : bool
+// ===== 傷害（第 10 項：使用者 2026-10-16「傷害由 Claude 設計一個符合這遊戲的」）=====
+// 原版的箭：箭（Bodkin Bolt：穿刺 5、銀 4：def_item_bolts.xml）＋十字弩的屬性，經過攻擊力、抗性（playerBoltProjectile.ws:57-77、damageManagerProcessor.ws:2692）
+// 原版武器的傷害只看裝備、不隨等級變（2026-10-16 實測：AK 打 5 級的狼，Geralt 10 級、31 級都是 73.1）
+// AK：每發的基礎傷害隨 Geralt 的等級增加（敵人的血量也隨等級增加 → 打同等級的敵人要幾發大致固定）；
+// 爆頭 ×4（CS2 m_flHeadshotMultiplier）；距離衰減 ×0.98^(距離 / 12.7 公尺)（CS2 m_flRangeModifier：每 500 單位 ×0.98，1 單位 = 1 英吋）
+// 攻擊名還是 'bolt'：原版弩的技能（解剖知識、爆頭的暴擊等）照樣有效；抗性照原版
+@addMethod(W3BoltProjectile)
+function GfgIsAkBullet() : bool
 {
-	gfgShotCount += 1;
-	return gfgShotCount % 3 == 1;
+	return gfgAkRange > 0.f;
+}
+
+@wrapMethod(W3DamageManager)
+function ProcessAction( act : W3DamageAction )
+{
+	var bolt : W3BoltProjectile;
+
+	bolt = (W3BoltProjectile)act.causer;
+	if ( bolt && bolt.GfgIsAkBullet() && (W3Action_Attack)act )
+		GfgSetAkDamage( act );
+	wrappedMethod( act );
+}
+
+@addMethod(W3DamageManager)
+function GfgSetAkDamage( act : W3DamageAction )
+{
+	var dmg, dist, perLevel, flat, dbgPer, dbgFlat : float;
+
+	// 一發 ≈ 同等級裝備的劍輕攻擊的 45%（2026-10-16 19:5x 定，推算寫在 docs/m3.md「子彈、傷害」）
+	// 經過原版流程後實際傷害 = 這個值 + 58（Geralt 本身的加成，不隨等級變：19:5x 實測 188.99 → 246.99）
+	// 銀（打怪物的精華）多 25%：同等級的銀劍比鋼劍高；怪物每級 +270 精華、人類每級 +55 血（monster_base_abl_new.xml:44-47、opp_base_abl.xml:283-286）
+	perLevel = 10.f;
+	flat = 20.f;
+	if ( thePlayer.GfgDbgDmg( dbgPer, dbgFlat ) )		// 暫時：主控台 gfgdmg 設的值
+	{
+		perLevel = dbgPer;
+		flat = dbgFlat;
+	}
+	dmg = perLevel * GetWitcherPlayer().GetLevel() + flat;
+	if ( act.GetIsHeadShot() )
+		dmg *= 4.f;
+	if ( act.attacker && act.victim )
+	{
+		dist = VecDistance( act.attacker.GetWorldPosition(), act.victim.GetWorldPosition() );
+		dmg *= PowF( 0.98f, dist / 12.7f );
+	}
+	act.ClearDamage();
+	act.AddDamage( theGame.params.DAMAGE_NAME_PIERCING, dmg );
+	act.AddDamage( theGame.params.DAMAGE_NAME_SILVER, dmg * 1.25f );
+	LogChannel( 'GFG', "ak dmg base=" + dmg + " head=" + act.GetIsHeadShot() + " dist=" + dist );		// 暫時（第 10 項）
+}
+
+// ===== 暫時（第 9 項調整用，做完拿掉）：主控台 gfgbullet(速度)：AK 子彈的速度（公尺／秒；0 = 用 GfgBulletSpeed 的預設）=====
+@addField(CR4Player)
+var gfgDbgSpeed : float;
+
+@addMethod(CR4Player)
+function GfgSetBulletDbg( speed : float )
+{
+	gfgDbgSpeed = speed;
+	LogChannel( 'GFG', "bullet dbg speed=" + speed );
+}
+
+@addMethod(CR4Player)
+function GfgDbgBulletSpeed() : float
+{
+	return gfgDbgSpeed;
+}
+
+exec function gfgbullet( speed : float )
+{
+	thePlayer.GfgSetBulletDbg( speed );
+}
+
+// 暫時（第 10 項設計傷害用，做完拿掉）：NPC 受到玩家攻擊時記下傷害（劍、子彈都記，拿來比較）
+@wrapMethod(CNewNPC)
+function OnTakeDamage( action : W3DamageAction )
+{
+	var attack : W3Action_Attack;
+	var result : bool;
+	var attackName : name;
+
+	result = wrappedMethod( action );
+	if ( action.attacker == thePlayer )
+	{
+		attack = (W3Action_Attack)action;
+		if ( attack )
+			attackName = attack.GetAttackName();
+		LogChannel( 'GFG', "dmg " + GetName() + " lvl=" + GetLevel() + " vit=" + action.processedDmg.vitalityDamage + " ess=" + action.processedDmg.essenceDamage
+			+ " attack=" + attackName + " head=" + action.GetIsHeadShot() + " crit=" + action.IsCriticalHit() + " hp=" + GetHealth() + "/" + GetMaxHealth() );
+	}
+	return result;
+}
+
+// 暫時（第 9、10 項測試用，做完拿掉）：玩家正前方 dist 公尺（預設 8）生一隻敵對、不會動的狼當靶子
+// 不會動：CAIDoNothingAction 蓋過戰鬥 AI（同 DogNPC.ws:192-194）；敵對：同主控台 spawn（temp.ws:6932-6935）
+// kind 1：盜賊（人類、有護甲；路徑同 CLAUDE.md §12）；level > 0 時設等級（同主控台 spawn：temp.ws:6937-6940）
+exec function gfgwolf( optional dist : float, optional kind : int, optional level : int )
+{
+	var template : CEntityTemplate;
+	var npc : CNewNPC;
+	var pos, posTemp, normal : Vector;
+	var rot : EulerAngles;
+	var tree : IAIActionTree;
+
+	if ( dist <= 0.f )
+		dist = 8.f;
+	if ( kind == 1 )
+		template = (CEntityTemplate)LoadResource( "characters\npc_entities\crowd_npc\bandit\bandit_lvl1.w2ent", true );
+	else
+		template = (CEntityTemplate)LoadResource( 'wolf' );
+	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * dist;
+	if ( theGame.GetWorld().StaticTrace( pos + Vector( 0, 0, 5 ), pos - Vector( 0, 0, 5 ), posTemp, normal ) )
+		pos = posTemp;
+	rot = thePlayer.GetWorldRotation();
+	rot.Yaw += 180.f;
+	npc = (CNewNPC)theGame.CreateEntity( template, pos, rot );
+	if ( !npc )
+	{
+		LogChannel( 'GFG', "gfgwolf: spawn failed" );
+		return;
+	}
+	npc.SetTemporaryAttitudeGroup( 'hostile_to_player', AGP_Default );
+	if ( level > 0 )
+		npc.SetLevel( level );
+	tree = new CAIDoNothingAction in npc;
+	tree.OnCreated();
+	npc.ForceAIBehavior( tree, BTAP_AboveCombat );
+	LogChannel( 'GFG', "gfgwolf at " + VecToString( pos ) + " lvl=" + npc.GetLevel() + " hp=" + npc.GetHealth() + "/" + npc.GetMaxHealth() );
+}
+
+// 暫時（第 10 項調整用，做完拿掉）：主控台 gfgdmg(每級, 固定)：AK 每發基礎傷害 = 每級 × Geralt 等級 + 固定（兩個都 0 = 用預設）
+@addField(CR4Player)
+var gfgDbgDmgPerLevel : float;
+@addField(CR4Player)
+var gfgDbgDmgFlat : float;
+
+@addMethod(CR4Player)
+function GfgSetDmgDbg( perLevel, flat : float )
+{
+	gfgDbgDmgPerLevel = perLevel;
+	gfgDbgDmgFlat = flat;
+	LogChannel( 'GFG', "dmg dbg perLevel=" + perLevel + " flat=" + flat );
+}
+
+@addMethod(CR4Player)
+function GfgDbgDmg( out perLevel : float, out flat : float ) : bool
+{
+	perLevel = gfgDbgDmgPerLevel;
+	flat = gfgDbgDmgFlat;
+	return perLevel != 0.f || flat != 0.f;
+}
+
+exec function gfgdmg( perLevel, flat : float )
+{
+	thePlayer.GfgSetDmgDbg( perLevel, flat );
 }
 
 // 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生
