@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 05:3x（**自主模式**；第 8 項 B 做好；開槍中側移分三節脊椎；下一步：清理暫時指令與紀錄）
+最後更新：2026-10-17 05:4x（**自主模式**；清理第一次做完、回歸測試通過；下一步：第二次清理、重新打包）
 
 ---
 
@@ -32,7 +32,10 @@
   - **第一次做完、編譯過，遊戲裡還沒測**（05:4x）：拿掉每格／定時的紀錄（`pose`、`twist`、`diag`、`horseCam`）、查問題用的紀錄（`forceHolster`、`rangedForceHolster`、`sword wait`、`raise wait`、`mag no grab`、`holster for vehicle`、`mount interaction allowed`、`manual hit`、`coll`、`bullet sparks/hit`、`ray hit/miss`、`ak dmg`、`CNewNPC.OnTakeDamage` 的包裝）、測試指令 `gfgfree`、`gfgnoturn`、`gfgmagshow`、`gfgbullet`、`gfgdmg`、`gfgwolf`、`gfghorsehere`
   - 第二次（回歸測試後）再拿：`gfgshots`、`gfgsword`／`gfgSwordTestBypass`、紀錄 `mag out`、`mag in`、`raise AK`、`sword draw blocked`、`sheathe sword for AK`；**永久保留**找不到模板的錯誤紀錄（`carry dummy template not found`、`mag template not found`）
   - g.sh 的 `side_reload2` 用到已拿掉的 `gfgnoturn`、`gfgfree`（要再側面看就從 git 找回 commit e0bfb09 的版本）
-  - 接續：① `restart_all` 回歸測試：開槍、換彈（`mag out/in`）、衝刺、跳、騎馬開槍換彈、上下馬、`spawn('wolf', 5, 10, true)` 自動舉槍、1 鍵擋劍、`gfgsword()` ② 第二次清理、編譯、簡單再測 ③ 重新打包（Publish；打包後重開 REDkit）④ 照 §14 結束自主模式（裝進遊戲要使用者決定）
+  - **回歸測試（05:3x，第一次清理後）通過**：地面開槍到換彈 `mag out t=0.32 dist=0.011`、`mag in t=1.51`；收槍後 `spawn('wolf', 3, 8, true)` → `raise AK … combat=true`（沒拔劍）；按 1 → `sword draw blocked`；收著 AK 時 `gfgsword()` → `sheathe sword for AK`（拿著 AK 時 `gfgsword()` 沒反應：原版不拔，02:5x 也是收著測的）；騎馬開槍到換彈 `mag out t=0.32`、`mag in t=1.51`；拿著 AK 長按 E 下馬 → AK 在背上；衝刺跳躍連拍（`rj1`～`rj6`）正常；腳本錯誤只有原版的（教學、馬的 `exploration.ws:3386`）
+    - **g.sh 的 `game_start`、`horse_start`、`ak_select` 用 `[GFG] pose` 判斷 AK 拿出來了沒 → 這個紀錄拿掉了，會誤報「沒拿出來」**：用截圖確認，或改成別的判斷
+    - 教學提示（升級的 Ability Point）會吃掉主控台指令 → 先 `closeTutorialPopup()`
+  - 接續：① 第二次清理（上面「第二次」那些）、編譯、簡單再測（開槍、換彈看截圖）② 重新打包（Publish；打包後重開 REDkit）③ 照 §14 結束自主模式（裝進遊戲要使用者決定）
 - 之後：曳光（先跳過）；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）
