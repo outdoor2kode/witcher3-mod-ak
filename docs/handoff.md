@@ -4,115 +4,65 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 07:0x（**自主模式結束**：雙手持槍做完——站著、走路、跑步、換彈、收槍；地面的回歸測試通過；剩下的要使用者決定）
+最後更新：2026-10-16 12:4x（**自主模式**：使用者回報 10 個問題，Claude 自己做、自己驗證）
 
 ---
 
-## 使用者回來時先看這裡（2026-10-16 07:0x 自主模式結束）
+## 自主模式（2026-10-16 12:3x 起）
 
-- 這段時間做完的（都已 commit、遊戲裡用偵測紀錄驗證）：
-  - 雙手持槍：站著瞄準（上下左右跟準心）、連射、換彈（手在槍上、換完接著射）、收槍掛背上、直線和轉彎的走路、跑步（腿會動、兩手握槍）
-  - 新工具：`tools\desk.ps1`（Claude 操作畫面）、`tools\gameplay_patch.py`、`tools\move_pose.py`、`tools\aim_delta.py`、`tools\pose_check.py`、`tools\overlay_patch.py`
-  - 細節：`docs\m3.md` 從「雙手持槍：第 1 步」到「雙手持槍：直線走路、跑步的右手」
-- **請使用者做的**（Claude 做不了或要使用者決定）：
-  1. 進遊戲看雙手持槍的樣子（站、走、跑、換彈、收槍）→ 滿意的話，請 Claude 拿掉暫時的偵測紀錄 `GfgLogHoldPose`
-  2. 騎馬的回歸測試（「測試方式補充」；測試關卡叫不出馬）
-  3. 決定：箭第一次出現在槍口前 1～2 公尺怎麼處理（M5 槍口火光／降低箭速）、傷害平衡、什麼時候做 M4 聲音（Wwise 授權要用使用者的帳號）
-  4. 已知限制裡想修的（「已知限制」：起步那一下手離開握把、轉彎跑槍管差到 19°、換彈中槍管差 15～20°、衝刺時手會擺）
-- 自主模式的收尾（07:0x）：刪掉續做排程、停掉保持清醒；REDkit 還開著（`reference_level`、編輯模式）
-- context 自動壓縮（`autoCompactWindow`）在這個 session 沒生效：使用者可以打 `/autocompact 400k` 或重開 Claude Code（下面的紀錄）
+- 使用者：「假設我要離開電腦一年才回來接手，你要一直 RUN 下去獨立操控電腦解決任務」
+  - 規則（使用者 2026-10-16）：使用者說「恢復自主模式」才開；任務做完就結束；沒說就是互動模式
+- 不問使用者；決定和理由寫進這份檔案；範圍照舊：只做 AK 本身、只改專案資料夾（`CLAUDE.md` §7、§11）
+- **等待一次最多 15 秒**（使用者 2026-10-16 從 30 秒改成 15 秒）：到時間先截圖檢查狀態再決定，不是直接關程式
+- 保持清醒：背景 `desk.ps1 awake 2147483`（12:3x 起，約 24.8 天；PowerShell 的 `Start-Sleep` 最多 2147483 秒）
+- 續做排程：CronCreate 每小時 :13（job `9924783b`；7 天後自動消失 → 2026-10-22 之後被叫醒時重排）
+- **結束自主模式**：CronDelete、停掉保持清醒（TaskStop 背景工作，或殺掉命令列含 `desk.ps1 awake` 的 `powershell.exe`）、這份檔案最上面寫「使用者回來時先看這裡」、終端機叫回前面（`desk.ps1 focus proc:windowsterminal`）
 
-## 自主模式（2026-10-16 01:2x～07:0x：使用者離開時的設定，留作下次參考）
+## 現在在做：使用者回報的 10 個問題（2026-10-16 12:2x）
 
-- 使用者授權：REDkit、資料夾、做法都由 Claude 決定、自己驗證，不等回應（「都交給你決定」）→ 決定和理由寫進這份交接檔
-  - 範圍照舊：只做 AK 本身（`CLAUDE.md` §7）；只改專案資料夾（§11）
-- 操作畫面：`tools\desk.ps1`（截圖、滑鼠、鍵盤；用法在檔頭）
-  - 被擋住的視窗也截得到：`wshot <視窗> out.png mode=print`；要點的話先 `focus`，截圖加 `grid=50` 找座標
-  - REDkit 主視窗：`proc:editor` 或標題含 `The Witcher 3 REDkit`；REDkit 是直接開 `<REDKIT_DIR>\bin\x64_RedKit\editor.exe`（沒有參數，從檔案總管）
-  - 只對 editor／witcher3／blender 送輸入；告一段落就把終端機叫回前面（`focus proc:windowsterminal`）
-  - **等待最多 30 秒**（使用者 2026-10-16）：沒反應就截圖看狀態、直接做合理的下一步（卡在關閉就 `taskkill /F`）
-  - 重開 REDkit（2026-10-16 01:4x 實測）：`close` 主視窗 → 問「Modified file found」照情況答 → 程序常卡在關閉（CPU 空轉、紀錄不再寫）→ 30 秒後 `taskkill //PID … //F` → `Start-Process editor.exe`（工作目錄 `bin\x64_RedKit`）→ Welcome 視窗：點 Recent projects 沒反應，改按「Open existing project」的 Browse（約 (1236, 814)）→ 檔名框輸入 `D:\OneDrive\Desktop\gunforgeralt\gunforgeralt.w3edit` → Enter → File 選單的最近世界 `engine\reference_level\world\reference_level.w2w`（約 (180, 245)）
-  - 主視窗最大化時工具列：`play game` (650, 86)、`Fast` (682, 86)、`load a saved game` (713, 86)；Asset Browser 用 Ctrl+A 開，會跑到螢幕外 → `place "Asset Browser" 300 80 1300 900`
-- 不中斷的設定：
-  - `.claude\settings.local.json` 的 `autoCompactWindow` 400000 → context 40% 自動壓縮（官方文件：設定檔存檔後執行中的 session 會重讀）
-  - 保持清醒：`desk.ps1 awake 604800` 在背景跑（01:22 起，最多 7 天；系統狀態實測 0x3 = 不睡眠＋不關螢幕）；使用者的設定是 30 分鐘沒動作就睡眠、關螢幕
-  - 續做排程：CronCreate 每小時 :13（job `03dddeb6`；只存在這個 session，7 天後自動消失）：被中斷（用量上限、錯誤）就讀這份接著做
-  - 02:05 觀察：context 到 42% 了，**這一輪中途沒有自動壓縮** → 結束這一輪、排一次性排程 2 分鐘後叫醒
-    - **02:08 結果：一輪開始時也沒有壓縮（還是 42%）→ `autoCompactWindow` 在這個 session 沒生效**（設定檔裡有；官方文件說存檔會重讀，實際沒套用）
-    - 不會爆：預設約 96.7 萬 tokens 才壓縮（官方文件 model-config）
-    - 使用者回來可以：打 `/autocompact 400k`（官方文件：存到使用者設定的這個模型底下、套用到目前的 session；所有專案都會用這個值；`/autocompact auto` 還原），或重開 Claude Code 讓專案設定生效
-- 停下來的條件：能做的都做完；或卡在只有使用者能做的事（例：M4 的 Wwise 授權要用使用者的帳號）→ CronDelete、停掉保持清醒（`powershell.exe` 命令列含 `desk.ps1 awake` 的程序）、寫清楚狀態
+使用者看過雙手持槍：站立、射擊、跑跳、收槍的姿態都好。要處理的：
 
-## 現在在做
+| # | 問題（使用者的描述） | 狀態 |
+|---|---|---|
+| 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲（截圖：上半身朝準心、腿朝跑的方向） | 未開始 |
+| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢（截圖：拳頭的戰鬥姿勢、AK 直立在右手） | 未開始 |
+| 3 | 騎馬的姿勢完全錯 → 修好 | 未開始 |
+| 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | 未開始 |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確（截圖：AK 在背後、槍管朝下） | 未開始 |
+| 6 | 打完狼群有時解除不了鎖定：一直面向最後殺死的狼、牠一直顯示血條（血 0），按 Z 或任何鍵都解不掉、跑遠也一樣（每次召喚 30 隻狼，不是每次都出現） | 未開始 |
+| 7 | 跳躍落地後瞬間變回持槍姿勢、不順；衝刺跳躍的落地更明顯 | 未開始 |
+| 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | 未開始 |
+| 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
+| 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
 
-- **雙手持槍，走「用 Blender 改動畫」這條路**（使用者 2026-10-15 選；背景、證據、做法在 `docs\m3.md`，從「雙手持槍：初步查詢」到「右手臂被換成另一段動畫」）
-  - 已經做完的：
-    - 第一個實驗：DLC 動畫組裡的同名動畫蓋過原版（`man_geralt_gabriel_aim_idle_rp` 換成 NPC 的雙手瞄準 `man_npc_bow_idle_aiming_01`）→ 可行；檔案 `gfg_ak47_geralt.w2anims`、`test.reddlc` 的第 3 個掛載器（都已 commit）
-    - 擺法 A（只把 AK 放到兩手之間）進遊戲錯誤；偵測紀錄量出：AK 的 `handle` 骨頭在遊戲裡繞槍管轉了 180°、原版的瞄準疊加層上下瞄幾乎只動左手、站著時右手比動畫低 14 公分
-    - 改動畫的流程打通：REDkit 匯出 `.re` → `tools\re_blender.py`（Blender 外掛匯入、改、匯出、`re_fix` 修補）→ REDkit 匯入（動畫組那一行右鍵 **Import simple/plain animations** → 問 override 按 **Overide** → Save all）；頭轉 30° 的測試成功
-    - 4 段 `aimpose_*` 的時間和角度：第 60 格 = 不偏；左右 ±180° ↔ ±1 秒；上下約 ±90° ↔ ±1 秒
-  - **2026-10-16（/clear 之後）**：使用者選「先做第 1 步」→ 動手前查到：**站著、沒拿劍時，原版把右手臂換成 `man_ger_sword_axii_arm_override`**（`pc_overlay.w2beh` #18505，總權重 0.75；`docs\m3.md`「右手臂被換成另一段動畫」）→ 第 1 步把右手放上握把也會被拉走
-    - 使用者選「**改原版動畫圖的曲線**」（Claude 建議）→ `tools\overlay_patch.py`（使用者同意寫）已執行：
-      - 讀原檔（唯讀）→ 曲線 #18561 的 4 個值全部改 0 → 重算三層校驗碼（CRC32；算法用原檔驗證過）→ 寫到 `workspace\gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh`（= check out 再修改）
-      - 讀回來檢查過：和原檔只差 16 bytes；`.gitignore` 排除這個檔（用腳本可以重做）
-    - **進遊戲測：成功**（00:25；`docs\m3.md`「右手臂被換成另一段動畫」的表）：站著瞄水平，`r_hand` 和動畫差 **2.6 公分**（改之前 15.9 公分）；遊戲會讀 workspace 改過的動畫圖、沒有錯誤；左手還差 7 公分（原版瞄準疊加層，第 2 步處理）
-    - 這次查到、還沒用到的：Geralt 原版動畫的 `IK_r_hand` 等骨頭 = 對應骨頭的模型座標；NPC 那段對不上；`pc_overlay.w2beh` 沒用它們做 IK（`pc_gameplay.w2beh` 有 16 處，沒查）→ 第 1 步改右手時，`IK_r_hand` 先照原檔（`re_fix` 會把所有骨頭的位置改回原檔）
-  - **第 1 步：底層姿勢——做好、離線檢查通過（2026-10-16 01:0x）**：`tools\two_hand_pose.py`（使用者同意寫；指令、結果、數字在 `docs\m3.md`「雙手持槍：第 1 步：底層姿勢」）
-    - 使用者看過預覽圖 `assets\ak47\preview\step1_pose.png`，**和原本設計不同的兩項都同意**（2026-10-16 01:0x）：
-      1. AK 跟著胸口（`torso3`）動、兩手都用 IK 握在槍上（原本：左手不動、右手跟著左手）：原檔左手相對胸口晃 4.7°，跟著左手槍管會晃到 4°
-      2. IK 用兩節手臂的公式（肩膀自由轉、手肘當鉸鏈），不用 Blender 的 IK 約束：Blender 的把手肘當球形關節，右手肘往側面彎 8°
-    - `.re` 已放進 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re`（01:08，蓋掉頭轉 30° 的測試檔；`.gitignore` 排除；不見了就用 `docs\m3.md` 的指令重做，約 10 秒，結果一樣）
-    - **進遊戲前的準備：Claude 用 desk.ps1 做完**（01:25～01:52）
-      - AK 模型：`m3_build_ak.py` 加第 1 步的 `--place`（`docs\m3.md`）→ Import > Mesh（`importAsSkinnedMesh` true；`editor.log` 01:28:16 `HasSkinning: true (NODE 'handle')`）
-      - `bolt` slot：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Roll 92.6、Yaw −68.9 → 存檔讀回：(Roll, Pitch, Yaw) = (92.6, 306.6, 291.1) ✓（02:0x commit）
-      - 重開 REDkit、開 `reference_level`（關閉時問動畫組「Modified」：01:16 有人開預覽角色、記憶體裡重新壓縮（大小一樣）→ 按 No，保留 01:13 驗證過的檔）
-    - **第 1 步進遊戲：通過**（02:00～02:02；`docs\m3.md`「進遊戲：通過」）：右手掌心離握把 1.7 公分（283 筆都一樣）；槍管和鏡頭差 5～6°（只測了鏡頭往下 10°）
-    - 遊戲裡的操作（desk.ps1 實測）：
-      - `play game`：Geralt 出生在 0,0,0 會死 → 死亡選單**用鍵盤**（down ×3 → enter = DEBUG RESURRECT；滑鼠點遊戲選單沒反應）
-      - 主控台：`key oem3` 開、**用 `keys` 輸入**（`type` 的 Unicode 輸入遊戲收不到）、`key enter`；再 `key oem3` 關
-      - 拿 AK：**先 `setlevel(31)`** 再 `additem('gfg_ak47', 1, true)`（等級不夠時裝不上，原本的十字弩還在，左鍵變成徒手攻擊：05:30 漏打）；裝上時紀錄會讀 `gfg_ak47.w2mesh`；`god()` 免得被打死
-      - 選 AK：`keydown tab` → `rmove 0 300 10 15`（往下）→ `keyup tab`；第一次開輪盤有教學提示要按 Space 翻頁（多按會變成冥想 → Esc、按 W 站起來）
-      - 左鍵開槍：`click 860 555`；`tools\pose_check.py editor.log [筆數]` 算掌心和握把的距離、槍管和鏡頭的角度
-      - **不要按 F1**（自由鏡頭＋任務選單，鍵盤被鏡頭拿走）；**F10 結束遊戲**回編輯器
-    - **匯入 REDkit：成功**（使用者 01:13 匯入、存檔；Calc bone MS 時間 0 的 `r_hand` (0.2004, 0.1056, 1.4057)、(4.04, 108.67, 12.29)，和預測差 0.8 公釐、0.2°：動畫壓縮的誤差）
-      - 原本的步驟（之後重匯時照做）：匯入 REDkit → Calc bone MS 量 `r_hand`、`head`（時間 0）→ 不重開 REDkit，讀 `editor.log`，和 `docs\m3.md`「匯入 REDkit 後的預測」比
-      - 步驟：雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims` → 問預覽角色按 **No** → **All animations** → 最上面那行（動畫組）右鍵 **Import simple/plain animations** → 選上面的 `.re` → 問 override 按 **Overide** → File → **Save all** → 動畫右鍵 **Calc bone MS**
-      - 成功的話：`r_hand` 約 (0.200, 0.106, 1.405)、角度 (4.2, 108.7, 12.3)；`head` 的 Yaw 從 18.26 回到 −11.70；`editor.log` 有一行 `AnimationCompressionDetailed … man_geralt_gabriel_aim_idle_rp`
-    - 骨架：`r_shoulder` → `r_bicep` → `r_forearm` → `r_hand`（扭轉骨頭 `r_bicep2`、`r_elbowRoll`、`r_forearmRoll1`→`r_forearmRoll2`→`r_handRoll` 掛在上臂、前臂底下；這次不動它們）
-  - **第 2 步：瞄準差值——做完、遊戲裡通過**（02:14～02:31；`tools\aim_delta.py`；`docs\m3.md`「雙手持槍：第 2 步：瞄準差值」）
-    - 新的 4 段 `aimpose_*`：左右只轉 `torso`、`torso2`，上下只轉 `torso3`；手臂和 AK 跟著胸口整組轉
-    - 匯入：AnimBrowser 動畫組那一行（先左鍵選、再右鍵）→ **Import additive animations II (Ref)**（來回測試差 0.000）→ Ctrl+S；動畫組 02:28:49 存檔（commit）
-    - 遊戲裡：上下 ±38°、左右 ±30° 的組合，槍管和鏡頭差 0.4～2.0°；右手掌心離握把 0.8 公分
-  - **接下來**（Claude 自己做、自己驗證）：
-    1. 其他狀態的雙手（`docs\m3.md`「雙手持槍：走路、跑步」）：
-       - 站著連射 ✓；換彈 ✓（下面 3.）；**跑步**：槍管跟著準心，右手離握把 22～61 公分（擺手，原因沒確定）；**走路**（Alt）✗；拔槍沒量
-       - 試過、失敗：#18960 改成移動時也走站著那一支 → 角色不能移動（已還原）
-       - 下一個方向（還沒做）：找跑步時右手臂的來源（主動畫圖的哪個狀態；偵測紀錄可以加印主動畫圖的變數）
-       - 03:22 量到：跑步時 `l_weapon`（玩家座標）和站著時**完全一樣** (0.15, 0.52, 1.36)；右手在身後擺（y −0.34～−0.09）→ 上半身其他部分是站著的雙手姿勢，**只有右手臂被換成跑步擺手**；`held=1`、`friendly=0`（#18575 沒啟用）
-       - 想用 REDkit 的 Tools → Debuggers → **Behavior Debugger** 看跑步時哪些節點在動（遊戲中選單點不到：要在 F10 之前……沒試過）
-       - 遊戲裡按鍵前先**點一下遊戲畫面**（不然方向鍵會送到 REDkit 右邊場景面板的圖層下拉選單，跳出「Changing layer preset」→ 按 No）
-    2. ~~收槍時 AK 在背上的位置跑掉~~ → **完成**（03:47；`docs\m3.md`「雙手持槍：收槍的位置」）：`test.reddlc` 加 slot 掛載器、物品 XML `equip_slot="gfg_ak47_back_slot"`；以下是當時的紀錄
-       - 查到（03:3x）：物品 XML `equip_slot="crossbow_back_slot"`；這個 slot 在 `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`：`componentName` = `scabbards_skeleton`、`boneName` = `crossbow_back`、沒有 transform
-       - **算好了**（03:4x，暫存腳本 `back_slot.py`：Blender 用 `m3_build_ak` 的函式算兩種擺法；自我檢查：G2 算出的握把、槍管、上方和第 1 步的設定差 0.6 公釐、0.15°）：
-         - T：位置 (0.0622, −0.0002, 0.3771)；**Pitch −7.38、Yaw −75.65、Roll −50.13**（矩陣 = Rz(Yaw)·Rx(Pitch)·Ry(Roll)；重組誤差 1e-7）
-         - 掛載器（照原版 `dlc\dlc16\dlc16.reddlc` #34）：`CR4EntityTemplateSlotDLCMounter`，`baseEntityTemplatePath` = `characters\base_entities\man_base\player_base_m\player_base_m.w2ent`，`entityTemplateSlots` 一個 `EntitySlot`：名稱 `gfg_ak47_back_slot`、`componentName` `scabbards_skeleton`、`boneName` `crossbow_back`、transform = T
-         - 然後物品 XML 的 `equip_slot` 改成 `gfg_ak47_back_slot`
-       - 原本的想法：新 slot（同一根骨頭）＋補償變換 T = H·P1·P2⁻¹·H⁻¹（H = AK 實體裡 `handle` 骨頭的變換：遊戲裡量到原點 (0, 0, −0.0723)、x→+Z、y→+Y、z→−X；P1 = 單手版擺法 `--pitch -20.5`、P2 = 第 1 步的 `--place`）→ 讓背上的樣子回到單手版；`.reddlc` 加掛載器要在 REDkit 裡做（介面沒看過）
-    3. ~~換彈~~ → **完成**（05:20～05:36；`docs\m3.md`「雙手持槍：換彈」）：動畫組 17 段（加 `man_geralt_gabriel_reload_lowered`、`…_front_2`：第 1 步的姿勢截短，`.re` 在 `assets\anims\gfg\`）
-       - 事件在 AnimBrowser 手動加（時間照原版）：兩段都有 `OnWeaponReload` 0.70 秒、`RaiseWeapon`；`front_2` 另有 `Crossbow`
-       - 遊戲裡：串流錯誤 0 次；連射 68 發、換彈 2 次都接著射；換彈中掌心離握把 0.3 公分；換彈中槍管和鏡頭差 15～20°（沒有瞄準差值）
-       - 放棄的做法：Copy／Paste 原版那筆再同名匯入 → 遊戲裡每格報 `fully streamable`（03:55）
-       - 輪盤：沒跳教學時**不要按 Space**（會變冥想）→ 先截圖看有沒有教學；教學（快捷選單）有兩頁，Space 兩次
-    4. ~~跑步、走路~~ → **完成**（05:4x～06:44；`docs\m3.md`「雙手持槍：直線走路、跑步的右手」）
-       - 原因：主動畫圖 WalkAndRun 直線走跑的十字弩覆蓋沒有右手臂（轉彎的有）；之前的靜止 `aim_run` 讓直線跑時腿不動；上半身圖的十字弩區塊把走路兩段、`aim_run` 整個人拿來播（走路模式拿 AK 人不會動）
-       - 做法：`tools\gameplay_patch.py`（直線 3 個節點的骨頭表換成轉彎的 70 根；改完要**重開 REDkit**：新建的 workspace 檔要重開才讀得到）＋`tools\move_pose.py`（原版走跑為底、上半身換成第 1 步、`torso` 補正骨盆方向）→ 動畫組 22 段（含 `aim_slow_run`、`ex_man_geralt_gabriel_aim_idle`：起步用）
-       - 遊戲裡：直線跑掌心 0.6 公分、槍管差 0.8～5.5°、腿在跑；轉彎跑槍管最多差 19°；走路掌心 0.6 公分、槍管差 0.1～0.7°、腿在走
-       - 戰鬥中跑步（06:50）：兩手在槍上、腿在跑；槍管和鏡頭差 20～52°（角色面向狼：原版十字弩戰鬥的面向，`findings.md` §20；不是姿勢的問題）
-       - 沒測：坡度、衝刺（衝刺那一支沒有十字弩版本）；拔槍很快，過程沒看到
-       - 偵測紀錄加印了兩腳（`l_foot`、`r_foot`；暫時）；分析：`pose_check.py` 可以 import（`parse`、`to_local` 等）
-    - 遊戲裡的參考值（第 2 步之後、平視）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
-  - 暫存資料夾（session 結束就沒了）：`pose_2206.log`、`pose_0025.log`（兩次的偵測紀錄，從 `editor.log` 複製；數字摘要在 `docs\m3.md`「遊戲裡實測」「右手臂被換成另一段動畫」）；`pose_parse.py`（解析偵測紀錄）；查動畫圖用的 `graph_walk_lib.py` 等（做法寫在 `docs\m3.md`）
-    - 沒有 numpy 的系統 Python 3.14 跑不了 `pose_parse.py`；用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
+## 操作備忘（Claude 自己操作 REDkit、遊戲時用；2026-10-16 實測）
+
+- `tools\desk.ps1`（用法在檔頭）：被擋住的視窗也截得到（`wshot <視窗> out.png mode=print grid=50`）；要點的話先 `focus`；只對 editor／witcher3／blender 送輸入
+- REDkit 主視窗：`proc:editor`；直接開 `<REDKIT_DIR>\bin\x64_RedKit\editor.exe`（工作目錄同資料夾，沒有參數）
+- 重開 REDkit：`close` 主視窗 → 問「Modified file found」照情況答 → 程序常卡在關閉（CPU 空轉、紀錄不再寫）→ 截圖確認後 `taskkill //PID … //F` → `Start-Process editor.exe` → Welcome 視窗按「Open existing project」的 Browse（約 (1236, 814)）→ 檔名框輸入 `D:\OneDrive\Desktop\gunforgeralt\gunforgeralt.w3edit` → Enter → File 選單的最近世界 `engine\reference_level\world\reference_level.w2w`（約 (180, 245)）
+- 主視窗最大化時工具列：`play game` (650, 86)、`Fast` (682, 86)、`load a saved game` (713, 86)；Asset Browser（Ctrl+A，只按一次、等 5～6 秒）會跑到螢幕外 → `place "Asset Browser" 300 80 1300 900`
+- 遊戲裡：
+  - `play game`：Geralt 出生在 0,0,0 會死 → 死亡選單：先 `move 250 900`、`click 250 900` 拿回焦點，再 down ×3 → enter（DEBUG RESURRECT）
+  - 主控台：`key oem3` 開、**用 `keys` 輸入**、`key enter`；再 `key oem3` 關
+  - 拿 AK：**先 `setlevel(31)`** 再 `additem('gfg_ak47', 1, true)`；`god()`
+  - 選 AK：`keydown tab` → 第一次有兩頁教學（Space 兩次；沒教學時不要按 Space，會變冥想）→ `rmove 0 300 10 15` → `keyup tab`
+  - 左鍵開槍：`click 860 555`；按鍵前先點一下遊戲畫面（不然方向鍵會送到 REDkit 右邊的場景面板，跳「Changing layer preset」→ 按 No (1112, 526)）
+  - 走路切換是 Alt：在 REDkit 裡會叫出選單列 → 按 Alt 後 Esc（遊戲暫停選單）→ Enter（RESUME）
+  - **不要按 F1**（自由鏡頭）；**F10 結束遊戲**回編輯器；F8／F9 除錯選單在遊戲中點不到
+  - 截圖間隔接近跑步循環時看不出腿在動 → 用偵測紀錄的腳位置判斷
+- 改動畫的流程：REDkit AnimBrowser 動畫右鍵 Export animation（存 `assets\anims\`）→ `tools\re_blender.py`、`tools\move_pose.py` 等改 → AnimBrowser 動畫組那一行右鍵 **Import simple/plain animations**（(1126, 266)；Open files 檔名框 (570, 553)）→ 問 override 按 **Overide** → Ctrl+S
+  - 瞄準差值 `aimpose_*`：**Import additive animations II (Ref)**
+  - 動畫事件：時間軸右鍵 Add simple event／Add duration event → 雙擊事件 → 右邊改值 → Ctrl+S（`CLAUDE.md` §6.11）
+  - 我們的動畫組在 Asset Browser 的 animations 分頁 (579, 263)；原版 `man_geralt_gabriel` 在 combat 分頁 (690, 230)；AnimBrowser 動畫組那一行 y=187；Export 的 Save file 檔名框 (644, 477)
+- 沒有 numpy 的系統 Python 跑不了分析腳本 → 用 Blender 內建的 Python（`D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe -I`）
+- 遊戲裡的參考值（平視站著）：`r_hand` (0.205, 0.133, 1.366)、`l_weapon` (0.148, 0.555, 1.353)（玩家座標）
+
+## 雙手持槍（2026-10-15～16 做完；細節在 `docs\m3.md`「雙手持槍：第 1 步」到「雙手持槍：直線走路、跑步的右手」）
+
+- 站著瞄準（上下左右跟準心）、連射、換彈（手在槍上、換完接著射）、收槍掛背上、直線和轉彎的走路、跑步都在遊戲裡量過
+- 動畫組 `gfg_ak47_geralt.w2anims` 22 段（同名蓋過原版十字弩的動畫）；改過的原版動畫圖：`pc_overlay.w2beh`（`tools\overlay_patch.py`）、`pc_gameplay.w2beh`（`tools\gameplay_patch.py`）
+- 工具：`tools\two_hand_pose.py`（第 1 步姿勢）、`tools\aim_delta.py`（瞄準差值）、`tools\move_pose.py`（走跑）、`tools\pose_check.py`（偵測紀錄分析）
+- 暫時的偵測紀錄 `GfgLogHoldPose`（`GfgCameraTick` 裡呼叫）還在，10 個問題做完後拿掉
 
 ### 偵測紀錄的讀法、用遊戲數據算擺法
 
