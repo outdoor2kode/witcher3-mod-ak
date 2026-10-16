@@ -1697,10 +1697,11 @@ function GfgSetDebugCam( cam : CStaticCamera )
 	}
 }
 
-exec function gfgcam( angle : float, dist : float, height : float )
+exec function gfgcam( angle : float, dist : float, height : float, optional pitch : float )
 {
 	var tmpl : CEntityTemplate;
 	var pos, target : Vector;
+	var rot : EulerAngles;
 
 	tmpl = (CEntityTemplate)LoadResource( "gameplay\camera\static_camera.w2ent", true );
 	if ( !tmpl )
@@ -1711,7 +1712,10 @@ exec function gfgcam( angle : float, dist : float, height : float )
 	target = thePlayer.GetWorldPosition() + Vector( 0.f, 0.f, 1.3f );
 	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
 	pos.Z += height;
-	thePlayer.GfgSetDebugCam( (CStaticCamera)theGame.CreateEntity( tmpl, pos, VecToRotation( target - pos ) ) );
+	// 01:5x：用 VecToRotation( target - pos ) 時畫面整片天空 → 改成水平朝向 Geralt，俯仰另外給（測正負）
+	rot = EulerAngles( pitch, VecHeading( target - pos ), 0.f );
+	LogChannel( 'GFG', "debug cam pos " + VecToString( pos ) + " rot " + FloatToString( rot.Pitch ) + " " + FloatToString( rot.Yaw ) );
+	thePlayer.GfgSetDebugCam( (CStaticCamera)theGame.CreateEntity( tmpl, pos, rot ) );
 }
 
 exec function gfgcamoff()
