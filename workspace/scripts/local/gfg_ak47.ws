@@ -1369,6 +1369,9 @@ function GfgCamera() : CCustomCamera
 {
 	var cam : CCustomCamera;
 
+	// 暫時：gfgview 看的時候畫面是拍照模式的鏡頭，瞄準照樣用遊戲鏡頭
+	if ( ownerPlayer && ownerPlayer.gfgViewOn && ownerPlayer.gfgViewPrevCam )
+		return ownerPlayer.gfgViewPrevCam;
 	cam = theGame.GetWorld().GetCameraDirector().GetTopmostCamera();
 	if ( !cam )
 		cam = theGame.GetGameCamera();
@@ -1755,7 +1758,7 @@ function GfgMuzzleFlash()
 
 // ===== 換彈：彈匣真的拿下來（第一批第 8 項 B；2026-10-17）=====
 // 換彈動畫（tools/reload_pose.py；docs/m3.md「換彈動畫」）：左手 0.30 秒到彈匣底下 → 拉出 → 左腰 → 1.50 秒裝上（動畫事件 OnWeaponReload）
-// - 抓：換彈開始 0.9 秒內，左手腕到了彈匣底下（槍座標 F 0.25、U −0.15、R −0.03）3 公分內 →
+// - 抓：換彈開始 0.9 秒內，左手腕到了彈匣底下（槍座標 F 0.25、U −0.15、R −0.03）3 公分內、而且不再變近 →
 //   真的 AK 藏起來、改顯示沒彈匣的替身（gfg_ak47_nomag.w2ent：掛 l_weapon 不帶偏移 = 真的 AK 的位置，同衝刺的替身）；
 //   彈匣（gfg_ak47_mag.w2ent：模型在槍上的位置）用現在的世界姿勢掛到左手（CreateAttachmentAtBoneWS：原版插在敵人身上的箭也這樣掛，arrowProjectile.ws:554）
 // - 裝上：OnWeaponReload 換回真的 AK；換彈中斷（離開換彈狀態、衝刺提槍、收槍）也換回
@@ -1777,6 +1780,8 @@ var gfgMagDone : bool;		// 這次換彈抓過了
 var gfgMagMinDist : float;	// 暫時：這次換彈左手腕離抓的點最近多少（沒抓到時印出來）
 @addField(CR4Player)
 var gfgMagFailed : bool;	// 模板載入失敗：不再重試
+@addField(CR4Player)
+var gfgMagPrevDist : float;	// 上一格左手腕離抓的點多遠
 
 @addMethod(CR4Player)
 function GfgMagSpawn( path : string ) : CEntity
@@ -1808,7 +1813,7 @@ function GfgMagTick( akDrawn : bool )
 	var reloading : bool;
 	var lw : Matrix;
 	var lx, ly, lz, d, g, f0, u0, r0 : Vector;
-	var dist, now : float;
+	var dist, now, prev : float;
 
 	if ( !akDrawn || gfgMagFailed )
 	{
@@ -1838,6 +1843,7 @@ function GfgMagTick( akDrawn : bool )
 		gfgMagStart = now;
 		gfgMagDone = false;
 		gfgMagMinDist = 99.f;
+		gfgMagPrevDist = 99.f;
 	}
 	if ( gfgMagOut || gfgMagDone )
 		return;
@@ -1859,7 +1865,10 @@ function GfgMagTick( akDrawn : bool )
 	r0 = VecCross( f0, u0 );
 	dist = VecLength( Vector( VecDot( g, f0 ) - 0.25f, VecDot( g, u0 ) + 0.15f, VecDot( g, r0 ) + 0.03f ) );
 	gfgMagMinDist = MinF( gfgMagMinDist, dist );
-	if ( dist > 0.03f )
+	// 上一格在 3 公分內、這一格不再變近才抓（= 最接近的那一刻剛過）：01:4x 一進 3 公分就抓，兩次都是 2.9 公分（剛好在門檻邊）
+	prev = gfgMagPrevDist;
+	gfgMagPrevDist = dist;
+	if ( prev > 0.03f || dist < prev )
 		return;
 	// 抓：真的 AK → 沒彈匣的替身；彈匣用現在的世界姿勢（= l_weapon）掛到左手
 	GfgSetMeshVisible( gfgMagNoMag, true );
@@ -1872,55 +1881,66 @@ function GfgMagTick( akDrawn : bool )
 	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
 }
 
-// ===== 暫時（測試用，2026-10-17）：固定鏡頭從側面、正面看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
-// 原版固定鏡頭模板 gameplay\camera\static_camera.w2ent；寫法照 poster.ws:98-104（CreateEntity → Run；結束 Stop、Destroy）
-// 瞄準、轉身用的是遊戲鏡頭（GfgCamera），不受固定鏡頭影響
-// gfgcam( 角度, 距離, 高度 )：角度相對 Geralt 的朝向（0 = 正前方、90 = 左邊、-90 = 右邊）；gfgcamoff() 回到遊戲鏡頭
+// ===== 暫時（測試用，2026-10-17）：從指定角度看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
+// 02:5x 試過原版固定鏡頭（gameplay\camera\static_camera.w2ent）：方向一直不對（俯仰 0 時往下看地、朝向差 90°）→ 不用
+// 改用拍照模式的鏡頭（CCustomCamera：r4Game.ws:303），作法照 photomodeManager.ws:96-111：Activate → SetCameraWorldPosition／Rotation → UpdateWithoutInput；
+// 回復：原本的鏡頭 Activate( 0, false )（:137）
+// 瞄準、轉身、子彈照樣用遊戲鏡頭（GfgCamera：看這個鏡頭時回傳遊戲鏡頭）
+// 搭配 slow( 0.01 ) 放慢時間（temp.ws:8210）：換彈 2.4 秒變成 4 分鐘，可以換角度慢慢看
+// gfgview( 角度, 距離, 高度, 俯仰 )：角度相對 Geralt 的朝向（0 = 正前方、90 = 左邊、-90 = 右邊）；gfgviewoff() 回到遊戲鏡頭
 @addField(CR4Player)
-var gfgDebugCam : CStaticCamera;
+var gfgViewPrevCam : CCustomCamera;
+@addField(CR4Player)
+var gfgViewOn : bool;
 
 @addMethod(CR4Player)
-function GfgSetDebugCam( cam : CStaticCamera )
+function GfgView( angle : float, dist : float, height : float, pitch : float )
 {
-	if ( gfgDebugCam )
-	{
-		gfgDebugCam.Stop();
-		gfgDebugCam.Destroy();
-	}
-	gfgDebugCam = cam;
-	if ( cam )
-	{
-		cam.activationDuration = 0.f;
-		cam.deactivationDuration = 0.f;
-		cam.Run();
-	}
-}
-
-exec function gfgcam( angle : float, dist : float, height : float, optional pitch : float )
-{
-	var tmpl : CEntityTemplate;
-	var pos, target : Vector;
+	var cam, top : CCustomCamera;
+	var pos : Vector;
 	var rot : EulerAngles;
 
-	tmpl = (CEntityTemplate)LoadResource( "gameplay\camera\static_camera.w2ent", true );
-	if ( !tmpl )
+	cam = theGame.GetPhotomodeCamera();
+	if ( !cam )
 	{
-		LogChannel( 'GFG', "static camera template not found" );
+		LogChannel( 'GFG', "view: no photomode camera" );
 		return;
 	}
-	target = thePlayer.GetWorldPosition() + Vector( 0.f, 0.f, 1.3f );
-	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
+	top = (CCustomCamera)theGame.GetWorld().GetCameraDirector().GetTopmostCamera();
+	if ( !gfgViewOn )
+		gfgViewPrevCam = top;
+	pos = GetWorldPosition() + VecFromHeading( GetHeading() + angle ) * dist;
 	pos.Z += height;
-	pos.W = 1.f;	// GetWorldPosition() 的 W 1 加上 VecFromHeading()×距離 會變成 3（01:5x 紀錄）→ 位置跑掉
-	// 01:5x：用 VecToRotation( target - pos ) 時畫面整片天空（當時 W = 3）→ 改成水平朝向 Geralt，俯仰另外給
-	rot = EulerAngles( pitch, VecHeading( target - pos ), 0.f );
-	LogChannel( 'GFG', "debug cam pos " + VecToString( pos ) + " rot " + FloatToString( rot.Pitch ) + " " + FloatToString( rot.Yaw ) );
-	thePlayer.GfgSetDebugCam( (CStaticCamera)theGame.CreateEntity( tmpl, pos, rot ) );
+	pos.W = 1.f;
+	rot = EulerAngles( pitch, VecHeading( GetWorldPosition() - pos ), 0.f );
+	cam.Activate( 0.f, false );
+	cam.SetCameraWorldPosition( pos );
+	cam.SetCameraWorldRotation( rot );
+	cam.UpdateWithoutInput( true );
+	gfgViewOn = true;
+	LogChannel( 'GFG', "view pos " + VecToString( pos ) + " rot " + FloatToString( rot.Pitch ) + " " + FloatToString( rot.Yaw )
+		+ " prevTop " + ( gfgViewPrevCam == theGame.GetGameCamera() ) );
 }
 
-exec function gfgcamoff()
+@addMethod(CR4Player)
+function GfgViewOff()
 {
-	thePlayer.GfgSetDebugCam( NULL );
+	if ( gfgViewPrevCam )
+		gfgViewPrevCam.Activate( 0.f, false );
+	else
+		theGame.GetGameCamera().Activate( 0.f, false );
+	gfgViewPrevCam = NULL;
+	gfgViewOn = false;
+}
+
+exec function gfgview( angle : float, dist : float, height : float, optional pitch : float )
+{
+	thePlayer.GfgView( angle, dist, height, pitch );
+}
+
+exec function gfgviewoff()
+{
+	thePlayer.GfgViewOff();
 }
 
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
