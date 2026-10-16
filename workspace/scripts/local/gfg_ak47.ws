@@ -516,7 +516,7 @@ function UpdateLocomotion()
 		player.SetBehaviorVariable( 'playerSpeedForOverlay', moveSpeed, true );
 }
 
-// ===== 衝刺、跳躍時兩手臂維持持槍（使用者 2026-10-16 回報：衝刺時拿槍的姿勢很怪；跳躍落地後瞬間變回持槍姿勢、不順）=====
+// ===== 跳躍、落地時兩手臂維持持槍（使用者 2026-10-16 回報：跳躍落地後瞬間變回持槍姿勢、不順）=====
 // 主動畫圖的衝刺、跳躍、落地沒有十字弩版本（pc_gameplay.w2beh #27906、#19915、#19892：docs/findings.md §17.10）→ 手臂照衝刺、跳躍的動作擺，AK 跟著左手甩；
 // 落地後切回有十字弩覆蓋的跑步，手臂一格就跳回持槍。
 // 上半身動畫圖的十字弩瞄準區塊有一個手臂覆蓋節點（pc_overlay.w2beh #18505），原本給原版單手十字弩的右手一個姿勢（我們已把它關掉）；
@@ -530,11 +530,108 @@ function GfgArmsHoldTick( akDrawn : bool )
 {
 	var on : bool;
 
-	on = akDrawn && !IsUsingVehicle() && ( GetIsSprinting() || IsInAir() || substateManager.GetStateCur() == 'Land' );
+	on = akDrawn && !IsUsingVehicle() && ( IsInAir() || substateManager.GetStateCur() == 'Land' );	// 衝刺不蓋：手照原版擺（GfgCarryTick）
 	if ( on == gfgArmsHold )
 		return;
 	gfgArmsHold = on;
 	SetBehaviorVariable( 'inSlomoForOverlay', (float)on, true );
+}
+
+// ===== 衝刺時單手提槍（使用者 2026-10-16：衝刺維持不能開槍、擺手跑步，但擺手時拿槍的姿勢要正確；附圖：AK 直立在背後、槍口朝上）=====
+// 衝刺時手臂照原版擺（上面不蓋雙手持槍）。AK 掛在左手 l_weapon；原版擺手時左手從臀部後面甩到胸前，手腕轉一百多度
+// （2026-10-16 15:16 遊戲實測），槍跟著手轉就從朝下甩到朝上。
+// → 每格把 AK 重新掛到左手 slot，帶相對變換（CreateAttachment：entity.ws:342），讓槍「槍口朝前下」（相對玩家），
+//   握的點（彈匣前的機匣）在左手掌心。
+// 相對變換的規則（2026-10-16 主控台實驗）：位移在 l_weapon 骨頭座標；角度 = MatrixBuiltRotation 的矩陣，三軸 = AK 的三軸在 l_weapon 座標
+// （所以用 MatrixGetRotation 從三軸換角度：math.ws:522）
+// 試過、放棄：改 AK 動畫元件的 SetPosition、SetRotation（components.ws:22、25）：元件本來就有 180° 的區域旋轉，
+//   設了之後紀錄裡的元件矩陣不變，畫面上槍卻倒放在腳前的地上，對不起來
+@addField(CR4Player)
+var gfgCarryW : float;		// 0 = 雙手持槍的擺法；1 = 衝刺的提槍（開始、結束時漸變）
+@addField(CR4Player)
+var gfgCarryOn : bool;		// AK 現在是我們掛的（帶偏移）
+
+// 結束：拿在手上的話掛回左手、不帶偏移（原版的掛法：slot l_weapon 沒有偏移，docs/m3.md）；
+// 已經不在手上（收槍等）就不動：原版已經把它掛到別的地方
+@addMethod(CR4Player)
+function GfgCarryReset( akDrawn : bool )
+{
+	gfgCarryW = 0.f;
+	if ( gfgCarryOn && akDrawn && rangedWeapon )
+	{
+		rangedWeapon.BreakAttachment();
+		rangedWeapon.CreateAttachment( this, 'l_weapon' );
+	}
+	gfgCarryOn = false;
+}
+
+@addMethod(CR4Player)
+function GfgCarryTick( akDrawn : bool, dt : float )
+{
+	var want : bool;
+	var lw, pm, m : Matrix;
+	var lx, ly, lz, px, py, pz : Vector;
+	var f0, u0, r0, fw, uw, gf, gu, ft, ut, rt, fl, ul, rl, piv, t : Vector;
+
+	if ( !rangedWeapon )
+		return;
+	if ( !akDrawn )
+	{
+		GfgCarryReset( false );
+		return;
+	}
+	want = !IsUsingVehicle() && GetIsSprinting() && !IsInAir() && substateManager.GetStateCur() != 'Land';
+	if ( want )
+		gfgCarryW = MinF( 1.f, gfgCarryW + dt / 0.25f );
+	else
+		gfgCarryW = MaxF( 0.f, gfgCarryW - dt / 0.15f );
+	if ( gfgCarryW <= 0.f )
+	{
+		GfgCarryReset( true );
+		return;
+	}
+
+	// 現在的擺法（雙手持槍，l_weapon 座標）：槍管、上方（docs/m3.md「雙手持槍：第 1 步」；tools/aim_delta.py 的 BARREL）
+	f0 = VecNormalize( Vector( 0.8033f, 0.2140f, 0.5558f ) );
+	u0 = VecNormalize( Vector( 0.02721f, -0.94542f, 0.32472f ) );
+	r0 = VecCross( f0, u0 );
+	lw = GetBoneWorldMatrixByIndex( GetBoneIndex( 'l_weapon' ) );
+	lx = MatrixGetAxisX( lw );
+	ly = MatrixGetAxisY( lw );
+	lz = MatrixGetAxisZ( lw );
+	// 提槍的方向（玩家座標：x 右、y 前、z 上）：往下 30°、往右 8°（槍托往左後，離開身體）
+	pm = GetLocalToWorld();
+	px = MatrixGetAxisX( pm );
+	py = MatrixGetAxisY( pm );
+	pz = MatrixGetAxisZ( pm );
+	fw = VecNormalize( px * 0.1205f + py * 0.8576f - pz * 0.5f );
+	uw = VecNormalize( pz - fw * VecDot( pz, fw ) );
+	// 漸變：從現在跟著手的方向轉到提槍的方向
+	gf = lx * f0.X + ly * f0.Y + lz * f0.Z;
+	gu = lx * u0.X + ly * u0.Y + lz * u0.Z;
+	ft = VecNormalize( gf * ( 1.f - gfgCarryW ) + fw * gfgCarryW );
+	ut = gu * ( 1.f - gfgCarryW ) + uw * gfgCarryW;
+	ut = VecNormalize( ut - ft * VecDot( ut, ft ) );
+	rt = VecCross( ft, ut );
+	// 換到 l_weapon 座標
+	fl = Vector( VecDot( ft, lx ), VecDot( ft, ly ), VecDot( ft, lz ) );
+	ul = Vector( VecDot( ut, lx ), VecDot( ut, ly ), VecDot( ut, lz ) );
+	rl = Vector( VecDot( rt, lx ), VecDot( rt, ly ), VecDot( rt, lz ) );
+	// 相對旋轉：把 (f0, u0, r0) 轉到 (fl, ul, rl)；每一軸 = 三個方向照 e_i 的分量加起來（= AK 的三軸在 l_weapon 座標）
+	m.X = fl * f0.X + ul * u0.X + rl * r0.X;
+	m.Y = fl * f0.Y + ul * u0.Y + rl * r0.Y;
+	m.Z = fl * f0.Z + ul * u0.Z + rl * r0.Z;
+	m.X.W = 0.f;
+	m.Y.W = 0.f;
+	m.Z.W = 0.f;
+	m.W = Vector( 0.f, 0.f, 0.f, 1.f );
+	// 握的點：雙手持槍時左掌在護木（l_weapon 原點）；提槍時在彈匣前的機匣（右手握把往前 12、往上 5 公分）→ 漸變
+	piv = ( Vector( -0.3032f, -0.0115f, -0.2320f ) + f0 * 0.12f + u0 * 0.05f ) * gfgCarryW;
+	t = ( m.X * piv.X + m.Y * piv.Y + m.Z * piv.Z ) * -1.f;
+	t.W = 1.f;
+	rangedWeapon.BreakAttachment();
+	rangedWeapon.CreateAttachment( this, 'l_weapon', t, MatrixGetRotation( m ) );
+	gfgCarryOn = true;
 }
 
 // ===== 滑動目標：死掉的不留著（使用者 2026-10-16 回報：打完狼群有時 Geralt 一直面向最後殺死的狼，血條（血 0）一直顯示，按 Z 也解不掉）=====
@@ -1293,6 +1390,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	else
 		GfgAkTurnReset();
 	GfgArmsHoldTick( akDrawn );
+	GfgCarryTick( akDrawn, dt );
 	GfgUpdateCrosshair( akDrawn );
 }
 
@@ -1327,7 +1425,7 @@ function GfgLogHoldPose()
 	var now : float;
 
 	now = theGame.GetEngineTimeAsSeconds();
-	if ( now - gfgPoseLogTime < 0.5 )
+	if ( now - gfgPoseLogTime < 0.5 && !( GetIsSprinting() && now - gfgPoseLogTime >= 0.05 ) )	// 暫時：衝刺時每 0.05 秒
 		return;
 	gfgPoseLogTime = now;
 	LogChannel( 'GFG', "pose t=" + FloatToString( now ) + " player=" + GetCurrentStateName() + " ak=" + rangedWeapon.GetCurrentStateName()
@@ -1377,7 +1475,7 @@ function GfgLogDiag()
 		+ " reqMove=" + FloatToString( GetBehaviorVariable( 'requestedMovementDirectionForOverlay' ) ) + " reqFace=" + FloatToString( GetBehaviorVariable( 'requestedFacingDirectionForOverlay' ) )
 		+ " slide=" + GfgEntName( slideTarget ) + " disp=" + GfgEntName( GetDisplayTarget() ) + " target=" + GfgEntName( GetTarget() )
 		+ " hard=" + IsHardLockEnabled() + " actorLock=" + IsActorLockedToTarget() + " threat=" + IsThreatened()
-		+ " trig=" + rangedWeapon.gfgTriggerHeld + " fireMove=" + gfgFireMoving + " turning=" + gfgTurning + " sprint=" + GetIsSprinting() + " air=" + IsInAir()
+		+ " trig=" + rangedWeapon.gfgTriggerHeld + " fireMove=" + gfgFireMoving + " turning=" + gfgTurning + " sprint=" + GetIsSprinting() + " air=" + IsInAir() + " carry=" + FloatToString( gfgCarryW )
 		+ " head=" + FloatToString( GetHeading() ) + " camHead=" + FloatToString( theCamera.GetCameraHeading() )
 		+ " vel=" + FloatToString( VecLength2D( GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + IntToString( (int)playerMoveType ) );
 }
@@ -1823,4 +1921,62 @@ function GfgRecoilKickUp( shot : int ) : float
 		case 29: return 0.0106f;
 	}
 	return 0.f;
+}
+
+// ===== 暫時：衝刺提槍的實驗（元件的位移、角度在畫面上的效果；量完就拿掉）=====
+// gfgcomps()：列出 AK 的元件和世界矩陣；gfgcomp("名稱", x, y, z, pitch, yaw, roll)：設定元件的區域變換（名稱空白 = 根動畫元件）
+exec function gfgcomps()
+{
+	var ak : CEntity;
+	var comps : array< CComponent >;
+	var i : int;
+	var anim : CAnimatedComponent;
+	var mesh : CMeshComponent;
+
+	ak = thePlayer.rangedWeapon;
+	thePlayer.GfgLogMatrix( "exp entity", ak.GetLocalToWorld() );
+	thePlayer.GfgLogMatrix( "exp root " + ak.GetRootAnimatedComponent().GetName(), ak.GetRootAnimatedComponent().GetLocalToWorld() );
+	comps = ak.GetComponentsByClassName( 'CComponent' );
+	for ( i = 0; i < comps.Size(); i += 1 )
+	{
+		anim = (CAnimatedComponent)comps[i];
+		mesh = (CMeshComponent)comps[i];
+		thePlayer.GfgLogMatrix( "exp comp " + comps[i].GetName() + " anim=" + (bool)anim + " mesh=" + (bool)mesh, comps[i].GetLocalToWorld() );
+	}
+	thePlayer.GfgLogBone( ak, "exp handle", 'handle' );
+	thePlayer.GfgLogBone( thePlayer, "exp l_weapon", 'l_weapon' );
+	thePlayer.GfgLogMatrix( "exp player", thePlayer.GetLocalToWorld() );
+}
+
+exec function gfgcomp( compName : string, x : float, y : float, z : float, pitch : float, yaw : float, roll : float )
+{
+	var ak : CEntity;
+	var c : CComponent;
+
+	ak = thePlayer.rangedWeapon;
+	if ( compName == "" )
+		c = ak.GetRootAnimatedComponent();
+	else
+		c = ak.GetComponent( compName );
+	if ( !c )
+	{
+		LogChannel( 'GFG', "exp no component " + compName );
+		return;
+	}
+	c.SetPosition( Vector( x, y, z, 1.f ) );
+	c.SetRotation( EulerAngles( pitch, yaw, roll ) );
+	LogChannel( 'GFG', "exp set " + c.GetName() );
+}
+
+// gfgatt(x, y, z, pitch, yaw, roll)：AK 拆掉掛載、用相對變換重新掛到左手 slot（CreateAttachment：entity.ws:342）
+exec function gfgatt( x : float, y : float, z : float, pitch : float, yaw : float, roll : float )
+{
+	var ak : CEntity;
+	var ok1, ok2 : bool;
+
+	ak = thePlayer.rangedWeapon;
+	ok1 = ak.BreakAttachment();
+	ok2 = ak.CreateAttachment( thePlayer, 'l_weapon', Vector( x, y, z ), EulerAngles( pitch, yaw, roll ) );
+	LogChannel( 'GFG', "exp att break=" + ok1 + " create=" + ok2 );
+	thePlayer.GfgLogMatrix( "exp rot", MatrixBuiltRotation( EulerAngles( pitch, yaw, roll ) ) );
 }
