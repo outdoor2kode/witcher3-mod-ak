@@ -104,8 +104,10 @@ def rot_pow(r: np.ndarray, s: float) -> np.ndarray:
     ang = math.acos(max(-1.0, min(1.0, (np.trace(r) - 1) / 2)))
     if ang < 1e-9:
         return np.eye(3)
-    axis = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(ang))
-    return A.axis_angle(axis, math.degrees(ang) * s)
+    axis = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]])
+    if np.linalg.norm(axis) < 1e-12:  # 兩個幾乎一樣的旋轉：acos 的誤差讓角度不是 0、軸卻是 0（2026-10-16 reload_pose.py）
+        return np.eye(3)
+    return A.axis_angle(axis / (2 * math.sin(ang)), math.degrees(ang) * s)
 
 
 def spine_locals(pr: np.ndarray, p1: np.ndarray, t1: tuple, spread) -> dict[str, np.ndarray]:

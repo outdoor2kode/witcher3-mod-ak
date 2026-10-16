@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 23:4x（**自主模式**；第二批 11～18 全部做好（13 的開槍中側移 D −31° 暫緩）；第一批：8 換彈動畫未開始、10 槍口火光未做、6 待長測）
+最後更新：2026-10-16 23:5x（**自主模式**；第二批 11～18 全部做好；第一批：8 換彈動畫做到一半（reload_pose.py 寫好、還沒產生／匯入）、10 槍口火光未做、6 待長測）
 
 ---
 
@@ -59,7 +59,10 @@
 0. **先做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
    - **第一批第 8 項：AK 真正的換彈動畫**（使用者：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）（23:4x 開始）
      - 要換的 6 段：地面 `man_geralt_gabriel_reload_lowered`、`man_geralt_gabriel_reload_front_2`（`pc_overlay.w2beh` 只引用這兩段；現在是第 1 步側身姿勢截短，36／38 格），騎馬 4 段 `horse_{idle,walk,trot,gallop}_reload_lowered`（正面持槍、36 格）
-     - 決定：分兩步。**A 先做動作**（彈匣不動）：新工具 `tools\reload_pose.py`（還沒寫）；**B 再做彈匣分離**（之後）
+     - 決定：分兩步。**A 先做動作**（彈匣不動）；**B 再做彈匣分離**（之後）
+     - **A 進度（23:5x）**：`tools\reload_pose.py` 寫好、commit；用正面持槍底層試算（輸出到暫存 `s18\reload_test.re`）：73 格、兩手 IK 都到位（誤差 0）、左臂伸直 0.73～0.97、第 0 格和最後一格等於底層。`move_pose.rot_pow` 加了零軸保護（幾乎相同的兩個旋轉會算出 NaN）
+       - **下一步**：① 產生 6 段：地面 `reload_pose.py G\square\man_geralt_gabriel_aim_idle_square.re G\man_geralt_gabriel_reload_lowered.re`、`…_reload_front_2.re`（先備份 G 裡現在的兩段）；騎馬 4 段的底層就是現在的 `G\man_geralt_gabriel_horse_{gait}_reload_lowered.re`（輸入輸出同名 → 先備份到 `G\backup_reload_static_2355\`，輸出到暫存再複製回 G）② 關遊戲（F10）→ `rm_anim` 6 段 → `import_one plain` 6 段 → 加事件（`add_ev` 是 simple event；`add_dur`、`add_track`、`add_dur_row 500/550`、`add_dur_row4`、`add_dur_row5`：第 1～5 條軌道）→ `save_gab` → `anim_events.py` 讀檔確認 ③ 遊戲裡：地面站著、走路、騎馬各連射 30 發到換彈，慢動作 0.125 倍（`d key numminus` ×3）連拍，看左手、槍、頭；`[GFG] pose` 的 `l_hand`／`l_weapon` 紀錄；換彈到能開火的時間
+       - 檢查重點：左手經過彈匣時會不會穿過槍（槍座標的關鍵格在 `LEFT_KEYS`）；左腰的位置（`POUCH`）；右傾 30° 時槍會不會撞到臉；手肘方向（IK 保留原本的手肘平面）
      - 決定：底層一律正面持槍（地面用 `assets\anims\gfg\square\man_geralt_gabriel_aim_idle_square.re` 第 0 格；騎馬用現在的 `gfg\man_geralt_gabriel_horse_{gait}_reload_lowered.re` 第 0 格，已含騎乘骨盆補正）；長度 2.4 秒（CS2 `m_flDisallowAttackAfterReloadStartDuration` 2.47 秒）
      - 量到的（槍座標：原點 = 握把 `ag1_hand_r`、F 槍管、U 上、R 右，公尺；暫存 `s18\mag_pos.py`、`s18\base_info.py`）：
        - 彈匣：最上（彈匣口）F +0.169 U +0.095；底部平均 F +0.251 U −0.107；最前 F +0.288 U −0.063；中心 F +0.178 U +0.034；左右 ±0.014
