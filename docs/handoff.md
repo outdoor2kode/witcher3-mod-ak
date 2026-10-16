@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 14:3x（**自主模式**，使用者 14:1x 說「開始自主模式」；規則見 CLAUDE.md §14；照「接續的步驟」做）
+最後更新：2026-10-16 14:5x（**自主模式**；第 1、2、5、6、7 項做好，3、4、8、9、10 項還沒開始）
 
 ---
 
@@ -29,29 +29,33 @@
 | # | 問題（使用者的描述） | 狀態 |
 |---|---|---|
 | 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲 | **做好、遊戲裡看過**（commit 2729ec3、67ce769）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`）。移動沒開槍→上半身朝前（13:00 截圖：往鏡頭跑不扭）；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`＋`inAimThrowForOverlay`，不設的話起步卡 1.5～2 秒）＋雙手版側移動畫 6 段（13:3x 截圖：側移、後退兩手都在槍上，1.6～1.9 公尺／秒）。側移動畫沒有原版的腳步事件（腳步聲） |
-| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **改了、還沒進遊戲測**（commit 67ce769）：13:18 實測（關掉無敵被狼咬）→ 被打中時 AK 被收起再拔出、自動拔鋼劍（CombatSteel）。原版：`OnHitStart`→`WhenCombatActionIsFinished`→收弩（`r4Player.ws:13202-13209`、`:12843-12858`）；`OnCombatStart`、`OnReactToBeingHit` 自動拔劍（`:2155-2161`、`:2227-2240`）。改法：拿 AK 時擋掉這三處（`gfgAutoDrawGuard`、`gfgInHitStart`）。待測：被咬時 AK 不收、不拔劍、受擊動作是否正常 |
+| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
 | 3 | 騎馬的姿勢完全錯 → 修好 | 未開始 |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | 未開始 |
-| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **改了、要重開 REDkit 才生效**：`tools\overlay_patch.py`（預設＝手臂覆蓋版，已寫到 workspace）把 #18505 改成「`inSlomoForOverlay` ≥ 1 時兩手臂用 `man_geralt_gabriel_aim_idle_rp` 蓋住」；腳本 `GfgArmsHoldTick` 在衝刺、空中、落地時設 1。13:37 實測衝刺時掌心離握把 28～95 公分 → 紀錄沒有重新載入 pc_overlay：REDkit 記憶體裡還是舊的圖 → 13:4x 重開 REDkit（見「下一步」）。決定：衝刺時兩手握槍（不擺手）；使用者若要擺手，再改成只蓋左手臂 |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（14:35）：重開 REDkit 後 `pc_overlay.w2beh` 手臂覆蓋版生效：衝刺中掌心離握把 0.3 公分（之前 28～95）、截圖兩手在槍上、槍口朝前下。決定：衝刺時兩手握槍（不擺手）；使用者原話「維持…擺手跑步」→ 若要擺手，之後做「一手拿槍、另一手擺」的版本（見「之後可以再做」） |
 | 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
-| 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **改了、要重開 REDkit 才生效**：同第 5 項（空中、落地時兩手臂維持持槍姿勢，落地後約 0.5 秒淡出）。13:1x 截圖：落地那一格從擺臂直接跳到持槍 |
+| 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **做好、遊戲裡看過**（14:42）：站立跳、衝刺跳各連拍 14～18 張（每 0.1 秒，`desk.ps1 burst`）：起跳、空中、落地、再跑，兩手一直在槍上，沒有從擺手突然跳成持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | 未開始 |
 | 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
 
-### 接續的步驟（2026-10-16 13:4x 中斷時）
+### 接續的步驟（2026-10-16 14:5x）
 
-1. REDkit 13:4x 正在重開（開專案中；程序 21828）→ 開好後 File 選單開最近的世界 `reference_level`
-2. 進遊戲測第 5、7 項：衝刺時兩手在槍上（`tools\pose_check.py` 掌心離握把應該約 1 公分）、跳躍落地平順；看 `editor.log` 有沒有 `pc_overlay` 的錯誤
-3. 測第 2 項：`god()` 關掉、生成狼被咬（`spawn('wolf', 6, 4, true)`），AK 不收、不自動拔劍
-4. 接著做第 3、4 項（騎馬姿勢、上下馬流程）→ 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
-- 測試小技巧（暫存資料夾的 `desk\g.sh`，session 結束就沒了；內容：`d`＝desk.ps1、`shot`、`con`＝主控台指令、`reload_edit`、`diag`、`mont`＝拼圖）
-  - 腳本重新編譯：遊戲中滑鼠被限制在畫面內、點不到選單 → F10 回編輯模式 → Tools (232, 32) → Debuggers (280, 478) → Reload scripts (540, 638)
-  - 開遊戲後 Geralt 常從高處掉下摔死 → 死亡選單 down ×3、Enter 復活
-  - 輪盤教學有 2～3 頁；按完先截圖確認，多按一次 Space 會進冥想（Esc、按 W 站起來）
-  - 側面看衝刺：Shift＋A／D
-- **改了 workspace 裡的動畫圖（.w2beh）要重開 REDkit 才會讀到**（紀錄沒有重新載入的訊息；13:37 實測）
+1. 第 3、4 項（騎馬姿勢、上下馬流程）：先查原版騎馬拿十字弩的流程與動畫圖 `pc_rider.w2beh`，再進遊戲（X 叫馬、E 上馬）看現況截圖
+2. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
+3. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
+4. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
+- 測試小技巧（暫存資料夾 `desk\g.sh`，session 結束就沒了）：`game_start`＝開遊戲到拿出 AK（約 1 分鐘：play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`wolf_test N 秒`＝關無敵、生狼
+  - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`
+  - `additem` 前要先 `setlevel(31)`（14:3x：沒設等級時主控台顯示 `Invalid Item ID: 0`、輪盤沒有 AK）
+  - 主控台指令曾打進 REDkit 右邊 Scene 的搜尋框（焦點在那裡）→ 編輯模式下點一下畫面空白處（天空）把焦點移走
+  - 原地跳旁邊有高台會變成攀爬（攀爬照原版收槍）→ 到空曠處測
+  - 連拍：`desk.ps1 burst <前綴> <張數> <間隔毫秒> rect=… hold=w,shift pre=1500 key=space`
 - 偵測紀錄 `GfgLogDiag`（`[GFG] diag`）：`fullBodyAnimWeight`、`playerSpeedForOverlay`（衝刺 1.5、跑 1.0）、滑動／畫面目標等
+
+### 之後可以再做
+
+- 第 5 項的擺手版：使用者原話「衝刺時維持不能開槍、擺手跑步，但擺手時拿槍姿態要正確」。現在是兩手握槍不擺手；擺手版要讓槍跟著一隻手、槍口朝前下（例：衝刺時把 AK 改掛右手、加偏移），另一手擺
 
 ## 操作備忘（Claude 自己操作 REDkit、遊戲時用；2026-10-16 實測）
 
@@ -110,11 +114,11 @@
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
 | 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加第 1 步的 `--place 0.30323 0.01147 -0.23203 -0.80333 -0.21400 0.55576 -0.02721 0.94542 0.32472`**（`docs\m3.md`「雙手持槍：第 1 步」）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
-| 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
+| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
 | 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
-| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；第 1 步的值：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Yaw −68.9、Roll 92.6（已 commit；單手版是 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | Claude（desk.ps1） | |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（14:35）：重開 REDkit 後 `pc_overlay.w2beh` 手臂覆蓋版生效：衝刺中掌心離握把 0.3 公分（之前 28～95）、截圖兩手在槍上、槍口朝前下。決定：衝刺時兩手握槍（不擺手）；使用者原話「維持…擺手跑步」→ 若要擺手，之後做「一手拿槍、另一手擺」的版本（見「之後可以再做」） |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
 
 - 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍

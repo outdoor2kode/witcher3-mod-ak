@@ -9,6 +9,8 @@
   windows                                  列出看得到的視窗：handle、程序、位置、標題
   shot <out.png> [scale=0.5] [rect=x,y,w,h] [grid=100]
                                            截桌面（全部螢幕或指定範圍）存 PNG；grid 畫格線、標螢幕座標
+  burst <前綴> <張數> <間隔毫秒> [scale=0.5] [rect=x,y,w,h] [hold=w,shift] [pre=毫秒] [key=space]
+                                           連拍：先按住 hold、等 pre、按一下 key，再每隔幾毫秒拍一張（看跳躍落地等快速動作）
   wshot <視窗> <out.png> [scale=…] [grid=…] [mode=print]
                                            截視窗的範圍；mode=print 用 PrintWindow：視窗被擋住也截得到（含 REDkit 的 D3D12 畫面）
   focus <視窗>                             把視窗叫到最前面
@@ -318,6 +320,37 @@ switch ($cmd) {
             $x = $vs.X; $y = $vs.Y; $w = $vs.Width; $h = $vs.Height
         }
         Save-Shot $x $y $w $h $rest[0] $scale $grid
+    }
+    'burst' {
+        # 連拍（看跳躍、落地等快速的動作；一個程序裡拍，間隔準，2026-10-16 加）
+        # 先按住 hold 的鍵、等 pre 毫秒、按一下 key，接著每 <間隔> 毫秒拍一張；最後放開 hold 的鍵、存成 前綴1.png、前綴2.png…
+        Assert-Allowed ([Desk]::GetForegroundWindow()) 'burst'
+        $o = Get-Opts $rest
+        $n = [int]$rest[1]; $iv = [int]$rest[2]
+        $scale = if ($o.scale) { [double]$o.scale } else { 0.5 }
+        if ($o.rect) { $x, $y, $w, $h = $o.rect -split ',' | ForEach-Object { [int]$_ } }
+        else {
+            $vs = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $x = $vs.X; $y = $vs.Y; $w = $vs.Width; $h = $vs.Height
+        }
+        $holds = @(); if ($o.hold) { $holds = @($o.hold -split ',' | ForEach-Object { Get-Vk $_ }) }
+        foreach ($k in $holds) { [Desk]::Key($k, $false); Start-Sleep -Milliseconds 20 }
+        if ($o.pre) { Start-Sleep -Milliseconds ([int]$o.pre) }
+        if ($o.key) { $kk = Get-Vk $o.key; [Desk]::Key($kk, $false); Start-Sleep -Milliseconds 40; [Desk]::Key($kk, $true) }
+        $sw = [Diagnostics.Stopwatch]::StartNew(); $frames = @(); $times = @()
+        for ($i = 0; $i -lt $n; $i++) {
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($x, $y, 0, 0, (New-Object System.Drawing.Size $w, $h))
+            $g.Dispose()
+            $frames += $bmp; $times += $sw.ElapsedMilliseconds
+            $wait = ($i + 1) * $iv - $sw.ElapsedMilliseconds
+            if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
+        }
+        [array]::Reverse($holds)
+        foreach ($k in $holds) { [Desk]::Key($k, $true); Start-Sleep -Milliseconds 20 }
+        for ($i = 0; $i -lt $n; $i++) { Save-Shot $x $y $w $h "$($rest[0])$($i + 1).png" $scale 0 $frames[$i] | Out-Null }
+        "連拍 $n 張（毫秒：$($times -join ' ')）"
     }
     'wshot' {
         $hw = Find-Win $rest[0]

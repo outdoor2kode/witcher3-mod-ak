@@ -149,9 +149,43 @@ var gfgHolsterRequested : bool;	// 收槍中：不再把騎馬動畫圖當作瞄
 @wrapMethod(Crossbow)
 function OnForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
+	var now : float;
+
+	// 被打中的動作（全身）播放中，原版的保險計時器把它當成「攻擊中」收起十字弩（InputLockFailsafe：rangedWeapon.ws:458-466）
+	// 2026-10-16 實測被狼咬：failsafe 呼叫 OnForceHolster( true, true )，當時 combatActionType 0、fullBodyAnimWeight 1、不能做戰鬥動作
+	// → 拿著 AK、不是真的在攻擊（輕／重攻擊：r4Player.ws:12863-12877）時不收（第 2 項：狼群裡開槍要維持射擊姿勢）
+	if ( gfgInFailsafe && GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack() )
+	{
+		now = theGame.GetEngineTimeAsSeconds();
+		if ( now - gfgHolsterBlockLogTime > 1.0 )	// 暫時：確認擋到了
+		{
+			gfgHolsterBlockLogTime = now;
+			LogChannel( 'GFG', "forceHolster blocked (failsafe, hit reaction) caType=" + ownerPlayer.GetBehaviorVariable( 'combatActionType' ) );
+		}
+		return true;
+	}
+	if ( GfgIsAkDrawn() )	// 暫時：查被狼咬時是誰收槍（第 2 項）
+		LogChannel( 'GFG', "forceHolster instant=" + instant + " upper=" + forceUpperBodyAnim + " failsafe=" + gfgInFailsafe
+			+ " pstate=" + ownerPlayer.GetCurrentStateName() + " caAllowed=" + ownerPlayer.GetBIsCombatActionAllowed()
+			+ " caType=" + ownerPlayer.GetBehaviorVariable( 'combatActionType' ) + " full=" + ownerPlayer.GetBehaviorVariable( 'fullBodyAnimWeight' )
+			+ " hitAnim=" + ownerPlayer.IsInHitAnim() + " inHitStart=" + thePlayer.gfgInHitStart + " inCA=" + ownerPlayer.IsInCombatAction() );
 	if ( GfgIsAk() && GetCurrentStateName() != 'State_WeaponWait' )
 		gfgHolsterRequested = true;
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
+}
+
+@addField(RangedWeapon)
+var gfgInFailsafe : bool;	// InputLockFailsafe 執行中（rangedWeapon.ws:445-487 會直接呼叫 OnForceHolster）
+
+@addField(Crossbow)
+var gfgHolsterBlockLogTime : float;	// 暫時：擋下收槍的紀錄一秒最多一筆
+
+@wrapMethod(RangedWeapon)
+function InputLockFailsafe( time : float, id : int )
+{
+	gfgInFailsafe = true;
+	wrappedMethod( time, id );
+	gfgInFailsafe = false;
 }
 
 @addMethod(Crossbow)
@@ -740,6 +774,9 @@ function StateEnterSpecific( prevStateName : name )
 @wrapMethod(CR4Player)
 function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
+	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )	// 暫時：查被狼咬時是誰收槍（第 2 項）
+		LogChannel( 'GFG', "rangedForceHolster instant=" + instant + " upper=" + forceUpperBodyAnim + " inHitStart=" + gfgInHitStart
+			+ " pstate=" + GetCurrentStateName() + " hitAnim=" + IsInHitAnim() );
 	if ( gfgKeepAkOnJump )
 		return true;
 	// 被打中時不收 AK（下面「戰鬥中被打中」那一段）
