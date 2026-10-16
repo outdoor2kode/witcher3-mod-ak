@@ -471,11 +471,19 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 - **不說「做不到」**：能操作 Windows、REDkit、檔案、終端機，就自己找方法（使用者 2026-10-16：「你都能控制 WINDOWS 了」）
 - 範圍不變：只做 AK 本身（§7）；只改專案資料夾（§11）；不刪既有檔案；不動使用者其他的 Claude 分頁、其他程式
 
+**不准停超過 10 秒**（使用者 2026-10-16：「有任何任何情況讓你沒有執行任何事超過10秒，就開始檢查原因並且排除」）
+- 任何情況沒有在執行東西超過 10 秒 → 馬上查原因、排除；合理的等待除外（例：遊戲、REDkit 載入、編譯、壓縮）
+- 這一輪不要結束；只有兩種情況可以結束：context 到 38% 交給 `claude_compact.ps1` 壓縮、自主模式結束
+- 看門狗（開始時啟動）：`claude_compact.ps1 <對話紀錄> watch`：分頁閒置（標題開頭 ✳）超過 10 秒、紀錄 10 秒沒變、沒有在壓縮 → 打一段 `[gfg-watchdog]` 開頭的訊息叫醒
+  - 收到 `[gfg-watchdog]`：查停下來的原因、寫進交接檔、排除，接著做
+  - 叫醒後很快又停：下一次等久一點（10 → 20 → … 秒，最多 10 分鐘）；使用者 5 秒內有操作鍵盤滑鼠時先等（最多 60 秒），免得接在使用者打的字後面
+
 **開始時**
 1. 背景跑 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/desk.ps1 awake 2147483`（保持清醒，約 24.8 天；已經在跑就不用再開：查命令列含 `desk.ps1 awake` 的 `powershell.exe`）
 2. CronCreate 每小時（第 13 分）的續做排程：內容＝讀交接檔「自主模式」「現在在做」接著做、確認保持清醒還在；排程 7 天會過期 → 第 6 天重排
 3. 交接檔最上面寫「自主模式」：開始時間、任務清單（每項一列、狀態）、決定
 4. 讀 context 使用率（`%TEMP%\claude\gfg-context\<session id>.pct`）
+5. 背景跑看門狗：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/claude_compact.ps1 <對話紀錄.jsonl> watch`（它會建立旗標 `%TEMP%\claude\gfg-context\<session id>.autonomous`；已經在跑就不用再開）
 
 **context 不能超過 45%**
 - 每次 commit 後、每做完一個大步驟，讀使用率
@@ -499,7 +507,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 **結束**
 1. CronDelete
-2. 停掉保持清醒（TaskStop 背景工作，或殺掉命令列含 `desk.ps1 awake` 的 `powershell.exe`）
+2. 停掉保持清醒（TaskStop 背景工作，或殺掉命令列含 `desk.ps1 awake` 的 `powershell.exe`）；停掉看門狗：刪旗標 `<session id>.autonomous`（看門狗 1 秒內自己結束）或 TaskStop
 3. 交接檔最上面寫「使用者回來時先看這裡」：做完的、沒做完的、要使用者決定或操作的
 4. 終端機叫回前面（`desk.ps1 focus proc:windowsterminal`）
 5. 最後的回覆：簡短列出結果
