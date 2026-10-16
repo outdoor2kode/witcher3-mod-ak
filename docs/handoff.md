@@ -45,8 +45,8 @@
    - **爆頭判定（下一步，20:12 停在這裡）**：原版的爆頭靠 Ragdoll 碰撞的骨頭（`arrowProjectile.ws:91-94`），子彈先撞到角色膠囊（`Character`）就算命中、沒有骨頭 → 不會爆頭
      - 試過、放棄：AK 子彈的碰撞群組拿掉 `Character`（只打 `Ragdoll`）→ 打不到人（20:0x）
      - 現在的程式（20:12 commit、編譯過）：`GfgIsHeadOnLine`：頭部骨頭到子彈直線（`gfgShotFrom` → 碰撞點）的最近距離 < 0.15 公尺 = 爆頭；`head` 骨頭找得到（紀錄 `[GFG] head check`）
-     - **20:12 發現真正原因**：瞄頭、瞄胸口，子彈都打在同一點（目標胸口，比頭部骨頭低 0.45 公尺；紀錄 hit 座標完全一樣）→ 子彈飛向目標的鎖定點（`GfgAimPoint` 的 `lockPoint`，`gfg_ak47.ws` 約 1288 行；`thePlayer.GfgLockPoint`），不是準心的射線點
-     - 下一步：讀 `GfgAimPoint`，找出為什麼用鎖定點（可能是射線打到角色膠囊時改用鎖定點）→ 改成射線打到角色時用射線點（或射線和頭部骨頭夠近時用頭）；`CLAUDE.md` §7 的設計是「子彈飛向準心的射線點」
+     - **20:12 發現原因**：瞄頭、瞄胸口，子彈都打在同一點（目標胸口，比頭部骨頭低 0.45 公尺）→ 測試時「硬鎖定」是開的：`GfgAimPoint` 在 `IsHardLockEnabled()` 時改朝 `GfgLockPoint`（目標軀幹骨頭＋0.2 公尺；`gfg_ak47.ws` 約 1287 行，既有設計：鎖定（Z）時準心在鎖定目標身上）
+     - 下一步：(1) 查為什麼測試時會硬鎖定（`game_start` 的按鍵？生成敵人後自動？）→ 測爆頭前先解除（按 Z 或確認紀錄）；(2) 不鎖定時瞄頭打一發，看 `[GFG] head check … lineDist=` 是否 < 0.15、`ak dmg … head=true`、傷害 ×4；(3) 鎖定時打不到頭是設計（鎖定＝瞄軀幹），寫進 `docs\m3.md`
      - 測法：`con "gfgwolf(6,1,31)"`（31 級人類、站著不動）→ `d rmove -10 -30 2 20`、`d rmove -10 -15 1 20`、再 `d rmove 0 -15 1 20` → 點一下左鍵 → 紀錄 `[GFG] head check … hitDist= lineDist=`、`[GFG] ak dmg … head=`
    - 傷害公式已驗證（20:0x）：狼（5 級，165 血）一發倒；1 級人類 41.25 血；31 級人類 2763.75 血、每發 384.87；實際＝基礎＋58（人的血）、基礎×1.25＋58（怪物的精華）
    - 槍口火光（＋曳光）：REDkit Entity Editor 在 AK 的實體模板加特效（找原版粒子，例：`fx\weapons\obstacle_hit\sparks_colision.w2p`、`fx\weapons\trails\sparks\fire_sparks_trail.w2p`、`fx\skills\maiming_shot\maiming_shot_crossbow_fx.w2p`；`r4data\fx` 有 2003 個 `.w2p`），每發 `PlayEffect`；槍口位置要從模型算（CS2 `m_vecMuzzlePos0`）
