@@ -194,8 +194,16 @@ function ProcessFullBodyAnimWeight( optional forceUpperBodyAnim : bool ) : bool
 	var result : bool;
 
 	result = wrappedMethod( forceUpperBodyAnim );
-	if ( result && GfgIsAkDrawn() && !ownerPlayer.bLAxisReleased
-		&& !ownerPlayer.IsSwimming() && ownerPlayer.GetCurrentStateName() != 'AimThrow' )
+	if ( !GfgIsAkDrawn() || ownerPlayer.IsSwimming() || ownerPlayer.GetCurrentStateName() == 'AimThrow' )
+		return result;
+	// 開槍中又在移動：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgAkTurnTick）
+	if ( ownerPlayer.gfgFireMoving && !forceUpperBodyAnim )
+	{
+		setFullWeight = true;
+		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 1.f );
+		return true;
+	}
+	if ( result && !ownerPlayer.bLAxisReleased )
 	{
 		setFullWeight = false;
 		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 0.f );
@@ -304,8 +312,188 @@ function UpdateLookAtVariables( lookAtTargetActive : float, lookAtTarget : Vecto
 
 	player = (CR4Player)this;
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAkDrawn() )
+	{
+		if ( !player.IsUsingVehicle() )
+		{
+			lookAtTarget = player.GfgAkLookAtPoint();
+			lookAtTargetActive = 1.f;
+		}
 		lookAtTarget = player.GfgFixBackAim( lookAtTarget );
+	}
 	wrappedMethod( lookAtTargetActive, lookAtTarget );
+}
+
+// ===== 上半身朝哪裡、身體轉向（使用者 2026-10-16 回報：往鏡頭方向跑、身體轉向時上半身轉、下半身沒轉 → 扭曲）=====
+// 原版上半身瞄準的點由朝向目標決定（UpdateLookAtTarget：r4Player.ws:2752-2876）；電腦版把「朝角色前方」OT_Player 一律換成「朝鏡頭」OT_Camera（r4Player.ws:5238-5246），
+// 附近有敵人時是 OT_Actor（朝滑動目標：:2822-2868）→ 拿 AK 移動時上半身一直朝鏡頭或狼，往鏡頭跑時扭到背後（docs/findings.md §21 只限制了角度）。
+// AK 改成：
+// - 移動、沒在開槍：上半身朝角色前方（同原版 OT_Player：:2766-2784），不扭
+// - 站著、或開槍中：上半身朝準心（Z 鎖定時朝鎖定點）；身體轉向準心（GfgAkTurnTick）
+
+// 開槍中（扣著扳機，或最後一發之後還沒過 GfgAimHoldTime() 秒）
+@addMethod(Crossbow)
+function GfgAimHoldTime() : float
+{
+	return 0.5;
+}
+
+@addMethod(Crossbow)
+function GfgIsFiring() : bool
+{
+	return gfgTriggerHeld || theGame.GetEngineTimeAsSeconds() - gfgLastShotTime < GfgAimHoldTime();
+}
+
+// 準心指的點：Z 鎖定時是鎖定點（GfgLockPoint），否則從鏡頭沿著畫面中央往前 100 公尺（同原版 OT_Camera：r4Player.ws:2786-2807）
+@addMethod(CR4Player)
+function GfgCrosshairPoint() : Vector
+{
+	var point : Vector;
+
+	if ( GfgLockPoint( point ) )
+		return point;
+	return rangedWeapon.GfgEyePosition() + rangedWeapon.GfgViewDirection() * 100.f;
+}
+
+@addMethod(CR4Player)
+function GfgAkLookAtPoint() : Vector
+{
+	var point : Vector;
+
+	if ( !bLAxisReleased && !rangedWeapon.GfgIsFiring() )
+	{
+		point = GetWorldPosition() + GetHeadingVector() * 30.f;
+		point.Z += 1.6f;
+		return point;
+	}
+	return GfgCrosshairPoint();
+}
+
+@addField(CR4Player)
+var gfgFireMoving : bool;	// 開槍中又在移動：全身瞄準（腳用側移的動作）、身體朝準心
+
+@addField(CR4Player)
+var gfgTurning : bool;		// 站著時身體正在轉向準心
+
+@addField(CR4Player)
+var gfgWalkInPlace : bool;	// walkInPlace 是我們設的
+
+// 站著時角度差超過幾度才轉身（開槍中小一點）
+@addMethod(CR4Player)
+function GfgTurnStartAngle( firing : bool ) : float
+{
+	if ( firing )
+		return 30.f;
+	return 60.f;
+}
+
+// 原地轉身時讓腳踏步：同原版中鍵瞄準（aimThrow.ws:285-289、:295-299、:303）
+@addMethod(CR4Player)
+function GfgSetWalkInPlace( on : bool )
+{
+	if ( on )
+	{
+		SetBehaviorVariable( 'playerSpeedForOverlay', 0.1 );
+		SetBehaviorVariable( 'walkInPlace', 1.f );
+		gfgWalkInPlace = true;
+	}
+	else if ( gfgWalkInPlace )
+	{
+		SetBehaviorVariable( 'walkInPlace', 0.f );
+		gfgWalkInPlace = false;
+	}
+}
+
+// 每格（走路，AK 拿著時）：身體轉向準心
+// - 做法同原版中鍵瞄準：角度差超過門檻就用 SetCustomRotation 轉向鏡頭的方向（aimThrow.ws:268-305；SetCustomRotation：r4Player.ws:5086-5105）
+// - 開槍中又在移動：一直朝準心，上半身動畫圖改用全身瞄準（ProcessFullBodyAnimWeight 的包裝）→ 腳用側移、後退的動作
+//   （上半身動畫圖 #18428 的 DirectionalMovement；原版中鍵瞄準移動時就是全身瞄準：rangedWeapon.ws:968-969）
+@addMethod(CR4Player)
+function GfgAkTurnTick()
+{
+	var aimHeading, diff : float;
+	var firing, moving, fireMoving : bool;
+
+	aimHeading = VecHeading( GfgCrosshairPoint() - GetWorldPosition() );
+	diff = AngleDistance( aimHeading, GetHeading() );
+	firing = rangedWeapon.GfgIsFiring();
+	moving = !bLAxisReleased;
+
+	fireMoving = firing && moving && !GetIsSprinting() && !IsInAir() && !IsSwimming() && GetCurrentStateName() != 'AimThrow';
+	if ( fireMoving != gfgFireMoving )
+	{
+		gfgFireMoving = fireMoving;
+		rangedWeapon.GfgRefreshFullBody();
+	}
+
+	if ( fireMoving )
+	{
+		gfgTurning = false;
+		GfgSetWalkInPlace( false );
+		SetCustomRotation( 'GfgAkAim', aimHeading, 0.f, 0.25f, false );
+		return;
+	}
+	if ( moving || GetCurrentStateName() == 'AimThrow' )
+	{
+		gfgTurning = false;
+		GfgSetWalkInPlace( false );
+		return;
+	}
+	// 站著：原版門檻是 -50～25 度、回到 -35～5 度以內才停（aimThrow.ws:276-300）；AK 兩手握在身體前方，用左右對稱的值
+	if ( AbsF( diff ) > GfgTurnStartAngle( firing ) )
+		gfgTurning = true;
+	else if ( AbsF( diff ) < 5.f )
+		gfgTurning = false;
+	if ( gfgTurning )
+		SetCustomRotation( 'GfgAkAim', aimHeading, 0.f, 0.4f, false );
+	GfgSetWalkInPlace( gfgTurning );
+}
+
+// 從玩家這邊要求重算全身／上半身（ProcessFullBodyAnimWeight 是 protected；原版每 0.1 秒由計時器呼叫：rangedWeapon.ws:1285）
+@addMethod(Crossbow)
+function GfgRefreshFullBody()
+{
+	ProcessFullBodyAnimWeight();
+}
+
+// AK 收起來（或騎馬）時，清掉上面設的狀態
+@addMethod(CR4Player)
+function GfgAkTurnReset()
+{
+	if ( gfgFireMoving )
+	{
+		gfgFireMoving = false;
+		if ( rangedWeapon )
+			rangedWeapon.GfgRefreshFullBody();
+	}
+	gfgTurning = false;
+	GfgSetWalkInPlace( false );
+}
+
+// 開槍中又在移動時，上半身動畫圖收到的速度改成要求的速度（同原版中鍵瞄準：locomotionDirectController.ws:316-327）
+// 原版平常是實際速度不到 0.5 公尺／秒就給 0（:333-342）：全身瞄準時腳的動作來自上半身動畫圖，速度 0 → 腳不動 → 實際速度一直是 0（docs/findings.md §20 卡住的原因之一）
+@wrapMethod(CR4LocomotionPlayerControllerScript)
+function UpdateLocomotion()
+{
+	wrappedMethod();
+	if ( player.gfgFireMoving && moveSpeed > 0.f )
+		player.SetBehaviorVariable( 'playerSpeedForOverlay', moveSpeed, true );
+}
+
+// ===== 滑動目標：死掉的不留著（使用者 2026-10-16 回報：打完狼群有時 Geralt 一直面向最後殺死的狼，血條（血 0）一直顯示，按 Z 也解不掉）=====
+// 原版拿著十字弩、沒在中鍵瞄準時，畫面目標（血條）＝滑動目標 slideTarget（r4Player.ws:6749-6753），
+// 朝向目標是 OT_Actor 時上半身瞄它（:2822-2868）、身體轉向它（MovAdjRotateToTarget：:2712-2718）。
+// 原版的十字弩射完會收起，收起後清掉滑動目標（OnCombatActionEndComplete：r4Player.ws:13380-13385）；AK 一直拿著 → 死掉的目標一直留著。
+// Z 只在「有威脅或鎖定中」才有作用（playerInput.ws:3497-3525），這時兩者都不是 → 按 Z 沒反應
+@addMethod(CR4Player)
+function GfgClearDeadSlideTarget()
+{
+	var actor : CActor;
+
+	if ( !slideTarget )
+		return;
+	actor = (CActor)slideTarget;
+	if ( actor && ( !actor.IsAlive() || actor.IsKnockedUnconscious() || !actor.GetGameplayVisibility() ) )
+		SetSlideTarget( NULL );
 }
 
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
@@ -978,8 +1166,13 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
 			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
 			UnblockAction( EIAB_HardLock, 'RangedWeapon' );
+			GfgClearDeadSlideTarget();
 		}
 	}
+	if ( akDrawn && !IsUsingVehicle() )
+		GfgAkTurnTick();
+	else
+		GfgAkTurnReset();
 	GfgUpdateCrosshair( akDrawn );
 }
 
@@ -1020,6 +1213,7 @@ function GfgLogHoldPose()
 	LogChannel( 'GFG', "pose t=" + FloatToString( now ) + " player=" + GetCurrentStateName() + " ak=" + rangedWeapon.GetCurrentStateName()
 		+ " held=" + FloatToString( GetBehaviorVariable( 'hasCrossbowHeld' ) )	// 主動畫圖走路、跑步時兩手用 aim_run 的開關（rangedWeapon.ws:1293）
 		+ " friendly=" + FloatToString( GetBehaviorVariable( 'isShootingFriendlyForOverlay' ) ) );	// 上半身 #18575：移動中而且 ≥ 1 → 換成一般跑步的手（rangedWeapon.ws:566-580）
+	GfgLogDiag();
 	GfgLogMatrix( "player", GetLocalToWorld() );
 	GfgLogBone( this, "l_weapon", 'l_weapon' );
 	GfgLogBone( this, "l_hand", 'l_hand' );
@@ -1030,6 +1224,40 @@ function GfgLogHoldPose()
 	GfgLogMatrix( "ak", rangedWeapon.GetLocalToWorld() );
 	GfgLogBone( rangedWeapon, "ak_handle", 'handle' );
 	LogChannel( 'GFG', "pose camera eye " + VecToStringPrec( rangedWeapon.GfgEyePosition(), 4 ) + " dir " + VecToStringPrec( rangedWeapon.GfgViewDirection(), 4 ) );
+}
+
+// 暫時：查使用者 2026-10-16 回報的 10 個問題用（動畫圖的狀態、變數、目標）；做完就拿掉
+@addMethod(CR4Player)
+function GfgEntName( ent : CEntity ) : string
+{
+	var actor : CActor;
+
+	if ( !ent )
+		return "none";
+	actor = (CActor)ent;
+	if ( actor && !actor.IsAlive() )
+		return ent.GetName() + "(dead)";
+	return ent.GetName();
+}
+
+@addMethod(CR4Player)
+function GfgLogDiag()
+{
+	var ac : CAnimatedComponent;
+
+	ac = GetRootAnimatedComponent();
+	LogChannel( 'GFG', "diag gp=" + ac.GetCurrentBehaviorState( 'Gameplay' ) + " ovl=" + ac.GetCurrentBehaviorState( 'PlayerOverlay' )
+		+ " stance=" + IntToString( (int)GetPlayerCombatStance() ) + " ot=" + IntToString( (int)GetOrientationTarget() )
+		+ " full=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) + " mtOvl=" + FloatToString( GetBehaviorVariable( 'playerMoveTypeForOverlay' ) )
+		+ " spdOvl=" + FloatToString( GetBehaviorVariable( 'playerSpeedForOverlay' ) ) + " aimW=" + FloatToString( GetBehaviorVariable( 'isAimingWeapon' ) )
+		+ " cbtStOvl=" + FloatToString( GetBehaviorVariable( 'CombatStanceForOverlay' ) ) + " pcsOvl=" + FloatToString( GetBehaviorVariable( 'playerCombatStanceForOverlay' ) )
+		+ " wpnOvl=" + FloatToString( GetBehaviorVariable( 'playerWeaponForOverlay' ) ) + " inCA=" + FloatToString( GetBehaviorVariable( 'isInCombatActionForOverlay' ) )
+		+ " caType=" + FloatToString( GetBehaviorVariable( 'combatActionType' ) ) + " walkInPlace=" + FloatToString( GetBehaviorVariable( 'walkInPlace' ) )
+		+ " slide=" + GfgEntName( slideTarget ) + " disp=" + GfgEntName( GetDisplayTarget() ) + " target=" + GfgEntName( GetTarget() )
+		+ " hard=" + IsHardLockEnabled() + " actorLock=" + IsActorLockedToTarget() + " threat=" + IsThreatened()
+		+ " trig=" + rangedWeapon.gfgTriggerHeld + " fireMove=" + gfgFireMoving + " turning=" + gfgTurning + " sprint=" + GetIsSprinting() + " air=" + IsInAir()
+		+ " head=" + FloatToString( GetHeading() ) + " camHead=" + FloatToString( theCamera.GetCameraHeading() )
+		+ " vel=" + FloatToString( VecLength2D( GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + IntToString( (int)playerMoveType ) );
 }
 
 // 玩家鏡頭的每格更新（走路）
