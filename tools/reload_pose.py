@@ -51,21 +51,30 @@ GUN_KEYS = [
 # 頭往下看（度）
 HEAD_KEYS = [(0.00, 0.0), (0.30, 15.0), (0.50, 20.0), (0.85, 12.0), (1.05, 12.0), (1.35, 18.0), (1.50, 18.0),
              (1.70, 10.0), (1.90, 10.0), (2.20, 0.0)]
-# 左手腕：'hg' = 底層的護木位置；'pouch' = 左腰（模型座標 POUCH）；其他 = 槍座標 (F, U, R)
+# 左手腕：'hg' = 底層的護木位置；'pouch' = 左腰（模型座標 POUCH）；('mag', (F, U, R)) = 握彈匣的手再移 (F, U, R)；
+# 其他 = 槍座標 (F, U, R)，方向同護木
 LEFT_KEYS = [
     (0.00, 'hg'),
-    (0.30, (0.25, -0.15, -0.03)),   # 彈匣底下
-    (0.50, (0.29, -0.26, -0.05)),   # 往前下拉出
+    (0.30, ('mag', (0.0, 0.0, 0.0))),       # 握住彈匣（遊戲裡這一格抓：gfg_ak47.ws GfgMagTick 的抓的點 = 下面印的手腕位置）
+    (0.50, ('mag', (0.04, -0.11, -0.02))),  # 往前下拉出
     (0.85, 'pouch'),
     (1.05, 'pouch'),
-    (1.35, (0.26, -0.22, -0.04)),   # 新彈匣在彈匣口下
-    (1.50, (0.25, -0.15, -0.03)),   # 裝上
+    (1.35, ('mag', (0.01, -0.07, -0.01))),  # 新彈匣在彈匣口下
+    (1.50, ('mag', (0.0, 0.0, 0.0))),       # 裝上
     (1.60, (0.24, -0.04, 0.09)),    # 繞到彈匣右邊
     (1.68, (0.23, 0.05, 0.05)),     # 拉柄下方
     (1.80, (0.11, 0.05, 0.05)),     # 往後拉
     (1.88, (0.12, 0.00, 0.02)),     # 放開
     (2.20, 'hg'),
 ]
+# 握彈匣（10-17 04:3x：原本手勢一律同握護木＝掌心朝上，彈匣浮在手掌上方 10 公分）：把握護木的手勢轉到彈匣上
+# → 掌心貼彈匣左面、四指繞到前緣、拇指在後緣（彈匣卡榫）；轉換：槍管 → 彈匣往上、上 → 右、右 → 彈匣前方
+# 量法（暫存 s19\hg_slice.py、mag_axis.py）：護木截面（F 0.29～0.35）U 0.066～0.12、R ±0.019；
+# 彈匣中線 上 (F 0.168, U 0.084) → 下 (0.247, −0.108)、厚 ±0.013、前後深 0.08～0.10
+HG_CENTER_UR = (0.095, 0.0)          # 護木截面中心（U, R）
+HG_CENTER_DF = 0.07                  # 「握的中心」在手腕往前幾公尺（沿槍管）
+MAG_DOWN = (0.383, -0.924)           # 彈匣中線往下（F, U）
+MAG_CENTER = (0.203, -0.022, 0.012)  # 握的中心：彈匣中線 U −0.022 那點、往右 1.2 公分（護木比彈匣寬，掌心才貼到彈匣左面）
 # 左腰：正面持槍底層（--pouch-ref）的模型座標；換成相對骨盆，騎馬的底層用自己的骨盆換回來
 # （遊戲裡 torso 以上照這段動畫、骨盆換成騎乘的 → 相對骨盆的位置不變）
 POUCH = np.array([-0.17, 0.08, 1.02])
@@ -187,7 +196,24 @@ def main() -> int:
     hg = (hg_lw @ GF, hg_lw @ GU, hg_lw @ GR)
     body = body_axes(g0)
     g_hold = gun_at(0.5, g0, grip0, body)
-    pouch_rot = g_hold[:3, :3] @ rel_l[:3, :3]
+    # 握彈匣的手（l_weapon 座標）：轉換 q 把 槍管 → 彈匣往上、上 → 右、右 → 彈匣前方
+    m_lw = MAG_DOWN[0] * GF + MAG_DOWN[1] * GU
+    n_lw = -MAG_DOWN[1] * GF + MAG_DOWN[0] * GU
+    q = np.column_stack((-m_lw, GR, n_lw)) @ np.column_stack((GF, GU, GR)).T
+    c_hg = A.GRIP + GF * (hg[0] + HG_CENTER_DF) + GU * HG_CENTER_UR[0] + GR * HG_CENTER_UR[1]
+    c_mag = A.GRIP + GF * MAG_CENTER[0] + GU * MAG_CENTER[1] + GR * MAG_CENTER[2]
+    mag_rel = np.eye(4)
+    mag_rel[:3, :3] = q @ rel_l[:3, :3]
+    mag_rel[:3, 3] = c_mag + q @ (rel_l[:3, 3] - c_hg)
+    mg = mag_rel[:3, 3] - A.GRIP
+    print(f'握彈匣：手腕 槍座標 F {mg @ GF:+.4f} U {mg @ GU:+.4f} R {mg @ GR:+.4f}（遊戲裡抓的點）')
+    pouch_rot = g_hold[:3, :3] @ mag_rel[:3, :3]
+    # 彈匣（握住時的相對位置）在左腰時的位置：檢查有沒有插進身體
+    mag_mid = A.GRIP + GF * 0.205 + GU * (-0.012)    # 彈匣看得到的那段的中點（槍座標）
+    mag_off = np.linalg.inv(mag_rel) @ np.append(mag_mid, 1.0)
+    pr = S.rigid(pouch_rot, pouch)
+    pm = (pr @ mag_off)[:3]
+    print(f'左腰時彈匣中點：模型 ({pm[0]:+.3f},{pm[1]:+.3f},{pm[2]:+.3f})')
 
     n = int(round(a.length * FPS)) + 1
     changed = ['head', 'l_weapon'] + list(LEFT_ARM) + list(RIGHT_ARM)
@@ -202,6 +228,10 @@ def main() -> int:
                 keys.append((kt, gun_point(g, hg), g[:3, :3] @ rel_l[:3, :3]))
             elif kv == 'pouch':
                 keys.append((kt, pouch, pouch_rot))
+            elif kv[0] == 'mag':
+                d = kv[1]
+                keys.append((kt, (g @ np.append(mag_rel[:3, 3] + d[0] * GF + d[1] * GU + d[2] * GR, 1.0))[:3],
+                             g[:3, :3] @ mag_rel[:3, :3]))
             else:
                 keys.append((kt, gun_point(g, kv), g[:3, :3] @ rel_l[:3, :3]))
         lpos = hermite([(k[0], k[1]) for k in keys], t)
