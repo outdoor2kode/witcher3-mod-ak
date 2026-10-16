@@ -65,9 +65,15 @@
 - **現在做：第 10 項槍口火光**（10-17 01:0x 開始；第 6 項長測做完、第 8 項 A 做完）
   - 查過（01:0x）：原版沒有現成的槍口火光；十字弩模板 `witcher_crossbow_base.w2ent`（AK 模板 include 它）只有技能光暈 `crippling_shot_crossbow_buff`；子彈模板 `bolt_base.w2ent` 有 8 個特效（各色箭軌跡 `arrow_trail*`、`sparks`）；`sparks` = 動態光（橘 255/149/105、半徑 4、0.008 秒起）＋粒子 `fx\weapons\block\kontra\counterattack_fx1.w2p`（掛 `CPhantomComponent0`）
   - 腳本不能在任意位置直接播粒子，只能對實體 `PlayEffect`（模板裡定義的特效）
-  - 決定的做法：REDkit 實體編輯器替 AK 模板 `gfg_ak47.w2ent` 加特效 `gfg_muzzle_flash`：動態光（橘、半徑約 3、很短）＋粒子（候選 `fx\signs\igni\cone\igni_cast.w2p`、`fx\signs\igni\instant\fire_hit_fx1.w2p`、`counterattack_fx1.w2p`），掛在槍口：新 slot `muzzle`（`handle` 骨頭；位置照 `bolt` slot 往槍口方向推，AK 槍口 = CS2 `m_vecMuzzlePos0`）；腳本每發 `PlayEffect`（先查 `entity.ws` 的 `PlayEffect`／`StopEffect`，連射時要能重播）
-    - 為什麼掛 slot：`bolt` slot 上的箭一直跟著畫面上的槍（`CLAUDE.md` §6.18：物品實體的矩陣不跟畫面）
-    - 備案（不用介面）：每發在槍口生成一個子彈模板的實體（不發射、藏模型）播 `sparks`，0.3 秒後刪掉
+  - **原版有現成的寫法**（01:1x 查到）：`btTaskAttack.ws:339-357` 刀砍到東西時：`weaponEntity.CalcEntitySlotMatrix( slot名, m )` 算刀尖位置 → `theGame.CreateEntity( LoadResource( 'sword_colision_fx' ), 位置 )` → `PlayEffect( 'sparks' )`
+    - 別名 `sword_colision_fx`（`gameplay.xml:131`）＝ `fx\weapons\obstacle_hit\sword_colision_fx.w2ent`：類別 `W3VisualFx`（`visual_fx.ws:6`：`DestroyOnFxEnd( 特效名 )` 播完自己刪、`SetDestroyTime`）；元件 `CEffectDummyComponent0`、`CSoundEmitterComponent`
+    - 4 個特效（暫存 `swordfx.txt`）：`sparks`＝動態光（半徑 0.85）＋**聲音 `cmb_sword_colli…`（刀劍碰撞聲，槍不能用）**＋粒子 `fx\weapons\obstacle_hit\sparks_colision.w2p`；`wood`（有聲音）；`fist`＝一團煙 `fits_smoke_hit.w2p`（沒光、沒聲音）；`blood`（有聲音）
+  - **決定的做法**：
+    1. REDkit Asset Browser 把 `sword_colision_fx.w2ent` 複製到 `dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent`（試右鍵 Copy → 我們的資料夾 Paste，或開檔另存）
+    2. 實體編輯器（雙擊開檔）的特效分頁改 `sparks`：刪掉聲音那條；光：半徑 0.85 → 約 2.5、時間縮短；粒子可換成火焰爆發（候選 `fx\signs\igni\cone\igni_cast.w2p`、`fx\signs\igni\instant\fire_hit_fx1.w2p`）；或另加一個特效名 `flash`
+    3. 腳本（`gfg_ak47.ws`，每發開火時）：槍口位置 → `CreateEntity( 模板, 槍口 )` → `PlayEffect( 'sparks' )` → `DestroyOnFxEnd( 'sparks' )`；槍口位置：AK 的 `bolt` slot（`CalcEntitySlotMatrix`；`bolt` slot 在 `handle` 骨頭，箭頭在槍口後 1 公分）往槍管方向推箭長，或用現有的子彈起點 `gfgShotFrom`；替身顯示時用替身
+    4. 新 workspace 檔：REDkit 開著時新建的檔遊戲讀不到 → 建完重開 REDkit（`CLAUDE.md` §6.16）
+  - 備案：直接用原版 `sword_colision_fx` 的 `fist`（槍口的煙）＋子彈模板的 `sparks`（不發射、藏模型）
   - 曳光（第 9 項沒做的）：可以試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到，再確認）
 
 0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
