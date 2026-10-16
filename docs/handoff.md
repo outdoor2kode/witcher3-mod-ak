@@ -43,12 +43,10 @@
 
 1. 第 3 項（騎馬姿勢）：
    - 48 段已匯出（15:15，`assets\anims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
-   - 接著寫 `tools\horse_pose.py`（用 Blender 內建 Python：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I`，h5py 在 `tools\_vendor\pylib`）：
-     a. **做好了**（15:1x，不用新工具：`move_pose.py <第1步> <原版> assets/anims/gfg/<同名>.re --full`，8 段都檢查槍管方向差 0°）8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
-     b. 量原版：aim_cycle 第 0 格套上原版水平／垂直差值（試 local 和 ref 兩種套法，看哪個合理）→ 每格十字弩的方向（十字弩在 l_weapon 的軸：用 `ex_man_geralt_gabriel_aim_idle.re` 第 0 格「朝前」反推）→ 每格的左右角、上下角
-     c. 16 段水平／垂直：照 `aim_delta.py` 的 `spine_deltas`、`to_mode(…, 'local')`，每格轉到 b 量到的角度（左右轉 torso、torso2；上下轉 torso3）
-     d. 24 段射擊／別射我：全部單位（樣板＝原版檔，格數照抄）
-     e. 檢查（FK）：槍管方向和原版十字弩方向差幾度、右手掌心離握把幾公分
+   - **48 段都做好了**（16:5x，commit d3073a5）：輸出在 `assetsnims\gfg\`（.re 不進 git，重做：`move_pose.py … --full` 做 8 段 aim_cycle，再 `"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/horse_pose.py assets/anims assets/anims/gfg assets/anims/gfg`）
+     - 量原版（十字弩的軸取站著瞄準第 0 格朝前）：騎馬差值是 **local**，時間角度規則和地面站著瞄準一樣（水平每秒 180°、垂直約每秒 90°、第 60 格不偏、第 0～30 格倒放）；ref 方式不合理
+     - 16 段水平／垂直：只轉脊椎（`aim_delta.write_delta`，local）；24 段射擊／別射我：單位
+     - 檢查：4 個底層槍管水平朝前（0°、0°）；水平＋垂直同時套、套在 aim_cycle 每一格：槍管誤差 0.0°、右手掌心離握把 0.01 公分
    - 匯入 `gfg_ak47_geralt.w2anims`：a 用 Import simple/plain animations；b～d 用 Import additive animations I (Local)（地面的走跑瞄準差值也是這樣：`docs\m3.md` commit 0d1803e）→ File → Save all → 重開 REDkit → 騎馬截圖
 2. 第 4 項（上下馬流程）：還沒開始
 3. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
