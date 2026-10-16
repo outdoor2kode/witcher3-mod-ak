@@ -844,6 +844,13 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 
 	if ( IsPressed( action ) )
 	{
+		thePlayer.GfgSetTriggerWanted( true );
+		// 手上有劍：先收劍、收好再拿出 AK（GfgNoSwordTick）；直接拿出會變成單手拿 AK（第 19 項）
+		if ( thePlayer.GfgSwordInHand() && !thePlayer.IsCrossbowHeld() )
+		{
+			thePlayer.GfgRequestAkRaise( true );
+			return true;
+		}
 		// 還沒拿出來：照原版中鍵按下的流程拿出十字弩（playerInput.ws:3185-3204）
 		if ( !thePlayer.IsCrossbowHeld() && IsActionAllowed( EIAB_Crossbow ) )
 		{
@@ -854,6 +861,7 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 	}
 	else if ( IsReleased( action ) )
 	{
+		thePlayer.GfgSetTriggerWanted( false );
 		ak.GfgSetTrigger( false );
 	}
 	return true;
@@ -988,41 +996,13 @@ function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : 
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
 
-// ===== 戰鬥中：拿著 AK 時不自動拔劍、被打中不收槍（使用者 2026-10-16 回報：狼群裡開槍時變成戰鬥準備的姿勢，不是射擊的姿勢）=====
-// 2026-10-16 實測（關掉無敵、被狼咬）：被打中後 AK 被收起又拔出、Geralt 自動拔出鋼劍（玩家狀態 CombatFists → CombatSteel）
-// 原版會自動換武器的地方：
-// - 進入戰鬥、目標有敵意：拔最適合的劍（OnCombatStart：r4Player.ws:2155-2161）
-// - 被目前的目標打中：拔最適合的劍（OnReactToBeingHit：r4Player.ws:2227-2240）
-// - 被打中的動作開始：OnHitStart → WhenCombatActionIsFinished → 強制收起十字弩（r4Player.ws:13202-13209、:12843-12858）
-// 拿著 AK 時這三處都不做（手動按 1／2 拔劍照原版：EBAT_Draw_Steel 等）
-
-@addField(CR4Player)
-var gfgAutoDrawGuard : bool;	// 原版自動拔劍的程式執行中
+// ===== 戰鬥中被打中不收 AK（使用者 2026-10-16 回報：狼群裡開槍時變成戰鬥準備的姿勢，不是射擊的姿勢）=====
+// 2026-10-16 實測（關掉無敵、被狼咬）：被打中後 AK 被收起又拔出
+// 被打中的動作開始：OnHitStart → WhenCombatActionIsFinished → 強制收起十字弩（r4Player.ws:13202-13209、:12843-12858）→ OnRangedForceHolster 的包裝不收
+// （自動拔劍：下一段）
 
 @addField(CR4Player)
 var gfgInHitStart : bool;		// 被打中的動作開始的程式執行中
-
-@wrapMethod(CR4Player)
-function OnCombatStart()
-{
-	var result : bool;
-
-	gfgAutoDrawGuard = true;
-	result = wrappedMethod();
-	gfgAutoDrawGuard = false;
-	return result;
-}
-
-@wrapMethod(CR4Player)
-function OnReactToBeingHit( damageAction : W3DamageAction )
-{
-	var result : bool;
-
-	gfgAutoDrawGuard = true;
-	result = wrappedMethod( damageAction );
-	gfgAutoDrawGuard = false;
-	return result;
-}
 
 @wrapMethod(CR4Player)
 function OnHitStart()
@@ -1035,12 +1015,230 @@ function OnHitStart()
 	return result;
 }
 
+// ===== AK 是選用物品時不准拿劍；原版要自動拔劍的時候，改成舉 AK（第 19 項，使用者 2026-10-17）=====
+// 使用者回報：spawn('wolf', 30, 30, true)，還沒拿出 AK 就走進狼群 → 原版自動拔劍；拿著劍按射擊 → 變成單手拿 AK、AK 可能看不到、不能射擊
+//   「強制裝上 AK 的情況下，不准拿劍，進到狼群或戰鬥，要自動做的事情是舉槍」
+// 原版自動拔劍的地方都先問「最適合的劍」（WeaponHolster.GetMostConvenientMeleeWeapon：playerWeaponHolster.ws:175-283）：
+// - 進入戰鬥、目標有敵意（OnCombatStart：r4Player.ws:2156-2162）；騎馬時另外經騎馬戰鬥管理拔劍（horseRiding.ws:201-242 → useVehicle.ws:786-823）
+// - 被目前的目標打中（OnReactToBeingHit：r4Player.ws:2234-2239）
+// - 附近有敵人、進入戰鬥模式（playerMode.ws:211-220 → GoToCombatIfNeeded：r4Player.ws:3300-3335 → GoToCombat → CombatSteel 狀態一進入就拔劍：combatSteel.ws:31-33）
+// - 拿出十字弩時（State_WeaponDraw：rangedWeapon.ws:1140 → GoToCombatIfNeeded）；下馬時（dismountHorse.ws:217-218）
+// → 不准拿劍的模式（GfgNoSwordMode）回答「空手」（PW_Fists：戰鬥狀態是 CombatFists，同第 2 項實測時拿著 AK 的狀態），並記下「要舉 AK」（GfgNoSwordTick 找時機拿出）
+// 直接拔劍（1／2 鍵：r4Player.ws:10829-10883、騎馬戰鬥管理：useVehicle.ws:801-821、任務等）：OnEquipMeleeWeapon 的包裝擋掉；收劍照原版
+// 手上已經有劍（選 AK 之前就拔了）：每格檢查，先收劍（戰鬥中換成空手，同原版收劍：playerWeaponHolster.ws:572-583），收好才拿出 AK
+//   拿著劍直接拿出十字弩：十字弩在左手、劍留在右手（原版的單手十字弩）→ 雙手持槍的動畫對不上（使用者看到的單手拿 AK）
+
+@addField(CR4Player)
+var gfgAkRaiseWanted : bool;	// 要舉 AK：原版想拔劍、或拿著劍時按了左鍵
+@addField(CR4Player)
+var gfgAkRaiseTime : float;		// 要舉 AK 的時間（引擎時間，秒）：5 秒內舉不起來就算了
+@addField(CR4Player)
+var gfgAkRaiseManual : bool;	// 是按左鍵要的：不在戰鬥中也舉
+@addField(CR4Player)
+var gfgTriggerWanted : bool;	// 地面的左鍵按著（OnCbtAttackWithAlternateLight）：拿著劍時按下，收好劍、拿出 AK 後接著扣扳機
+
+// 不准拿劍的模式：AK 是選用物品（左鍵＝扳機），或 AK 拿在手上
+@addMethod(CR4Player)
+function GfgNoSwordMode() : bool
+{
+	var id : SItemUniqueId;
+
+	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+		return true;
+	id = GetSelectedItemId();
+	return inv.IsIdValid( id ) && inv.ItemHasTag( id, 'gfg_ak47' );
+}
+
+// 手上有劍：目前的武器（拔劍一開始就設好：playerWeaponHolster.ws:601），或劍還在手上（收劍到收好才離手）
+@addMethod(CR4Player)
+function GfgSwordInHand() : bool
+{
+	var weapon : EPlayerWeapon;
+
+	weapon = GetCurrentMeleeWeaponType();
+	return weapon == PW_Steel || weapon == PW_Silver || IsWeaponHeld( 'steelsword' ) || IsWeaponHeld( 'silversword' );
+}
+
+@addMethod(CR4Player)
+function GfgRequestAkRaise( manual : bool )
+{
+	if ( !gfgAkRaiseWanted )
+		gfgAkRaiseManual = false;
+	gfgAkRaiseWanted = true;
+	gfgAkRaiseManual = gfgAkRaiseManual || manual;
+	gfgAkRaiseTime = theGame.GetEngineTimeAsSeconds();
+}
+
+@addMethod(CR4Player)
+function GfgSetTriggerWanted( pressed : bool )
+{
+	gfgTriggerWanted = pressed;
+}
+
+@wrapMethod(WeaponHolster)
+function GetMostConvenientMeleeWeapon( targetToDrawAgainst : CActor, optional ignoreActionLock : bool ) : EPlayerWeapon
+{
+	var ret : EPlayerWeapon;
+
+	ret = wrappedMethod( targetToDrawAgainst, ignoreActionLock );
+	if ( ( ret == PW_Steel || ret == PW_Silver ) && thePlayer.GfgNoSwordMode() )
+	{
+		thePlayer.GfgRequestAkRaise( false );
+		return PW_Fists;
+	}
+	return ret;
+}
+
 @wrapMethod(CR4Player)
 function OnEquipMeleeWeapon( weaponType : EPlayerWeapon, ignoreActionLock : bool, optional sheatheIfAlreadyEquipped : bool )
 {
-	if ( gfgAutoDrawGuard && rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+	// 拿著同一把時再要一次＝收劍（sheatheIfAlreadyEquipped：playerWeaponHolster.ws:568-583），照原版
+	if ( ( weaponType == PW_Steel || weaponType == PW_Silver ) && GfgNoSwordMode() && !gfgSwordTestBypass
+		&& !( sheatheIfAlreadyEquipped && GetCurrentMeleeWeaponType() == weaponType ) )
+	{
+		LogChannel( 'GFG', "sword draw blocked weapon=" + (int)weaponType + " ignoreLock=" + ignoreActionLock + " pstate=" + GetCurrentStateName() );	// 暫時（第 19 項）
 		return true;
+	}
 	return wrappedMethod( weaponType, ignoreActionLock, sheatheIfAlreadyEquipped );
+}
+
+// 暫時（第 19 項的測試）：不管 AK，直接拔鋼劍 → 測「手上有劍時」：每格收劍、戰鬥中接著舉 AK；拔劍中按左鍵
+@addField(CR4Player)
+var gfgSwordTestBypass : bool;
+
+@addField(CR4Player)
+var gfgSwordDiagTime : float;	// 暫時
+
+@addMethod(CR4Player)
+function GfgDrawSwordForTest()
+{
+	gfgSwordTestBypass = true;
+	OnEquipMeleeWeapon( PW_Steel, true );
+	gfgSwordTestBypass = false;
+}
+
+exec function gfgsword()
+{
+	thePlayer.GfgDrawSwordForTest();
+}
+
+// 每格（GfgCameraTick）：手上有劍就收；要舉 AK 時找時機拿出
+@addMethod(CR4Player)
+function GfgNoSwordTick()
+{
+	var weapon : EPlayerWeapon;
+	var now : float;
+
+	if ( !GfgNoSwordMode() )
+	{
+		gfgAkRaiseWanted = false;
+		return;
+	}
+
+	// 手上有劍：收劍。拔劍、收劍的動作還沒做完、戰鬥動作中、不能拔收劍時先等（同原版自動收劍的條件：r4Player.ws:3195）；對話中不動（playerWeaponHolster.ws:551-554）
+	weapon = GetCurrentMeleeWeaponType();
+	if ( weapon == PW_Steel || weapon == PW_Silver )
+	{
+		if ( GetWeaponHolster().IsMeleeWeaponReady() && !IsInCombatAction() && IsActionAllowed( EIAB_DrawWeapon ) && GetCurrentStateName() != 'PlayerDialogScene' )
+		{
+			LogChannel( 'GFG', "sheathe sword for AK weapon=" + (int)weapon + " combat=" + IsInCombat() );	// 暫時（第 19 項）
+			if ( IsInCombat() )
+			{
+				OnEquipMeleeWeapon( PW_Fists, true );
+				GfgRequestAkRaise( false );
+			}
+			else
+				OnEquipMeleeWeapon( PW_None, true );
+		}
+		else if ( theGame.GetEngineTimeAsSeconds() - gfgSwordDiagTime > 1.f )	// 暫時（第 19 項）：收不了劍的原因
+		{
+			gfgSwordDiagTime = theGame.GetEngineTimeAsSeconds();
+			LogChannel( 'GFG', "sword wait ready=" + GetWeaponHolster().IsMeleeWeaponReady() + " inCA=" + IsInCombatAction()
+				+ " drawAllowed=" + IsActionAllowed( EIAB_DrawWeapon ) + " held=" + IsWeaponHeld( 'steelsword' ) + " pstate=" + GetCurrentStateName()
+				+ " holsterState=" + GetWeaponHolster().GetCurrentStateName() );
+		}
+		return;
+	}
+
+	if ( !gfgAkRaiseWanted )
+		return;
+	now = theGame.GetEngineTimeAsSeconds();
+	// 已經拿著（或拿出中）、5 秒內舉不起來、不在戰鬥中（按左鍵要的除外）：不舉
+	// （戰鬥中按 C 收起 AK，原版要拔劍的程式一呼叫就會再舉起來：同原版戰鬥中收劍會馬上再拔，r4Player.ws:3178-3189、playerWeaponHolster.ws:531-534）
+	if ( IsCrossbowHeld() || now - gfgAkRaiseTime > 5.f || ( !gfgAkRaiseManual && !IsInCombat() ) )
+	{
+		gfgAkRaiseWanted = false;
+		return;
+	}
+	if ( now - gfgSwordDiagTime > 0.5f )	// 暫時（第 19 項）：舉不起來的原因
+	{
+		gfgSwordDiagTime = now;
+		LogChannel( 'GFG', "raise wait ready=" + GetWeaponHolster().IsMeleeWeaponReady() + " xbowAllowed=" + IsActionAllowed( EIAB_Crossbow )
+			+ " air=" + IsInAir() + " pstate=" + GetCurrentStateName() + " vehicle=" + IsUsingVehicle() + " caAllowed=" + GetBIsCombatActionAllowed()
+			+ " mgr=" + GfgHorseMgrState() );
+	}
+	// 劍還沒收好、不能用十字弩、在空中、游泳、在船上：等
+	if ( !GetWeaponHolster().IsMeleeWeaponReady() || IsWeaponHeld( 'steelsword' ) || IsWeaponHeld( 'silversword' ) )
+		return;
+	if ( !IsActionAllowed( EIAB_Crossbow ) || IsInAir() || IsSwimming() || IsUsingBoat() )
+		return;
+	// 只在一般的走路、戰鬥、騎馬狀態舉（上下馬、互動、對話等狀態中不舉）；騎馬時騎馬戰鬥管理要在閒置（同騎馬按左鍵拿出：StartAttackAction 的包裝）
+	// 騎馬的戰鬥管理是 W3HorseCombatManager，閒置狀態叫 HorseNull（繼承 Null：horseRiding.ws:886-889）
+	if ( IsUsingVehicle() )
+	{
+		if ( GetCurrentStateName() != 'HorseRiding' || ( GfgHorseMgrState() != 'HorseNull' && GfgHorseMgrState() != 'Null' ) )
+			return;
+	}
+	else
+	{
+		if ( GetCurrentStateName() != 'Exploration' && GetCurrentStateName() != 'CombatFists' && GetCurrentStateName() != 'CombatSteel' && GetCurrentStateName() != 'CombatSilver' )
+			return;
+		if ( !GetBIsCombatActionAllowed() )
+			return;
+	}
+	// 上一次試過還不到 1 秒：等（拿不出來時不要每格一直送）
+	if ( now - gfgAkRaiseTryTime < 1.f )
+		return;
+	gfgAkRaiseTryTime = now;
+	GfgRaiseAk();
+}
+
+@addField(CR4Player)
+var gfgAkRaiseTryTime : float;	// 上一次試著舉 AK 的時間（引擎時間，秒）
+
+// 騎馬戰鬥管理的狀態（沒騎馬：none）
+@addMethod(CR4Player)
+function GfgHorseMgrState() : name
+{
+	if ( !GetUsedHorseComponent() || !GetUsedHorseComponent().GetUserCombatManager() )
+		return 'none';
+	return GetUsedHorseComponent().GetUserCombatManager().GetCurrentStateName();
+}
+
+// 拿出 AK（不開火；左鍵還按著就接著扣扳機）
+@addMethod(CR4Player)
+function GfgRaiseAk()
+{
+	var ak : Crossbow;
+
+	gfgAkRaiseWanted = false;
+	ak = (Crossbow)inv.GetItemEntityUnsafe( GetSelectedItemId() );
+	if ( !ak )
+		return;
+	LogChannel( 'GFG', "raise AK manual=" + gfgAkRaiseManual + " trigger=" + gfgTriggerWanted + " combat=" + IsInCombat()
+		+ " vehicle=" + IsUsingVehicle() + " pstate=" + GetCurrentStateName() );	// 暫時（第 19 項）
+	if ( IsUsingVehicle() )
+	{
+		// 騎馬：同騎馬按左鍵拿出（W3VehicleCombatManagerStateNull.StartAttackAction 的包裝）；扳機由 GfgHorseTick 每格跟著左鍵
+		SetBehaviorVariable( 'actionType', (int)EHCA_ShootCrossbow );
+		rangedWeapon = ak;
+		ak.OnRangedWeaponPress();
+		return;
+	}
+	// 地面：同按下左鍵（OnCbtAttackWithAlternateLight 的包裝）；左鍵沒按著就當作立刻放開（只拿出、不開火）
+	SetIsAimingCrossbow( true );
+	SetupCombatAction( EBAT_ItemUse, BS_Pressed );
+	ak.GfgSetTrigger( gfgTriggerWanted );
 }
 
 // ===== 後座力：鏡頭照 AK-47 的彈道轉動，準心固定在畫面中央，子彈飛向準心，停火後鏡頭轉回原位（M2）=====
@@ -1525,6 +1723,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	GfgArmsHoldTick( akDrawn );
 	GfgCarryTick( akDrawn, dt );
 	GfgMagTick( akDrawn );		// 換彈時彈匣拿下來（第 8 項 B）
+	GfgNoSwordTick();			// 不准拿劍、自動舉 AK（第 19 項）
 	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
 }
 
@@ -1926,6 +2125,12 @@ function StartAttackAction()
 	ak = (Crossbow)rider.inv.GetItemEntityUnsafe( itemId );
 	if ( !ak )
 		return;
+	// 手上有劍：先收劍、收好再拿出 AK（GfgNoSwordTick；第 19 項）
+	if ( rider.GfgSwordInHand() && !rider.IsCrossbowHeld() )
+	{
+		rider.GfgRequestAkRaise( true );
+		return;
+	}
 	// 還沒拿出來：照原版 StartItemAction 的十字弩分支拿出（:750-756），但不進入 ShootCrossbow、不另外鎖下馬
 	// （拿出時十字弩自己會鎖下馬、上馬，收好才解：rangedWeapon.ws:1145-1146、:56-61）
 	if ( !rider.IsCrossbowHeld() && rider.IsActionAllowed( EIAB_Crossbow ) )

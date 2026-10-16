@@ -2239,3 +2239,21 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 光的 `lightChannels` 預設 `LC_Characters`（原版刀劍火花、弩箭的光都沒存這個欄位 = 預設），遊戲裡晚上連射時地面也被照亮
 - 腳本載入自己的模板：`LoadResource( "dlc\…\xxx.w2ent", true )`（第二個參數 true = 路徑，不是別名：`signEntity.ws:708`）
 - 在 REDkit 裡存的新模板，同一次開著的 REDkit 開遊戲就讀得到（不用重開；和 §6.16 腳本產生的 workspace 檔不同）
+
+## 29. 原版自動拔劍的路線、擋法（2026-10-17 第 19 項；遊戲實測）
+
+- **原版自動拔劍都先問「最適合的劍」**：`WeaponHolster.GetMostConvenientMeleeWeapon`（`playerWeaponHolster.ws:175-283`；目標用 vitality → 鋼劍、essence → 銀劍；沒目標、徒手的人、Accessibility 的 `DisableAutomaticSwordSheathe` → 空手 `PW_Fists`）
+  - 進入戰鬥、目標有敵意：`OnCombatStart`（`r4Player.ws:2156-2162`）
+  - 被目前的目標打中：`OnReactToBeingHit`（`r4Player.ws:2234-2239`）
+  - 戰鬥中收劍（變成 `PW_None`）→ 0 秒計時器 `DelayedTryToReequipWeapon` 馬上再拔（`playerWeaponHolster.ws:531-534` → `r4Player.ws:3178-3189`）
+  - 附近有敵人、進入戰鬥模式：`playerMode.ws:211-220` → `GoToCombatIfNeeded`（`r4Player.ws:3300-3335`）→ `GoToCombat( 劍 )` → `CombatSteel`／`CombatSilver` 狀態一進入就拔（`combatSteel.ws:31-33`）；`PW_Fists`、`PW_None` 都進 `CombatFists`（`r4Player.ws:3491-3511`）
+  - **拿出十字弩時也會**：`State_WeaponDraw.OnEnterState` → `GoToCombatIfNeeded`（`rangedWeapon.ws:1140`）
+  - 騎馬：戰鬥開始 → 0 秒計時器 `DrawWeaponIfNeeded`（`horseRiding.ws:201-242`）→ 騎馬戰鬥管理 `DrawWeapon`（`useVehicle.ws:786-823`：問完最適合的劍，沒有鋼劍以外的答案時**直接拔鋼劍**）
+  - 下馬：`dismountHorse.ws:217-218`
+- 手動：1／2 鍵 → `EBAT_Draw_Steel`／`Silver` → `OnEquipMeleeWeapon( 劍, false, true )`（`playerInput.ws:1116-1195` → `r4Player.ws:10829-10883`）；第三個參數 true = 拿著同一把時改成收劍（`playerWeaponHolster.ws:568-583`；戰鬥中收成空手）
+  - 拿著十字弩（瞄準狀態的 `Lock()`）時 `EIAB_DrawWeapon` 被鎖，1／2 鍵本來就沒反應；收起十字弩時才會走到 `OnEquipMeleeWeapon`
+- **拿著劍時拿出十字弩**：十字弩在左手、劍留在右手（原版的單手十字弩）→ 我們的雙手持槍動畫對不上（使用者看到的「單手拿 AK、AK 看不到、不能射擊」）
+- 擋法（`gfg_ak47.ws`「AK 是選用物品時不准拿劍」）：包 `WeaponHolster.GetMostConvenientMeleeWeapon`（劍 → `PW_Fists`、記下要舉 AK）＋包 `CR4Player.OnEquipMeleeWeapon`（擋鋼劍、銀劍，收劍照原版）＋每格收掉手上的劍、找時機舉 AK
+  - 實測：沒拿 AK 走進 30 隻狼 → `Enter CombatFists`、自動舉 AK；按 1 → 擋掉；手上有劍 → 0.3 秒內收回背上（戰鬥中收完接著舉 AK）；拿著劍按住左鍵 → 收劍 → 舉 AK → 接著連射；騎馬戰鬥開始 → 騎馬舉 AK、可以開槍、馬照常走
+- **騎馬的戰鬥管理**是 `W3HorseCombatManager`，閒置狀態叫 **`HorseNull`**（繼承 `Null`：`horseRiding.ws:886-889`）；`GetCurrentStateName()` 回傳 `HorseNull`，不是 `Null`
+- 測試小事：遊戲被教學視窗暫停時（畫面角落 `Game Paused By`），F10 結束不了遊戲 → 先點一下遊戲畫面讓它繼續，再按 F10；**點遊戲畫面＝左鍵＝AK 的扳機**：AK 是選用物品時一點就拿出 AK（要測「AK 收著」時，點完再按 C 收）

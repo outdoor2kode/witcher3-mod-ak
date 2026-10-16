@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 02:1x（**自主模式**；使用者回報第 19 項：拿 AK 時不准拔劍、進戰鬥自動舉槍；先不裝進遊戲；現在做：第 19 項）
+最後更新：2026-10-17 02:5x（**自主模式**；第 19 項做好、遊戲裡驗證過；現在做：第 8 項 B 的收尾）
 
 ---
 
@@ -12,11 +12,13 @@
 
 - 使用者 02:1x：「我檢查了一下整體都很好」；**先不要裝進遊戲，開發完整再來裝**（之前問的「裝進 mods\、dlc\」→ 不裝，最後再說）
 - 背景程序（02:1x 重開）：保持清醒 `desk.ps1 awake 2147483`（背景工作 bw5jir1f2）；續做排程 CronCreate 每小時 :13（job **e185db7f**；7 天後過期 → 10-23 之後重排）；看門狗 `claude_compact.ps1 <紀錄> watch`
-- **第 19 項（新，最優先）**：使用者 `spawn('wolf', 30, 30, true)`，還沒拿出 AK 就走進狼群 → **原版自動拔劍**；拿著劍按射擊 → 變成單手拿 AK、AK 可能看不到、不能射擊（截圖 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\images\18.png`：右手拿劍、AK 在背上、旁邊一堆狼）
-  - 使用者要的：「強制裝上 AK 的情況下，不准拿劍；進到狼群或戰鬥，要自動做的事情是舉槍」
-  - 決定（自己定）：AK 裝在弩的位置（選用物品是 AK）時 → ① 進戰鬥的自動拔劍改成拔 AK（舉槍）；② 不讓拔劍（自動、手動 1／2 鍵都擋；收劍照原版）；③ 萬一已經拿著劍時按射擊：先收劍再拿出 AK（不要變成單手拿 AK）
-  - 查的起點：原版自動拔劍的程式（`grep` 關鍵字：`AutoDraw`、`OnCombatStart`、`GoToCombatIfNeeded`、`SwitchCombatStance`、`DrawWeapon`、`OnEnemy…`、`playerWitcher.ws`、`r4Player.ws`、`combat.ws`）、按射擊時拿出十字弩的流程（`playerInput.ws` 的 ThrowItem／UseItem、`rangedWeapon.ws` 的 `State_WeaponDraw`）、拿著劍時射擊為什麼變單手（劍沒收、弩掛左手）
-  - 驗證：`spawn('wolf', 30, 30, true)` → 不拿 AK 走進狼群 → 截圖：沒有拔劍、自動舉起 AK；按 1／2 鍵拔劍沒反應（或拔 AK）；連射正常
+- **第 19 項：做好、遊戲裡驗證過**（02:5x）：使用者 `spawn('wolf', 30, 30, true)`，還沒拿出 AK 就走進狼群 → 原版自動拔劍；拿著劍按射擊 → 單手拿 AK、AK 看不到、不能射擊（截圖 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\images\18.png`）
+  - 使用者要的：「強制裝上 AK 的情況下，不准拿劍；進到狼群或戰鬥，要自動做的事情是舉槍」→ 寫進 `CLAUDE.md` §7
+  - 決定（自己定）：條件是「AK 是選用物品，或 AK 拿在手上」（`GfgNoSwordMode`）；選別的物品時照原版。1／2 鍵擋掉、沒反應（不另外改成舉 AK：使用者沒要求）
+  - 做法：原版自動拔劍都先問「最適合的劍」→ 包 `WeaponHolster.GetMostConvenientMeleeWeapon`：劍換成空手（`CombatFists`）、記下要舉 AK；包 `OnEquipMeleeWeapon` 擋鋼劍、銀劍（收劍照原版）；每格（`GfgNoSwordTick`）收掉手上的劍（戰鬥中收成空手）、5 秒內找時機舉 AK（地面同按左鍵、騎馬同騎馬左鍵；上下馬等狀態不舉、試一次後隔 1 秒）；拿著劍按左鍵 → 先收劍、收好再舉 AK、左鍵還按著就接著射。原版路線、實測 `docs\findings.md` §29
+  - 實測：30 隻狼、5 隻狼各一次：沒拔劍、自動舉 AK（`raise AK … pstate=CombatFists`）；收著 AK 按 1：`sword draw blocked`；暫時指令 `gfgsword()`（繞過擋劍直接拔鋼劍）：沒戰鬥 0.3 秒內收回背上、戰鬥中收完接著舉 AK；拔劍中按住左鍵：收劍 → 舉 AK → 連射 29 發；騎馬戰鬥開始：騎馬舉 AK、1.2 秒 17 發、W 照常走
+  - 戰鬥中按 C 收起 AK 會再自動舉起（同原版戰鬥中收劍會馬上再拔）
+  - 暫時的（清理時拿掉）：`gfgsword()`、`gfgSwordTestBypass`、紀錄 `sword draw blocked`、`sheathe sword for AK`、`raise AK`、`sword wait`、`raise wait`
 - 第 8 項 B 的收尾（第 19 項之後）：`gfgcam` 的鏡頭位置 W 修好（11c434f，**沒測**）→ 側面看換彈的彈匣；抓的距離改「3 公分內且不再變小」；重開 REDkit 看新模型的貼圖顏色；騎馬換彈也看
 - 之後：開槍中側移 D −31°；曳光（先跳過）；清理暫時紀錄；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
