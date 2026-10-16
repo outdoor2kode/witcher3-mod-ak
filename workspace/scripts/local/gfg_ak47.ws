@@ -1673,6 +1673,52 @@ function GfgMagTick( akDrawn : bool )
 	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
 }
 
+// ===== 暫時（測試用，2026-10-17）：固定鏡頭從側面、正面看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
+// 原版固定鏡頭模板 gameplay\camera\static_camera.w2ent；寫法照 poster.ws:98-104（CreateEntity → Run；結束 Stop、Destroy）
+// 瞄準、轉身用的是遊戲鏡頭（GfgCamera），不受固定鏡頭影響
+// gfgcam( 角度, 距離, 高度 )：角度相對 Geralt 的朝向（0 = 正前方、90 = 左邊、-90 = 右邊）；gfgcamoff() 回到遊戲鏡頭
+@addField(CR4Player)
+var gfgDebugCam : CStaticCamera;
+
+@addMethod(CR4Player)
+function GfgSetDebugCam( cam : CStaticCamera )
+{
+	if ( gfgDebugCam )
+	{
+		gfgDebugCam.Stop();
+		gfgDebugCam.Destroy();
+	}
+	gfgDebugCam = cam;
+	if ( cam )
+	{
+		cam.activationDuration = 0.f;
+		cam.deactivationDuration = 0.f;
+		cam.Run();
+	}
+}
+
+exec function gfgcam( angle : float, dist : float, height : float )
+{
+	var tmpl : CEntityTemplate;
+	var pos, target : Vector;
+
+	tmpl = (CEntityTemplate)LoadResource( "gameplay\camera\static_camera.w2ent", true );
+	if ( !tmpl )
+	{
+		LogChannel( 'GFG', "static camera template not found" );
+		return;
+	}
+	target = thePlayer.GetWorldPosition() + Vector( 0.f, 0.f, 1.3f );
+	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
+	pos.Z += height;
+	thePlayer.GfgSetDebugCam( (CStaticCamera)theGame.CreateEntity( tmpl, pos, VecToRotation( target - pos ) ) );
+}
+
+exec function gfgcamoff()
+{
+	thePlayer.GfgSetDebugCam( NULL );
+}
+
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
 @addMethod(CR4Player)
 function GfgMagRestore()

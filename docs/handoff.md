@@ -73,7 +73,9 @@
     - 腳本 `GfgMagTick`（`GfgCameraTick` 每格）：拿出 AK 時生成兩個替身（藏著、掛 `l_weapon`）；換彈開始 0.9 秒內左手腕到彈匣底下（槍座標 F 0.25、U −0.15、R −0.03）3 公分內 → 真的 AK 藏、沒彈匣的替身顯示、彈匣 `CreateAttachmentAtBoneWS( 玩家, 'l_hand', l_weapon 的世界姿勢 )`；`OnWeaponReload`（1.5 秒）或換彈中斷 → 換回
     - 遊戲裡（01:4x，REDkit 沒重開、新模型沒貼圖顏色）：紀錄 `mag out t=0.266 dist=0.0287`、`mag in t=1.5` → 邏輯對；**從背後看不到換彈的手**（被身體擋住）
   - 下一步：
-    1. 側面看：暫時指令用原版固定鏡頭 `gameplay\camera\static_camera.w2ent`（寫法照 `poster.ws:98-104`：`CreateEntity` → `Run()`；結束 `Stop()`、`Destroy()`）；瞄準、轉身用的是遊戲鏡頭（`GfgCamera()`），固定鏡頭不影響 → Geralt 不會跟著轉
+    1. 側面看：暫時指令 `gfgcam(角度, 距離, 高度)`、`gfgcamoff()`（**01:5x 寫好、編譯過，commit 了**；`gfg_ak47.ws` 的 `GfgSetDebugCam`）：原版固定鏡頭 `gameplay\camera\static_camera.w2ent`（寫法照 `poster.ws:98-104`：`CreateEntity` → `Run()`；結束 `Stop()`、`Destroy()`）；瞄準、轉身用的是遊戲鏡頭（`GfgCamera()`），固定鏡頭不影響 → Geralt 不會跟著轉
+       - **01:5x 第一次試：畫面整片天空**（`gfgcam(50, 2.0, 0.2)`；紀錄有 `Static camera 'static_camera196'`，`gfgcamoff()` 正常關掉）→ 角度不對：`VecToRotation( target - pos )` 的 Pitch 正負或鏡頭模板的軸可能不同 → 先試 Pitch 取負、或只給 Yaw（`EulerAngles(0, 朝向, 0)`）看畫面朝哪
+       - 同一次連射**沒打出子彈**（紀錄 0 發 `bullet sparks`／`manual hit`）：`restart_all` 之後、`con "settime(1, 12)"` 之後 `d down left` 沒開火 → 先查原因（前一次 01:4x 用 `reload_edit`＋`game_start` 同樣步驟有打出去）；遊戲現在還開著（固定鏡頭已關）
     2. 抓的距離 2.9 公分（剛好在門檻邊）：改成「3 公分內、而且距離不再變小」才抓，裝回時比較準
     3. 重開 REDkit（新模型才有貼圖顏色：`CLAUDE.md` §6.14）再看一次；騎馬換彈也看
   - 之後：開槍中側移 D −31°；清理暫時紀錄放最後（Steam 版驗證之後）
