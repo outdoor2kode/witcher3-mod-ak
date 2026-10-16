@@ -36,7 +36,8 @@
     - **g.sh 的 `game_start`、`horse_start`、`ak_select` 用 `[GFG] pose` 判斷 AK 拿出來了沒 → 這個紀錄拿掉了，會誤報「沒拿出來」**：用截圖確認，或改成別的判斷
     - 教學提示（升級的 Ability Point）會吃掉主控台指令 → 先 `closeTutorialPopup()`
   - **第二次清理做完、編譯過**（05:4x）：`gfgshots`、`gfgsword`／`gfgSwordTestBypass`、紀錄 `mag out/in`、`raise AK`、`sword draw blocked`、`sheathe sword for AK` 都拿掉；腳本裡只剩兩個找不到模板的錯誤紀錄、沒有主控台指令
-  - 接續：① 簡單再測（`restart_all` → 開槍 30 發到換彈、截圖看左手拿著彈匣；生狼看自動舉槍）：**沒有紀錄可看了，全部用截圖判斷** ② 重新打包（Publish；打包後重開 REDkit）③ 照 §14 結束自主模式（裝進遊戲要使用者決定）
+  - **簡單再測通過**（05:4x，`sm1`～`sm6`）：重載腳本、開遊戲、按住左鍵 3.5 秒：連射有槍口火光、約 3 秒進換彈姿勢；沒有我們腳本的錯誤。**沒有紀錄可看了，之後都用截圖判斷**
+  - 接續（壓縮後從這裡做）：① 重新打包：REDkit 選單 Publish → Save and publish mod project（輸出在專案的 `packed\`；做法 `docs\findings.md` §27；打包前先 F10 結束遊戲）→ 打包後重開 REDkit（同一次按 play game 會當掉）② 照 §14 結束自主模式：CronDelete e185db7f、停保持清醒（bw5jir1f2）和看門狗（刪旗標）、交接檔最上面寫「使用者回來時先看這裡」（做完的、沒做完的：開槍側移的總腰扭、換彈結束 0.2 秒右手離開握把、曳光、聲音 M4 要 Wwise 授權；要使用者決定的：裝進遊戲 `mods\`、`dlc\`）、終端機叫回前面
 - 之後：曳光（先跳過）；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）
