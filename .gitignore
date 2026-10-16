@@ -30,6 +30,8 @@
 /packed/
 /publish/
 /cooked/
+/cookeddlc/
+/logs/
 *.bundle
 *.cache
 metadata.store
