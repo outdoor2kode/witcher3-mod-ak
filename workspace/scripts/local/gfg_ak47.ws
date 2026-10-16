@@ -1677,6 +1677,16 @@ function GfgHolsterForVehicle()
 	}
 }
 
+// 上馬的互動：玩家在戰鬥動作中時，原版把 "MountHorse" 列入封鎖（interactionsManager.ws:111-114）；拿著 AK 瞄準也算戰鬥動作
+// → AK 拿著、不是真的攻擊時不封鎖（2026-10-16 17:47 實測：沒有這段時有上馬提示，按 E 沒反應）
+@wrapMethod(CInteractionsManager)
+function GetBlockedActions( out blockedActions : array< string > )
+{
+	wrappedMethod( blockedActions );
+	if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack() )
+		blockedActions.Remove( "MountHorse" );
+}
+
 @wrapMethod(CR4PlayerStateMountTheVehicle)
 function OnEnterState( prevStateName : name )
 {
