@@ -1962,78 +1962,98 @@ function GfgShotRange( range : float ) : float
 	return gfgAkRange;
 }
 
+// AK 子彈的速度（公尺／秒；第 9、10 項）：原版弩箭 projSpeed 60（bodkin_bolt.w2ent）；角度 0 = 直線
+@addMethod(W3AdvancedProjectile)
+function GfgBulletSpeed() : float
+{
+	return 350.f;
+}
+
 // 這兩個是 final 函式（advancedProjectile.ws:60-78）；包 final 函式有作用（StateEnter：docs/findings.md §17.8、§17.9）
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtPosition( angle : float, velocity : float, target : Vector, optional range : float, optional collisionGroups : array<name> )
 {
-	wrappedMethod( angle, velocity, target, GfgShotRange( range ), collisionGroups );
+	var a, v : float;
+	a = angle;
+	v = velocity;
+	if ( gfgAkRange > 0.f )
+	{
+		a = 0.f;
+		v = GfgBulletSpeed();
+	}
+	wrappedMethod( a, v, target, GfgShotRange( range ), collisionGroups );
 }
 
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
 {
-	wrappedMethod( angle, velocity, target, targetBone, GfgShotRange( range ), collisionGroups );
+	var a, v : float;
+	a = angle;
+	v = velocity;
+	if ( gfgAkRange > 0.f )
+	{
+		a = 0.f;
+		v = GfgBulletSpeed();
+	}
+	wrappedMethod( a, v, target, targetBone, GfgShotRange( range ), collisionGroups );
 }
 
-// 碰撞：AK 的箭插在牆壁、地面上時改成不限時間（GfgAddStuckBolt）
+// 碰撞：AK 的子彈打到牆壁、地面時播火花（第 9 項）
+// 原版的箭停下來、插著、排 5 秒後刪掉（arrowProjectile.ws:98-114、playerBoltProjectile.ws:182-203）；AK 的子彈看不見（OnProjectileShot 藏起模型），照原版刪
+// （原本「AK 的箭插在牆上不刪」是使用者 2026-10-13 選的；改成子彈後插著的也看不見，拿掉）
 @wrapMethod(W3BoltProjectile)
 function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
 {
 	var wasScheduled, result : bool;
-	var player : CR4Player;
 
 	wasScheduled = isScheduledForDestruction;
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
-
-	// 插在牆壁、地面上：原版停下來、排 5 秒後刪掉（arrowProjectile.ws:98-114、playerBoltProjectile.ws:182-203）；
-	// AK 的箭取消這個刪除，交給玩家身上的清單管數量（使用者 2026-10-13 選定）；打在角色身上的照原版
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
 	{
+		PlayEffect( 'sparks' );
+	}
+	return result;
+}
+
+// ===== 子彈的樣子（第 9 項：使用者 2026-10-16「射出去的還是箭，不是子彈」）=====
+// 原版的箭射出時播軌跡 defaultTrail（arrow_trail）＋破空聲（arrowProjectile.ws:19-34）；特效定義在弩箭共用模板 bolt_base.w2ent
+// AK 的子彈：藏起箭的模型（寫法同 SmartDestroy：arrowProjectile.ws:395-402），每 3 發一發曳光（arrow_trail_orange），其他關掉軌跡
+@wrapMethod(W3ArrowProjectile)
+function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNode )
+{
+	var result : bool;
+	var comps : array< CComponent >;
+	var player : CR4Player;
+	var i : int;
+
+	result = wrappedMethod( targetCurrentPosition, target );
+	if ( gfgAkRange > 0.f )
+	{
+		comps = GetComponentsByClassName( 'CDrawableComponent' );
+		for ( i = 0; i < comps.Size(); i += 1 )
+			((CDrawableComponent)comps[i]).SetVisible( false );
 		player = (CR4Player)GetOwner();
-		if ( player )
+		if ( player && player.GfgNextShotIsTracer() )
+			ActivateTrail( 'arrow_trail_orange' );
+		else if ( IsNameValid( activeTrail ) )
 		{
-			RemoveTimer( 'TimeDestroy' );
-			player.GfgAddStuckBolt( this );
+			StopEffect( activeTrail );
+			activeTrail = '';
 		}
 	}
 	return result;
 }
 
-// ===== 插在牆壁、地面上的 AK 箭：不限時間，最多 GfgMaxStuckBolts() 支，超過就從最舊的開始刪（使用者 2026-10-13 選定）=====
-
 @addField(CR4Player)
-var gfgStuckBolts : array<W3BoltProjectile>;	// 插在牆壁、地面上的 AK 箭，舊的在前面
+var gfgShotCount : int;		// AK 射出的子彈數（算曳光用）
 
-// 最多幾支（可調）
+// CS2 的 AK 每 3 發一發曳光（weapons.vdata m_nTracerFrequency 3）
 @addMethod(CR4Player)
-function GfgMaxStuckBolts() : int
+function GfgNextShotIsTracer() : bool
 {
-	return 100;
-}
-
-// 寫法照原版 RemoveDroppedItem（actor.ws:4758-4779）：邊走訪邊 Erase，刪實體前先確認還在
-@addMethod(CR4Player)
-function GfgAddStuckBolt( bolt : W3BoltProjectile )
-{
-	var i : int;
-
-	// 已經不在的先移出清單
-	i = 0;
-	while ( i < gfgStuckBolts.Size() )
-	{
-		if ( gfgStuckBolts[i] )
-			i += 1;
-		else
-			gfgStuckBolts.Erase( i );
-	}
-
-	gfgStuckBolts.PushBack( bolt );
-	while ( gfgStuckBolts.Size() > GfgMaxStuckBolts() )
-	{
-		gfgStuckBolts[0].Destroy();
-		gfgStuckBolts.Erase( 0 );
-	}
+	gfgShotCount += 1;
+	return gfgShotCount % 3 == 1;
 }
 
 // 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生

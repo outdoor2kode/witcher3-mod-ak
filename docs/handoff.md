@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 18:5x（**自主模式**；第 1、2、3、4、5、7 項做好；第 6 項待長測；8、9、10 項還沒開始）
+最後更新：2026-10-16 19:0x（**自主模式**；第 1、2、3、4、5、7 項做好；第 6 項待長測；8、9、10 項還沒開始）
 
 ---
 
@@ -47,7 +47,7 @@
      - 弩箭共用模板 `witcher_bolts\base\bolt_base.w2ent` 有特效（實體上直接 `PlayEffect`）：`arrow_trail`（`fx\weapons\trails\arrow\bold_trail.w2p`）、`arrow_trail_orange`、`arrow_trail_red`、`arrow_trail_fire`、`arrow_trail_underwater`、`sparks`（`fx\weapons\block\kontra\counterattack_fx1.w2p`）、`arrow_trail_mutation_9`、`red_arrow_trail_mutation_9`
      - Firearms（參考 mod）的槍口煙火在 DLC 打包檔裡，腳本沒有特效，不能照抄
    - 計畫（自己決定）：AK 的箭 → 藏起 `bolt` 模型、播 `arrow_trail_orange` 當曳光（照 CS2 `m_nTracerFrequency` 3：每 3 發一發曳光，其他只有很淡的或沒有）、速度改快（`ShootProjectileAtPosition` 包裝裡換 velocity，例 350 公尺／秒，角度 0）；打到牆壁地面播 `sparks`、不再插著（原本「插在牆上的箭不刪」是箭的設計，換子彈後沒有意義 → 播完火花刪掉）
-   - 實作步驟（18:5x 查好，下一步直接寫）：
+   - 實作步驟（19:0x：1～3 已寫好、編譯過，**還沒進遊戲測** → 下一步做第 4 步；子彈速度 `GfgBulletSpeed` 350、曳光計數 `GfgNextShotIsTracer`）：
      1. 包 `W3BoltProjectile.OnProjectileShot`（原版 `arrowProjectile.ws:19-34`：沒有軌跡時 `ActivateTrail( defaultTrail )` ＝ `arrow_trail`＋破空聲 `cmb_arrow_swoosh`）：AK 的箭（`gfgAkRange > 0`，`ThrowProjectile` 包裝裡先設好）→ 呼叫原版後把 `CDrawableComponent` 都 `SetVisible(false)`（同 `arrowProjectile.ws:395-402` `SmartDestroy` 的寫法）；每 3 發 `ActivateTrail('arrow_trail_orange')`，其他 `StopEffect( activeTrail )`（或換很淡的）
      2. `ShootProjectileAtPosition/AtBone` 的包裝：AK 的箭把 velocity 換成子彈速度（先試 350 公尺／秒）、angle 換 0（直線）
      3. `OnProjectileCollision` 的包裝：打到 Static／Terrain → `PlayEffect('sparks')`，短時間後刪掉（取代 `GfgAddStuckBolt`；`gfgStuckBolts` 相關的程式拿掉）
