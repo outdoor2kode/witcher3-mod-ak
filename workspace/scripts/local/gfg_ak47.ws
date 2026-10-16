@@ -806,6 +806,9 @@ function GfgTryFire()
 
 	OnProcessThrowEvent( 'ProjectileThrow' );
 
+	// 槍口火光（第 10 項）
+	thePlayer.GfgMuzzleFlash();
+
 	// 後座力：這一發開完，鏡頭開始轉向下一發的位置（之後每格轉一部分：GfgUpdateRecoil）
 	GfgAddRecoil( now );
 
@@ -1522,6 +1525,30 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	GfgArmsHoldTick( akDrawn );
 	GfgCarryTick( akDrawn, dt );
 	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
+}
+
+// ===== 槍口火光（第 10 項；2026-10-17）=====
+// 照原版刀砍到東西的火花（btTaskAttack.ws:339-357）：生成特效實體（W3VisualFx）、播特效、播完自己刪掉（visual_fx.ws:36-49）
+// 掛在 l_weapon 的槍口位置：特效實體是自己生成的，跟著掛的骨頭走（CLAUDE.md §6.18 的限制只針對物品系統掛的物品）
+// 槍口：槍座標 F 0.669、U 0.096（AK 模型槍管最前端）→ l_weapon 座標 (0.2368, 0.0409, 0.1710)
+@addField(CR4Player)
+var gfgMuzzleTmpl : CEntityTemplate;
+
+@addMethod(CR4Player)
+function GfgMuzzleFlash()
+{
+	var fx : W3VisualFx;
+
+	if ( !gfgMuzzleTmpl )
+		gfgMuzzleTmpl = (CEntityTemplate)LoadResource( 'sword_colision_fx' );		// 暫時：先用原版的刀劍火花驗證做法（gameplay.xml:131）
+	if ( !gfgMuzzleTmpl )
+		return;
+	fx = (W3VisualFx)theGame.CreateEntity( gfgMuzzleTmpl, GetWorldPosition(), GetWorldRotation() );
+	if ( !fx )
+		return;
+	fx.CreateAttachment( this, 'l_weapon', Vector( 0.2368, 0.0409, 0.1710 ) );
+	fx.PlayEffect( 'sparks' );
+	fx.DestroyOnFxEnd( 'sparks' );
 }
 
 // ===== 暫時：量雙手持槍的實際位置（使用者 2026-10-15 同意；docs/m3.md「擺法 A 進遊戲：錯誤」；量完就拿掉）=====

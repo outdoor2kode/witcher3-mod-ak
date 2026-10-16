@@ -74,6 +74,9 @@
     3. 腳本（`gfg_ak47.ws`，每發開火時）：槍口位置 → `CreateEntity( 模板, 槍口 )` → `PlayEffect( 'sparks' )` → `DestroyOnFxEnd( 'sparks' )`；槍口位置：AK 的 `bolt` slot（`CalcEntitySlotMatrix`；`bolt` slot 在 `handle` 骨頭，箭頭在槍口後 1 公分）往槍管方向推箭長，或用現有的子彈起點 `gfgShotFrom`；替身顯示時用替身
     4. 新 workspace 檔：REDkit 開著時新建的檔遊戲讀不到 → 建完重開 REDkit（`CLAUDE.md` §6.16）
   - 備案：直接用原版 `sword_colision_fx` 的 `fist`（槍口的煙）＋子彈模板的 `sparks`（不發射、藏模型）
+  - **01:2x 進度**：槍口位置算好：AK 模型槍管最前端 = 槍座標 F 0.669、U 0.096、R 0（暫存 `s18\muzzle_pos.py`）→ `l_weapon` 座標 (0.2368, 0.0409, 0.1710)；腳本第一版 `GfgMuzzleFlash`（`gfg_ak47.ws`，開火的 `OnProcessThrowEvent` 之後呼叫）：先用原版 `sword_colision_fx` 驗證做法：`CreateEntity` → `CreateAttachment( 玩家, 'l_weapon', 槍口 )` → `PlayEffect('sparks')` → `DestroyOnFxEnd('sparks')`；**編譯過、還沒進遊戲測**
+    - 下一步：F10 → `reload_edit` → `game_start`（先把編輯器鏡頭移到地面：滑鼠指地面按 J）→ 點放一發、截圖看火花在不在槍口（`l_weapon` 是不是玩家的 slot 名稱：不是的話會掛到腳邊）；連射看效果、效能
+    - 再做自己的模板（上面第 1、2 步）：去掉刀劍聲、光調大、時間縮短（原版 `sparks` 長 2.1 秒，`DestroyOnFxEnd` 每 0.2 秒檢查一次）
   - 曳光（第 9 項沒做的）：可以試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到，再確認）
 
 0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
