@@ -29,6 +29,10 @@
 - **開槍中側移（第 13 項剩下的）：做了能做的部分**（05:2x）：6 段側移用 `--spread 0.2 0.4 0.4` 重做、匯入（單節最大扭轉減半以上，槍不變）；總腰扭（D、A 有兩種模式 ±47°）沒降：要換腳步來源，成本高 → 先不做；細節 `docs\m3.md`「雙手持槍：開槍中側移」
   - AnimBrowser 05:1x 開過：`0x2E41C84`（g.sh 的 `GAB` 已換；還開著）
 - **現在做：清理暫時指令與紀錄**（05:3x 開始）
+  - **第一次做完、編譯過，遊戲裡還沒測**（05:4x）：拿掉每格／定時的紀錄（`pose`、`twist`、`diag`、`horseCam`）、查問題用的紀錄（`forceHolster`、`rangedForceHolster`、`sword wait`、`raise wait`、`mag no grab`、`holster for vehicle`、`mount interaction allowed`、`manual hit`、`coll`、`bullet sparks/hit`、`ray hit/miss`、`ak dmg`、`CNewNPC.OnTakeDamage` 的包裝）、測試指令 `gfgfree`、`gfgnoturn`、`gfgmagshow`、`gfgbullet`、`gfgdmg`、`gfgwolf`、`gfghorsehere`
+  - 第二次（回歸測試後）再拿：`gfgshots`、`gfgsword`／`gfgSwordTestBypass`、紀錄 `mag out`、`mag in`、`raise AK`、`sword draw blocked`、`sheathe sword for AK`；**永久保留**找不到模板的錯誤紀錄（`carry dummy template not found`、`mag template not found`）
+  - g.sh 的 `side_reload2` 用到已拿掉的 `gfgnoturn`、`gfgfree`（要再側面看就從 git 找回 commit e0bfb09 的版本）
+  - 接續：① `restart_all` 回歸測試：開槍、換彈（`mag out/in`）、衝刺、跳、騎馬開槍換彈、上下馬、`spawn('wolf', 5, 10, true)` 自動舉槍、1 鍵擋劍、`gfgsword()` ② 第二次清理、編譯、簡單再測 ③ 重新打包（Publish；打包後重開 REDkit）④ 照 §14 結束自主模式（裝進遊戲要使用者決定）
 - 之後：曳光（先跳過）；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）

@@ -149,36 +149,18 @@ var gfgHolsterRequested : bool;	// 收槍中：不再把騎馬動畫圖當作瞄
 @wrapMethod(Crossbow)
 function OnForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
-	var now : float;
-
 	// 被打中的動作（全身）播放中，原版的保險計時器把它當成「攻擊中」收起十字弩（InputLockFailsafe：rangedWeapon.ws:458-466）
 	// 2026-10-16 實測被狼咬：failsafe 呼叫 OnForceHolster( true, true )，當時 combatActionType 0、fullBodyAnimWeight 1、不能做戰鬥動作
 	// → 拿著 AK、不是真的在攻擊（輕／重攻擊：r4Player.ws:12863-12877）時不收（第 2 項：狼群裡開槍要維持射擊姿勢）
 	if ( gfgInFailsafe && GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack() )
-	{
-		now = theGame.GetEngineTimeAsSeconds();
-		if ( now - gfgHolsterBlockLogTime > 1.0 )	// 暫時：確認擋到了
-		{
-			gfgHolsterBlockLogTime = now;
-			LogChannel( 'GFG', "forceHolster blocked (failsafe, hit reaction) caType=" + ownerPlayer.GetBehaviorVariable( 'combatActionType' ) );
-		}
 		return true;
-	}
-	if ( GfgIsAkDrawn() )	// 暫時：查被狼咬時是誰收槍（第 2 項）
-		LogChannel( 'GFG', "forceHolster instant=" + instant + " upper=" + forceUpperBodyAnim + " failsafe=" + gfgInFailsafe
-			+ " pstate=" + ownerPlayer.GetCurrentStateName() + " caAllowed=" + ownerPlayer.GetBIsCombatActionAllowed()
-			+ " caType=" + ownerPlayer.GetBehaviorVariable( 'combatActionType' ) + " full=" + ownerPlayer.GetBehaviorVariable( 'fullBodyAnimWeight' )
-			+ " hitAnim=" + ownerPlayer.IsInHitAnim() + " inHitStart=" + thePlayer.gfgInHitStart + " inCA=" + ownerPlayer.IsInCombatAction() );
-	if ( GfgIsAk() && GetCurrentStateName() != 'State_WeaponWait' )
+	if ( GfgIsAk()&& GetCurrentStateName() != 'State_WeaponWait' )
 		gfgHolsterRequested = true;
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
 
 @addField(RangedWeapon)
 var gfgInFailsafe : bool;	// InputLockFailsafe 執行中（rangedWeapon.ws:445-487 會直接呼叫 OnForceHolster）
-
-@addField(Crossbow)
-var gfgHolsterBlockLogTime : float;	// 暫時：擋下收槍的紀錄一秒最多一筆
 
 @wrapMethod(RangedWeapon)
 function InputLockFailsafe( time : float, id : int )
@@ -448,12 +430,6 @@ function GfgAkTurnTick()
 	var aimHeading, diff : float;
 	var firing, moving, fireMoving : bool;
 
-	if ( gfgNoTurn )	// 暫時（測試用）：gfgnoturn
-	{
-		gfgTurning = false;
-		GfgSetWalkInPlace( false );
-		return;
-	}
 	aimHeading = VecHeading( GfgCrosshairPoint() - GetWorldPosition() );
 	diff = AngleDistance( aimHeading, GetHeading() );
 	firing = rangedWeapon.GfgIsFiring();
@@ -991,9 +967,6 @@ function StateEnterSpecific( prevStateName : name )
 @wrapMethod(CR4Player)
 function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
-	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )	// 暫時：查被狼咬時是誰收槍（第 2 項）
-		LogChannel( 'GFG', "rangedForceHolster instant=" + instant + " upper=" + forceUpperBodyAnim + " inHitStart=" + gfgInHitStart
-			+ " pstate=" + GetCurrentStateName() + " hitAnim=" + IsInHitAnim() );
 	if ( gfgKeepAkOnJump )
 		return true;
 	// 被打中時不收 AK（下面「戰鬥中被打中」那一段）
@@ -1112,9 +1085,6 @@ function OnEquipMeleeWeapon( weaponType : EPlayerWeapon, ignoreActionLock : bool
 @addField(CR4Player)
 var gfgSwordTestBypass : bool;
 
-@addField(CR4Player)
-var gfgSwordDiagTime : float;	// 暫時
-
 @addMethod(CR4Player)
 function GfgDrawSwordForTest()
 {
@@ -1156,13 +1126,6 @@ function GfgNoSwordTick()
 			else
 				OnEquipMeleeWeapon( PW_None, true );
 		}
-		else if ( theGame.GetEngineTimeAsSeconds() - gfgSwordDiagTime > 1.f )	// 暫時（第 19 項）：收不了劍的原因
-		{
-			gfgSwordDiagTime = theGame.GetEngineTimeAsSeconds();
-			LogChannel( 'GFG', "sword wait ready=" + GetWeaponHolster().IsMeleeWeaponReady() + " inCA=" + IsInCombatAction()
-				+ " drawAllowed=" + IsActionAllowed( EIAB_DrawWeapon ) + " held=" + IsWeaponHeld( 'steelsword' ) + " pstate=" + GetCurrentStateName()
-				+ " holsterState=" + GetWeaponHolster().GetCurrentStateName() );
-		}
 		return;
 	}
 
@@ -1175,13 +1138,6 @@ function GfgNoSwordTick()
 	{
 		gfgAkRaiseWanted = false;
 		return;
-	}
-	if ( now - gfgSwordDiagTime > 0.5f )	// 暫時（第 19 項）：舉不起來的原因
-	{
-		gfgSwordDiagTime = now;
-		LogChannel( 'GFG', "raise wait ready=" + GetWeaponHolster().IsMeleeWeaponReady() + " xbowAllowed=" + IsActionAllowed( EIAB_Crossbow )
-			+ " air=" + IsInAir() + " pstate=" + GetCurrentStateName() + " vehicle=" + IsUsingVehicle() + " caAllowed=" + GetBIsCombatActionAllowed()
-			+ " mgr=" + GfgHorseMgrState() );
 	}
 	// 劍還沒收好、不能用十字弩、在空中、游泳、在船上：等
 	if ( !GetWeaponHolster().IsMeleeWeaponReady() || IsWeaponHeld( 'steelsword' ) || IsWeaponHeld( 'silversword' ) )
@@ -1575,20 +1531,6 @@ function GfgAimPoint( out rayStart : Vector, out rayDir : Vector ) : Vector
 	return hit;
 }
 
-// 暫時（第 11 項）：元件的說明（實體名稱、是不是移動元件＝膠囊、元件名稱）
-function GfgCompDesc( comp : CComponent ) : string
-{
-	var ent : CEntity;
-	var isAgent : bool;
-
-	if ( !comp )
-		return "comp=none";
-	ent = comp.GetEntity();
-	if ( (CMovingAgentComponent)comp )
-		isAgent = true;
-	return "ent=" + ent.GetName() + " agent=" + isAgent + " comp=" + comp.GetName();
-}
-
 // ===== 準心：拿著 AK 時一直顯示，固定在原本的位置（畫面中央）=====
 
 @addField(CR4Player)
@@ -1705,8 +1647,6 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		akDrawn = rangedWeapon.GfgIsAkDrawn();
 		if ( akDrawn )
 		{
-			GfgLogHoldPose();	// 暫時：量雙手持槍的實際位置（量完就拿掉）
-			GfgLogTwist();		// 暫時（第 13、14 項）
 			rangedWeapon.GfgCancelAutoHolster();
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
 			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
@@ -1780,8 +1720,6 @@ var gfgMagStart : float;	// 這次換彈開始的時間（引擎時間；慢動�
 @addField(CR4Player)
 var gfgMagDone : bool;		// 這次換彈抓過了
 @addField(CR4Player)
-var gfgMagMinDist : float;	// 暫時：這次換彈左手腕離抓的點最近多少（沒抓到時印出來）
-@addField(CR4Player)
 var gfgMagFailed : bool;	// 模板載入失敗：不再重試
 @addField(CR4Player)
 var gfgMagPrevDist : float;	// 上一格左手腕離抓的點多遠
@@ -1817,7 +1755,6 @@ function GfgMagTick( akDrawn : bool )
 	var lw : Matrix;
 	var lx, ly, lz, d, g, f0, u0, r0 : Vector;
 	var dist, now, prev : float;
-	var attached : bool;
 
 	if ( !akDrawn || gfgMagFailed )
 	{
@@ -1849,7 +1786,6 @@ function GfgMagTick( akDrawn : bool )
 		gfgMagReloading = true;
 		gfgMagStart = now;
 		gfgMagDone = false;
-		gfgMagMinDist = 99.f;
 		gfgMagPrevDist = 99.f;
 	}
 	if ( gfgMagOut || gfgMagDone )
@@ -1857,7 +1793,6 @@ function GfgMagTick( akDrawn : bool )
 	if ( now - gfgMagStart > 0.9f )
 	{
 		gfgMagDone = true;
-		LogChannel( 'GFG', "mag no grab: min dist " + FloatToString( gfgMagMinDist ) );
 		return;
 	}
 	// 左手腕在槍座標的位置
@@ -1871,7 +1806,6 @@ function GfgMagTick( akDrawn : bool )
 	u0 = VecNormalize( Vector( 0.02721f, -0.94542f, 0.32472f ) );
 	r0 = VecCross( f0, u0 );
 	dist = VecLength( Vector( VecDot( g, f0 ) - 0.1875f, VecDot( g, u0 ) + 0.1042f, VecDot( g, r0 ) + 0.0378f ) );
-	gfgMagMinDist = MinF( gfgMagMinDist, dist );
 	// 上一格在 3 公分內、這一格不再變近才抓（= 最接近的那一刻剛過）：01:4x 一進 3 公分就抓，兩次都是 2.9 公分（剛好在門檻邊）
 	prev = gfgMagPrevDist;
 	gfgMagPrevDist = dist;
@@ -1881,49 +1815,11 @@ function GfgMagTick( akDrawn : bool )
 	GfgSetMeshVisible( gfgMagNoMag, true );
 	rangedWeapon.GfgSetCarryShown( false );
 	gfgMagEnt.BreakAttachment();
-	attached = gfgMagEnt.CreateAttachmentAtBoneWS( this, 'l_hand', MatrixGetTranslation( lw ), MatrixGetRotation( lw ) );
+	gfgMagEnt.CreateAttachmentAtBoneWS( this, 'l_hand', MatrixGetTranslation( lw ), MatrixGetRotation( lw ) );
 	GfgSetMeshVisible( gfgMagEnt, true );
 	gfgMagOut = true;
 	gfgMagDone = true;
-	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) + " attached=" + attached );
-}
-
-// ===== 暫時（測試用，2026-10-17）：從側面看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
-// 試過、放棄：原版固定鏡頭 static_camera.w2ent（02:5x：方向試不出來）；拍照模式的鏡頭在拍照模式外直接用（03:1x：REDkit 當掉，EXCEPTION_ACCESS_VIOLATION）
-// 做法：gfgnoturn( true ) 讓身體不跟著準心轉（GfgAkTurnTick 不做事），再用滑鼠把遊戲鏡頭繞到側面；gfgnoturn( false ) 回復
-// 搭配 slow( 0.05 ) 放慢時間（temp.ws:8210）：換彈 2.4 秒變成 48 秒
-@addField(CR4Player)
-var gfgNoTurn : bool;
-
-@addMethod(CR4Player)
-function GfgSetNoTurn( on : bool )
-{
-	gfgNoTurn = on;
-	LogChannel( 'GFG', "noturn " + on );
-}
-
-exec function gfgnoturn( on : bool )
-{
-	thePlayer.GfgSetNoTurn( on );
-}
-
-// 暫時（03:4x）：彈匣替身的模型畫不畫得出來 → 真的 AK 藏起來、只顯示彈匣替身（掛在 l_weapon）；gfgmagshow( false ) 回復
-exec function gfgmagshow( on : bool )
-{
-	thePlayer.GfgMagShowTest( on );
-}
-
-@addMethod(CR4Player)
-function GfgMagShowTest( on : bool )
-{
-	if ( !gfgMagEnt || !rangedWeapon )
-	{
-		LogChannel( 'GFG', "magshow: no mag entity" );
-		return;
-	}
-	GfgSetMeshVisible( gfgMagEnt, on );
-	rangedWeapon.GfgSetCarryShown( !on );
-	LogChannel( 'GFG', "magshow " + on );
+	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
 }
 
 // 暫時（04:1x）：設定已經射了幾發（shotCount：rangedWeapon.ws:691、708）→ 再射 彈匣 − n 發就換彈
@@ -1939,30 +1835,6 @@ exec function gfgshots( n : int )
 	LogChannel( 'GFG', "shots set " + n );
 }
 
-// 自由鏡頭（03:2x）：原版 theGame.EnableFreeCamera、MoveFreeCamera（game.ws:161、167；原版指令 moveCamera：playerCheats.ws:340-342）
-// gfgfree( 角度, 距離, 高度 )：鏡頭放在槍身（l_weapon）旁邊、朝向槍身；角度 = 從 Geralt 正前方往左轉幾度（90 = 左邊）
-// gfgfree( 0, 0, 0, true )：關掉
-// 不用 F1：F1 會開自由鏡頭，但同時開任務選單（F1 = PanelJour），之後輸入卡住
-exec function gfgfree( angle : float, dist : float, height : float, optional off : bool )
-{
-	var target, pos : Vector;
-	var rot : EulerAngles;
-
-	if ( off )
-	{
-		theGame.EnableFreeCamera( false );
-		LogChannel( 'GFG', "free cam off" );
-		return;
-	}
-	target = MatrixGetTranslation( thePlayer.GetBoneWorldMatrixByIndex( thePlayer.GetBoneIndex( 'l_weapon' ) ) );
-	pos = target + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
-	pos.Z += height;
-	pos.W = 1.f;
-	rot = VecToRotation( target - pos );
-	theGame.EnableFreeCamera( true );
-	theGame.MoveFreeCamera( pos, rot );
-	LogChannel( 'GFG', "free cam pos " + VecToStringPrec( pos, 3 ) + " target " + VecToStringPrec( target, 3 ) + " pitch " + rot.Pitch + " yaw " + rot.Yaw );
-}
 
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
 @addMethod(CR4Player)
@@ -1992,143 +1864,6 @@ function OnWeaponReload()
 	if ( ownerPlayer == thePlayer )
 		thePlayer.GfgMagRestore();
 	return wrappedMethod();
-}
-
-// ===== 暫時：量雙手持槍的實際位置（使用者 2026-10-15 同意；docs/m3.md「擺法 A 進遊戲：錯誤」；量完就拿掉）=====
-// 拿著 AK 時每 0.5 秒印一次引擎的矩陣（世界座標）：位置、x／y／z 軸
-// - 取法同原版 actor.ws:6775-6810（GetBoneIndex、GetBoneWorldMatrixByIndex）；軸用 MatrixGetAxisX／Y／Z（math.ws:528-534），不經過歐拉角
-@addField(CR4Player)
-var gfgPoseLogTime : float;
-
-@addMethod(CR4Player)
-function GfgLogMatrix( label : string, m : Matrix )
-{
-	LogChannel( 'GFG', "pose " + label + " pos " + VecToStringPrec( MatrixGetTranslation( m ), 4 )
-		+ " x " + VecToStringPrec( MatrixGetAxisX( m ), 4 ) + " y " + VecToStringPrec( MatrixGetAxisY( m ), 4 ) + " z " + VecToStringPrec( MatrixGetAxisZ( m ), 4 ) );
-}
-
-@addMethod(CR4Player)
-function GfgLogBone( ent : CEntity, label : string, bone : name )
-{
-	var idx : int;
-
-	idx = ent.GetBoneIndex( bone );
-	if ( idx == -1 )
-		LogChannel( 'GFG', "pose " + label + " bone not found" );
-	else
-		GfgLogMatrix( label, ent.GetBoneWorldMatrixByIndex( idx ) );
-}
-
-@addField(CR4Player)
-var gfgTwistLogTime : float;
-
-// 暫時（第 13、14 項）：兩點連線（右 → 左）的朝向：左邊的點減右邊的點，轉 -90°（Z 朝上）
-function GfgLineHeading( l, r : Vector ) : float
-{
-	var v, f : Vector;
-
-	v = l - r;
-	f.X = v.Y;
-	f.Y = -v.X;
-	return VecHeading( f );
-}
-
-// 暫時（第 13、14 項）：骨盆（兩大腿）、肩膀的朝向和腰扭，每 0.1 秒
-@addMethod(CR4Player)
-function GfgLogTwist()
-{
-	var now, hip, sh, velHead : float;
-	var vel : Vector;
-
-	now = theGame.GetEngineTimeAsSeconds();
-	if ( now - gfgTwistLogTime < 0.1 )
-		return;
-	gfgTwistLogTime = now;
-	hip = GfgLineHeading( GetBoneWorldPosition( 'l_thigh' ), GetBoneWorldPosition( 'r_thigh' ) );
-	sh = GfgLineHeading( GetBoneWorldPosition( 'l_shoulder' ), GetBoneWorldPosition( 'r_shoulder' ) );
-	vel = GetMovingAgentComponent().GetVelocity();
-	velHead = -999.f;
-	if ( VecLength2D( vel ) > 0.2 )
-		velHead = VecHeading( vel );
-	LogChannel( 'GFG', "twist t=" + FloatToString( now ) + " head=" + FloatToString( GetHeading() ) + " cam=" + FloatToString( theCamera.GetCameraHeading() )
-		+ " hip=" + FloatToString( AngleDistance( hip, GetHeading() ) ) + " sh=" + FloatToString( AngleDistance( sh, GetHeading() ) )
-		+ " tw=" + FloatToString( AngleDistance( sh, hip ) ) + " vel=" + FloatToString( VecLength2D( vel ) )
-		+ " velDir=" + FloatToString( AngleDistance( velHead, GetHeading() ) ) + " fire=" + rangedWeapon.GfgIsFiring() + " fireMove=" + gfgFireMoving
-		+ " full=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) + " ovl=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'PlayerOverlay' )
-		+ " gp=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'Gameplay' )
-		+ " aimH=" + FloatToString( GetBehaviorVariable( 'aimHorizontal' ) ) + " out=" + gfgHorseAimOut + " veh=" + IsUsingVehicle() );
-}
-
-@addMethod(CR4Player)
-function GfgLogHoldPose()
-{
-	var now : float;
-
-	now = theGame.GetEngineTimeAsSeconds();
-	if ( now - gfgPoseLogTime < 0.5 )
-		return;
-	gfgPoseLogTime = now;
-	LogChannel( 'GFG', "pose t=" + FloatToString( now ) + " player=" + GetCurrentStateName() + " ak=" + rangedWeapon.GetCurrentStateName()
-		+ " held=" + FloatToString( GetBehaviorVariable( 'hasCrossbowHeld' ) )	// 主動畫圖走路、跑步時兩手用 aim_run 的開關（rangedWeapon.ws:1293）
-		+ " friendly=" + FloatToString( GetBehaviorVariable( 'isShootingFriendlyForOverlay' ) ) );	// 上半身 #18575：移動中而且 ≥ 1 → 換成一般跑步的手（rangedWeapon.ws:566-580）
-	GfgLogDiag();
-	GfgLogMatrix( "player", GetLocalToWorld() );
-	GfgLogBone( this, "l_weapon", 'l_weapon' );
-	GfgLogBone( this, "l_hand", 'l_hand' );
-	GfgLogBone( this, "r_hand", 'r_hand' );
-	GfgLogBone( this, "r_weapon", 'r_weapon' );
-	GfgLogBone( this, "l_foot", 'l_foot' );	// 跑步、走路時腿有沒有在動
-	GfgLogBone( this, "r_foot", 'r_foot' );
-	GfgLogMatrix( "ak", rangedWeapon.GetLocalToWorld() );
-	GfgLogBone( rangedWeapon, "ak_handle", 'handle' );
-	if ( gfgDummy )
-	{
-		GfgLogMatrix( "dummy", gfgDummy.GetLocalToWorld() );
-		GfgLogBone( gfgDummy, "dummy_handle", 'handle' );
-	}
-	if ( gfgMagOut && gfgMagEnt )	// 暫時：彈匣在左手上時，彈匣實體和骨頭的位置（03:3x 側面看不到彈匣）
-	{
-		GfgLogMatrix( "mag", gfgMagEnt.GetLocalToWorld() );
-		GfgLogBone( gfgMagEnt, "mag_handle", 'handle' );
-		LogChannel( 'GFG', "pose mag attached=" + gfgMagEnt.HasAttachment() );
-	}
-	LogChannel( 'GFG', "pose camera eye " + VecToStringPrec( rangedWeapon.GfgEyePosition(), 4 ) + " dir " + VecToStringPrec( rangedWeapon.GfgViewDirection(), 4 ) );
-}
-
-// 暫時：查使用者 2026-10-16 回報的 10 個問題用（動畫圖的狀態、變數、目標）；做完就拿掉
-@addMethod(CR4Player)
-function GfgEntName( ent : CEntity ) : string
-{
-	var actor : CActor;
-
-	if ( !ent )
-		return "none";
-	actor = (CActor)ent;
-	if ( actor && !actor.IsAlive() )
-		return ent.GetName() + "(dead)";
-	return ent.GetName();
-}
-
-@addMethod(CR4Player)
-function GfgLogDiag()
-{
-	var ac : CAnimatedComponent;
-
-	ac = GetRootAnimatedComponent();
-	LogChannel( 'GFG', "diag gp=" + ac.GetCurrentBehaviorState( 'Gameplay' ) + " ovl=" + ac.GetCurrentBehaviorState( 'PlayerOverlay' )
-		+ " stance=" + IntToString( (int)GetPlayerCombatStance() ) + " ot=" + IntToString( (int)GetOrientationTarget() )
-		+ " full=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) + " mtOvl=" + FloatToString( GetBehaviorVariable( 'playerMoveTypeForOverlay' ) )
-		+ " spdOvl=" + FloatToString( GetBehaviorVariable( 'playerSpeedForOverlay' ) ) + " aimW=" + FloatToString( GetBehaviorVariable( 'isAimingWeapon' ) )
-		+ " cbtStOvl=" + FloatToString( GetBehaviorVariable( 'CombatStanceForOverlay' ) ) + " pcsOvl=" + FloatToString( GetBehaviorVariable( 'playerCombatStanceForOverlay' ) )
-		+ " wpnOvl=" + FloatToString( GetBehaviorVariable( 'playerWeaponForOverlay' ) ) + " inCA=" + FloatToString( GetBehaviorVariable( 'isInCombatActionForOverlay' ) )
-		+ " caType=" + FloatToString( GetBehaviorVariable( 'combatActionType' ) ) + " walkInPlace=" + FloatToString( GetBehaviorVariable( 'walkInPlace' ) )
-		+ " aimThrowOvl=" + FloatToString( GetBehaviorVariable( 'inAimThrowForOverlay' ) )
-		+ " reqMove=" + FloatToString( GetBehaviorVariable( 'requestedMovementDirectionForOverlay' ) ) + " reqFace=" + FloatToString( GetBehaviorVariable( 'requestedFacingDirectionForOverlay' ) )
-		+ " slide=" + GfgEntName( slideTarget ) + " disp=" + GfgEntName( GetDisplayTarget() ) + " target=" + GfgEntName( GetTarget() )
-		+ " hard=" + IsHardLockEnabled() + " actorLock=" + IsActorLockedToTarget() + " threat=" + IsThreatened()
-		+ " trig=" + rangedWeapon.gfgTriggerHeld + " fireMove=" + gfgFireMoving + " turning=" + gfgTurning + " sprint=" + GetIsSprinting() + " air=" + IsInAir() + " carry=" + FloatToString( gfgCarryW )
-		+ " head=" + FloatToString( GetHeading() ) + " camHead=" + FloatToString( theCamera.GetCameraHeading() )
-		+ " vel=" + FloatToString( VecLength2D( GetMovingAgentComponent().GetVelocity() ) ) + " moveType=" + IntToString( (int)playerMoveType ) );
 }
 
 // 玩家鏡頭的每格更新（走路）
@@ -2199,11 +1934,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 	result = wrappedMethod( moveData, dt );
 	parent.GfgCameraTick( moveData, dt );
 	if ( parent.GfgHorseTick( vehicleCombatMgr, moveData, dt ) )
-	{
-		parent.GfgHorseCamLog( vehicleCombatMgr, true );
 		return true;
-	}
-	parent.GfgHorseCamLog( vehicleCombatMgr, false );
 	return result;
 }
 
@@ -2215,10 +1946,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 function GfgHolsterForVehicle()
 {
 	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
-	{
-		LogChannel( 'GFG', "holster for vehicle: state=" + GetCurrentStateName() );	// 暫時
 		OnRangedForceHolster( true, true );
-	}
 }
 
 // 上馬的互動（第 4 項）：原版拿著十字弩時有兩個地方擋上馬，AK 一直是拿著瞄準的狀態，兩個都會碰到
@@ -2232,10 +1960,7 @@ function OnInteraction( actionName : string, activator : CEntity )
 	if ( GetActionName() == "MountHorse" && theGame.GetInteractionsManager().GetActiveInteraction() == this
 		&& thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack()
 		&& !( thePlayer.IsInCombat() && !thePlayer.IsSwimming() ) )
-	{
-		LogChannel( 'GFG', "mount interaction allowed with AK" );	// 暫時
 		return false;
-	}
 	return wrappedMethod( actionName, activator );
 }
 
@@ -2259,27 +1984,6 @@ function OnEnterState( prevStateName : name )
 {
 	thePlayer.GfgHolsterForVehicle();
 	return wrappedMethod( prevStateName );
-}
-
-// 暫時的偵測紀錄（第 3 項：騎馬換彈時瞄準鏡頭被關掉，查原因）：用不用瞄準鏡頭、相關狀態改變時記一行
-@addField(CR4Player)
-var gfgHorseCamLogged : string;
-
-@addMethod(CR4Player)
-function GfgHorseCamLog( mgr : W3VehicleCombatManager, aimCam : bool )
-{
-	var s : string;
-
-	s = "aimCam=" + aimCam + " mgr=" + mgr.GetCurrentStateName() + " locked=" + IsCameraLockedToTarget() + " cbtAiming=" + vehicleCbtMgrAiming;
-	if ( rangedWeapon )
-		s += " ak=" + rangedWeapon.GetCurrentStateName() + " isAk=" + rangedWeapon.GfgIsAk();
-	else
-		s += " ak=none";
-	if ( s != gfgHorseCamLogged )
-	{
-		LogChannel( 'GFG', "horseCam " + s );
-		gfgHorseCamLogged = s;
-	}
 }
 
 // 騎馬時拿著 AK、用原版瞄準鏡頭時（GfgSetHorseAimCam）：上下、左右的目標角度都設成現在的角度，後座力轉的角度才不會被拉回（docs/findings.md §24.6、§24.7）
@@ -2620,8 +2324,6 @@ function GfgShotRange( range : float ) : float
 @addMethod(W3AdvancedProjectile)
 function GfgBulletSpeed() : float
 {
-	if ( thePlayer.GfgDbgBulletSpeed() > 0.f )
-		return thePlayer.GfgDbgBulletSpeed();
 	return 715.f;
 }
 
@@ -2678,20 +2380,7 @@ function GfgManualHit()
 	actor = gfgHitActor;
 	gfgHitActor = NULL;
 	groups.PushBack( 'Character' );
-	LogChannel( 'GFG', "manual hit " + actor.GetName() + " pos=" + VecToString( gfgHitPos ) + " active=" + isActive );		// 暫時（第 11 項）
 	OnProjectileCollision( gfgHitPos, gfgHitNormal, actor.GetMovingAgentComponent(), groups, 0, 0 );
-	LogChannel( 'GFG', "manual hit done active=" + isActive );		// 暫時（第 11 項）
-}
-
-// 暫時（第 11 項）
-function GfgNamesDesc( names : array< name > ) : string
-{
-	var s : string;
-	var i : int;
-
-	for ( i = 0; i < names.Size(); i += 1 )
-		s += NameToString( names[i] ) + ",";
-	return s;
 }
 
 // 碰撞：AK 的子彈打到牆壁、地面時播火花（第 9 項）
@@ -2700,32 +2389,13 @@ function GfgNamesDesc( names : array< name > ) : string
 @wrapMethod(W3BoltProjectile)
 function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
 {
-	var wasScheduled, result, hasComp : bool;
-	var victimActor : CActor;
+	var wasScheduled, result : bool;
 
 	wasScheduled = isScheduledForDestruction;
-	if ( gfgAkRange > 0.f )
-		LogChannel( 'GFG', "coll " + GfgCompDesc( collidingComponent ) + " groups=" + GfgNamesDesc( hitCollisionsGroups ) + " idx=" + actorIndex + " pos=" + VecToString( pos ) + " active=" + isActive );		// 暫時（第 11 項）
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
-	{
 		PlayEffect( 'sparks' );
-		LogChannel( 'GFG', "bullet sparks " + VecToString( pos ) );		// 暫時（第 9 項）
-	}
-	else if ( gfgAkRange > 0.f )
-	{
-		if ( collidingComponent )
-		{
-			hasComp = true;
-			victimActor = (CActor)collidingComponent.GetEntity();
-		}
-		if ( victimActor )
-			LogChannel( 'GFG', "bullet hit actor " + victimActor.GetName() + " hp=" + victimActor.GetHealth() + "/" + victimActor.GetMaxHealth() );		// 暫時（第 9、10 項）
-		else
-			LogChannel( 'GFG', "bullet hit comp=" + hasComp + " static=" + hitCollisionsGroups.Contains( 'Static' )
-				+ " terrain=" + hitCollisionsGroups.Contains( 'Terrain' ) + " groups=" + hitCollisionsGroups.Size() + " was=" + wasScheduled + " now=" + isScheduledForDestruction );		// 暫時（第 9 項）
-	}
 	return result;
 }
 
@@ -2774,12 +2444,10 @@ function GfgFindActorOnRay( start, dir : Vector, maxDist : float )
 	var actor : CActor;
 	var anim : CAnimatedComponent;
 	var a, b : Vector;
-	var i, idx, bestIdx : int;
-	var t, d, r, bestT, bestD, missD : float;
-	var missActor : CActor;
+	var i, idx : int;
+	var t, d, r, bestT : float;
 
 	gfgHitActor = NULL;
-	missD = 1000.f;
 	gfgHeadHit = false;
 	a = start;
 	b = start + dir * maxDist;
@@ -2803,32 +2471,19 @@ function GfgFindActorOnRay( start, dir : Vector, maxDist : float )
 		// 頭在最上面：射線從頭上方、旁邊經過時最近的骨頭是頭 → 用頭的大小判斷（2026-10-16 21:2x 實測：離頭 0.23 公尺被算成打中身體）
 		if ( idx == actor.GetHeadBoneIndex() )
 			r = GfgHeadRadius( actor );
-		if ( d >= r && d < missD )
-		{
-			missD = d;
-			missActor = actor;
-		}
 		if ( d < r && t < bestT )
 		{
 			gfgHitActor = actor;
 			bestT = t;
-			bestIdx = idx;
-			bestD = d;
 		}
 	}
 	if ( !gfgHitActor )
-	{
-		if ( missD < 2.f )
-			LogChannel( 'GFG', "ray miss " + missActor.GetName() + " d=" + missD + " r=" + GfgBodyRadius( missActor ) + " capsule=" + GfgCapsuleRadius( missActor ) );		// 暫時（第 11 項）
 		return;
-	}
 	gfgHitPos = a + dir * bestT;
 	gfgHitNormal = -dir;
 	idx = gfgHitActor.GetHeadBoneIndex();
 	if ( idx >= 0 )
 		gfgHeadHit = GfgRayBoneDist( gfgHitActor, idx, a, dir, maxDist, t ) < GfgHeadRadius( gfgHitActor );
-	LogChannel( 'GFG', "ray hit " + gfgHitActor.GetName() + " idx=" + bestIdx + " d=" + bestD + " r=" + GfgBodyRadius( gfgHitActor ) + " t=" + bestT + " head=" + gfgHeadHit
-		+ " headD=" + GfgRayBoneDist( gfgHitActor, gfgHitActor.GetHeadBoneIndex(), a, dir, maxDist, t ) );		// 暫時（第 11 項）
 }
 
 // 骨頭到射線（a 起、方向 dir、長 maxDist 的線段）的距離；t 傳回沿射線的位置
@@ -2894,19 +2549,14 @@ function ProcessAction( act : W3DamageAction )
 @addMethod(W3DamageManager)
 function GfgSetAkDamage( act : W3DamageAction, bolt : W3BoltProjectile )
 {
-	var dmg, dist, perLevel, flat, dbgPer, dbgFlat : float;
+	var dmg, dist, perLevel, flat : float;
 
 	// 一發 ≈ 同等級裝備的劍輕攻擊的 45%（2026-10-16 19:5x 定，推算寫在 docs/m3.md「子彈、傷害」）
 	// 經過原版流程後實際傷害 = 這個值 + 58（Geralt 本身的加成，不隨等級變：19:5x 實測 188.99 → 246.99）
 	// 銀（打怪物的精華）多 25%：同等級的銀劍比鋼劍高；怪物每級 +270 精華、人類每級 +55 血（monster_base_abl_new.xml:44-47、opp_base_abl.xml:283-286）
 	perLevel = 10.f;
 	flat = 20.f;
-	if ( thePlayer.GfgDbgDmg( dbgPer, dbgFlat ) )		// 暫時：主控台 gfgdmg 設的值
-	{
-		perLevel = dbgPer;
-		flat = dbgFlat;
-	}
-	dmg = perLevel * GetWitcherPlayer().GetLevel() + flat;
+	dmg =perLevel * GetWitcherPlayer().GetLevel() + flat;
 	if ( act.GetIsHeadShot() || bolt.GfgHeadHit() )
 	{
 		dmg *= 4.f;
@@ -2920,121 +2570,6 @@ function GfgSetAkDamage( act : W3DamageAction, bolt : W3BoltProjectile )
 	act.ClearDamage();
 	act.AddDamage( theGame.params.DAMAGE_NAME_PIERCING, dmg );
 	act.AddDamage( theGame.params.DAMAGE_NAME_SILVER, dmg * 1.25f );
-	LogChannel( 'GFG', "ak dmg base=" + dmg + " head=" + act.GetIsHeadShot() + " dist=" + dist );		// 暫時（第 10 項）
-}
-
-// ===== 暫時（第 9 項調整用，做完拿掉）：主控台 gfgbullet(速度)：AK 子彈的速度（公尺／秒；0 = 用 GfgBulletSpeed 的預設）=====
-@addField(CR4Player)
-var gfgDbgSpeed : float;
-
-@addMethod(CR4Player)
-function GfgSetBulletDbg( speed : float )
-{
-	gfgDbgSpeed = speed;
-	LogChannel( 'GFG', "bullet dbg speed=" + speed );
-}
-
-@addMethod(CR4Player)
-function GfgDbgBulletSpeed() : float
-{
-	return gfgDbgSpeed;
-}
-
-exec function gfgbullet( speed : float )
-{
-	thePlayer.GfgSetBulletDbg( speed );
-}
-
-// 暫時（第 10 項設計傷害用，做完拿掉）：NPC 受到玩家攻擊時記下傷害（劍、子彈都記，拿來比較）
-@wrapMethod(CNewNPC)
-function OnTakeDamage( action : W3DamageAction )
-{
-	var attack : W3Action_Attack;
-	var result : bool;
-	var attackName : name;
-
-	result = wrappedMethod( action );
-	if ( action.attacker == thePlayer )
-	{
-		attack = (W3Action_Attack)action;
-		if ( attack )
-			attackName = attack.GetAttackName();
-		LogChannel( 'GFG', "dmg " + GetName() + " lvl=" + GetLevel() + " vit=" + action.processedDmg.vitalityDamage + " ess=" + action.processedDmg.essenceDamage
-			+ " attack=" + attackName + " head=" + action.GetIsHeadShot() + " crit=" + action.IsCriticalHit() + " hp=" + GetHealth() + "/" + GetMaxHealth() );
-	}
-	return result;
-}
-
-// 暫時（第 9、10 項測試用，做完拿掉）：玩家正前方 dist 公尺（預設 8）生一隻敵對、不會動的狼當靶子
-// 不會動：CAIDoNothingAction 蓋過戰鬥 AI（同 DogNPC.ws:192-194）；敵對：同主控台 spawn（temp.ws:6932-6935）
-// kind 1：人類、2：怪物；level > 0 時設等級（同主控台 spawn：temp.ws:6937-6940）
-exec function gfgwolf( optional dist : float, optional kind : int, optional level : int )
-{
-	var template : CEntityTemplate;
-	var npc : CNewNPC;
-	var pos, posTemp, normal : Vector;
-	var rot : EulerAngles;
-	var tree : IAIActionTree;
-
-	if ( dist <= 0.f )
-		dist = 8.f;
-	if ( kind == 1 )
-		template = (CEntityTemplate)LoadResource( 'fists' );		// 測試用的人類敵人（gameplay.xml：enemy_fists_easy.w2ent）
-	else if ( kind == 2 )
-		template = (CEntityTemplate)LoadResource( 'nekker' );		// 怪物（打精華、銀）
-	else if ( kind == 3 )
-		template = (CEntityTemplate)LoadResource( 'troll' );		// 大型怪物（第 11 項：骨頭間距大）
-	else if ( kind == 4 )
-		template = (CEntityTemplate)LoadResource( 'bies' );
-	else if ( kind == 5 )
-		template = (CEntityTemplate)LoadResource( 'golem' );
-	else
-		template = (CEntityTemplate)LoadResource( 'wolf' );
-	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * dist;
-	if ( theGame.GetWorld().StaticTrace( pos + Vector( 0, 0, 5 ), pos - Vector( 0, 0, 5 ), posTemp, normal ) )
-		pos = posTemp;
-	rot = thePlayer.GetWorldRotation();
-	rot.Yaw += 180.f;
-	npc = (CNewNPC)theGame.CreateEntity( template, pos, rot );
-	if ( !npc )
-	{
-		LogChannel( 'GFG', "gfgwolf: spawn failed" );
-		return;
-	}
-	npc.SetTemporaryAttitudeGroup( 'hostile_to_player', AGP_Default );
-	if ( level > 0 )
-		npc.SetLevel( level );
-	tree = new CAIDoNothingAction in npc;
-	tree.OnCreated();
-	npc.ForceAIBehavior( tree, BTAP_AboveCombat );
-	LogChannel( 'GFG', "gfgwolf at " + VecToString( pos ) + " lvl=" + npc.GetLevel() + " hp=" + npc.GetHealth() + "/" + npc.GetMaxHealth() );
-}
-
-// 暫時（第 10 項調整用，做完拿掉）：主控台 gfgdmg(每級, 固定)：AK 每發基礎傷害 = 每級 × Geralt 等級 + 固定（兩個都 0 = 用預設）
-@addField(CR4Player)
-var gfgDbgDmgPerLevel : float;
-@addField(CR4Player)
-var gfgDbgDmgFlat : float;
-
-@addMethod(CR4Player)
-function GfgSetDmgDbg( perLevel, flat : float )
-{
-	gfgDbgDmgPerLevel = perLevel;
-	gfgDbgDmgFlat = flat;
-	LogChannel( 'GFG', "dmg dbg perLevel=" + perLevel + " flat=" + flat );
-}
-
-@addMethod(CR4Player)
-function GfgDbgDmg( out perLevel : float, out flat : float ) : bool
-{
-	perLevel = gfgDbgDmgPerLevel;
-	flat = gfgDbgDmgFlat;
-	return perLevel != 0.f || flat != 0.f;
-}
-
-exec function gfgdmg( perLevel, flat : float )
-{
-	thePlayer.GfgSetDmgDbg( perLevel, flat );
 }
 
 // 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生
@@ -3114,22 +2649,4 @@ function GfgRecoilKickUp( shot : int ) : float
 		case 29: return 0.0106f;
 	}
 	return 0.f;
-}
-
-// 暫時（第 4 項的測試用；做完和其他暫時紀錄一起拿掉）：把玩家的馬傳送到面前 3 公尺、側面朝玩家
-// reference_level 按 X 叫馬，馬生成了（editor.log：player_horse）卻跑不過來
-exec function gfghorsehere()
-{
-	var horse : CEntity;
-	var pos : Vector;
-
-	horse = theGame.GetEntityByTag( 'playerHorse' );
-	if ( !horse )
-	{
-		LogChannel( 'GFG', "gfghorsehere: no playerHorse" );
-		return;
-	}
-	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * 3.f;
-	horse.TeleportWithRotation( pos, EulerAngles( 0.f, thePlayer.GetHeading() + 90.f, 0.f ) );
-	LogChannel( 'GFG', "gfghorsehere: " + VecToString( pos ) );
 }
