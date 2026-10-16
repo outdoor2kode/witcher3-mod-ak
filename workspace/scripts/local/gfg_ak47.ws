@@ -1072,30 +1072,10 @@ function GetMostConvenientMeleeWeapon( targetToDrawAgainst : CActor, optional ig
 function OnEquipMeleeWeapon( weaponType : EPlayerWeapon, ignoreActionLock : bool, optional sheatheIfAlreadyEquipped : bool )
 {
 	// 拿著同一把時再要一次＝收劍（sheatheIfAlreadyEquipped：playerWeaponHolster.ws:568-583），照原版
-	if ( ( weaponType == PW_Steel || weaponType == PW_Silver ) && GfgNoSwordMode() && !gfgSwordTestBypass
+	if ( ( weaponType == PW_Steel || weaponType == PW_Silver ) && GfgNoSwordMode()
 		&& !( sheatheIfAlreadyEquipped && GetCurrentMeleeWeaponType() == weaponType ) )
-	{
-		LogChannel( 'GFG', "sword draw blocked weapon=" + (int)weaponType + " ignoreLock=" + ignoreActionLock + " pstate=" + GetCurrentStateName() );	// 暫時（第 19 項）
 		return true;
-	}
 	return wrappedMethod( weaponType, ignoreActionLock, sheatheIfAlreadyEquipped );
-}
-
-// 暫時（第 19 項的測試）：不管 AK，直接拔鋼劍 → 測「手上有劍時」：每格收劍、戰鬥中接著舉 AK；拔劍中按左鍵
-@addField(CR4Player)
-var gfgSwordTestBypass : bool;
-
-@addMethod(CR4Player)
-function GfgDrawSwordForTest()
-{
-	gfgSwordTestBypass = true;
-	OnEquipMeleeWeapon( PW_Steel, true );
-	gfgSwordTestBypass = false;
-}
-
-exec function gfgsword()
-{
-	thePlayer.GfgDrawSwordForTest();
 }
 
 // 每格（GfgCameraTick）：手上有劍就收；要舉 AK 時找時機拿出
@@ -1117,7 +1097,6 @@ function GfgNoSwordTick()
 	{
 		if ( GetWeaponHolster().IsMeleeWeaponReady() && !IsInCombatAction() && IsActionAllowed( EIAB_DrawWeapon ) && GetCurrentStateName() != 'PlayerDialogScene' )
 		{
-			LogChannel( 'GFG', "sheathe sword for AK weapon=" + (int)weapon + " combat=" + IsInCombat() );	// 暫時（第 19 項）
 			if ( IsInCombat() )
 			{
 				OnEquipMeleeWeapon( PW_Fists, true );
@@ -1187,8 +1166,6 @@ function GfgRaiseAk()
 	ak = (Crossbow)inv.GetItemEntityUnsafe( GetSelectedItemId() );
 	if ( !ak )
 		return;
-	LogChannel( 'GFG', "raise AK manual=" + gfgAkRaiseManual + " trigger=" + gfgTriggerWanted + " combat=" + IsInCombat()
-		+ " vehicle=" + IsUsingVehicle() + " pstate=" + GetCurrentStateName() );	// 暫時（第 19 項）
 	if ( IsUsingVehicle() )
 	{
 		// 騎馬：同騎馬按左鍵拿出（W3VehicleCombatManagerStateNull.StartAttackAction 的包裝）；扳機由 GfgHorseTick 每格跟著左鍵
@@ -1819,21 +1796,8 @@ function GfgMagTick( akDrawn : bool )
 	GfgSetMeshVisible( gfgMagEnt, true );
 	gfgMagOut = true;
 	gfgMagDone = true;
-	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
 }
 
-// 暫時（04:1x）：設定已經射了幾發（shotCount：rangedWeapon.ws:691、708）→ 再射 彈匣 − n 發就換彈
-@addMethod(Crossbow)
-function GfgSetShotCount( n : int )
-{
-	shotCount = n;
-}
-
-exec function gfgshots( n : int )
-{
-	thePlayer.rangedWeapon.GfgSetShotCount( n );
-	LogChannel( 'GFG', "shots set " + n );
-}
 
 
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
@@ -1853,7 +1817,6 @@ function GfgMagRestore()
 		gfgMagEnt.BreakAttachment();
 		gfgMagEnt.CreateAttachment( this, 'l_weapon' );
 	}
-	LogChannel( 'GFG', "mag in t=" + FloatToString( theGame.GetEngineTimeAsSeconds() - gfgMagStart ) );
 }
 
 // 裝上新彈匣：換彈動畫的事件 OnWeaponReload（1.5 秒：rangedWeapon.ws:150-152）
