@@ -1817,6 +1817,7 @@ function GfgMagTick( akDrawn : bool )
 	var lw : Matrix;
 	var lx, ly, lz, d, g, f0, u0, r0 : Vector;
 	var dist, now, prev : float;
+	var attached : bool;
 
 	if ( !akDrawn || gfgMagFailed )
 	{
@@ -1826,7 +1827,10 @@ function GfgMagTick( akDrawn : bool )
 	}
 	// 拿出 AK 時先生成（藏著），第一次換彈時模型已經載入
 	if ( !gfgMagNoMag )
+	{
 		gfgMagNoMag = GfgMagSpawn( "dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_nomag.w2ent" );
+		return;	// 彈匣下一格才生成：同一格生成兩個時，後生成的彈匣之後顯示不出來（03:5x 實測；原因是推論）
+	}
 	if ( !gfgMagEnt && !gfgMagFailed )
 		gfgMagEnt = GfgMagSpawn( "dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_mag.w2ent" );
 	if ( !gfgMagNoMag || !gfgMagEnt )
@@ -1877,11 +1881,11 @@ function GfgMagTick( akDrawn : bool )
 	GfgSetMeshVisible( gfgMagNoMag, true );
 	rangedWeapon.GfgSetCarryShown( false );
 	gfgMagEnt.BreakAttachment();
-	gfgMagEnt.CreateAttachmentAtBoneWS( this, 'l_hand', MatrixGetTranslation( lw ), MatrixGetRotation( lw ) );
+	attached = gfgMagEnt.CreateAttachmentAtBoneWS( this, 'l_hand', MatrixGetTranslation( lw ), MatrixGetRotation( lw ) );
 	GfgSetMeshVisible( gfgMagEnt, true );
 	gfgMagOut = true;
 	gfgMagDone = true;
-	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
+	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) + " attached=" + attached );
 }
 
 // ===== 暫時（測試用，2026-10-17）：從側面看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
@@ -1901,6 +1905,63 @@ function GfgSetNoTurn( on : bool )
 exec function gfgnoturn( on : bool )
 {
 	thePlayer.GfgSetNoTurn( on );
+}
+
+// 暫時（03:4x）：彈匣替身的模型畫不畫得出來 → 真的 AK 藏起來、只顯示彈匣替身（掛在 l_weapon）；gfgmagshow( false ) 回復
+exec function gfgmagshow( on : bool )
+{
+	thePlayer.GfgMagShowTest( on );
+}
+
+@addMethod(CR4Player)
+function GfgMagShowTest( on : bool )
+{
+	if ( !gfgMagEnt || !rangedWeapon )
+	{
+		LogChannel( 'GFG', "magshow: no mag entity" );
+		return;
+	}
+	GfgSetMeshVisible( gfgMagEnt, on );
+	rangedWeapon.GfgSetCarryShown( !on );
+	LogChannel( 'GFG', "magshow " + on );
+}
+
+// 暫時（04:1x）：設定已經射了幾發（shotCount：rangedWeapon.ws:691、708）→ 再射 彈匣 − n 發就換彈
+@addMethod(Crossbow)
+function GfgSetShotCount( n : int )
+{
+	shotCount = n;
+}
+
+exec function gfgshots( n : int )
+{
+	thePlayer.rangedWeapon.GfgSetShotCount( n );
+	LogChannel( 'GFG', "shots set " + n );
+}
+
+// 自由鏡頭（03:2x）：原版 theGame.EnableFreeCamera、MoveFreeCamera（game.ws:161、167；原版指令 moveCamera：playerCheats.ws:340-342）
+// gfgfree( 角度, 距離, 高度 )：鏡頭放在槍身（l_weapon）旁邊、朝向槍身；角度 = 從 Geralt 正前方往左轉幾度（90 = 左邊）
+// gfgfree( 0, 0, 0, true )：關掉
+// 不用 F1：F1 會開自由鏡頭，但同時開任務選單（F1 = PanelJour），之後輸入卡住
+exec function gfgfree( angle : float, dist : float, height : float, optional off : bool )
+{
+	var target, pos : Vector;
+	var rot : EulerAngles;
+
+	if ( off )
+	{
+		theGame.EnableFreeCamera( false );
+		LogChannel( 'GFG', "free cam off" );
+		return;
+	}
+	target = MatrixGetTranslation( thePlayer.GetBoneWorldMatrixByIndex( thePlayer.GetBoneIndex( 'l_weapon' ) ) );
+	pos = target + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
+	pos.Z += height;
+	pos.W = 1.f;
+	rot = VecToRotation( target - pos );
+	theGame.EnableFreeCamera( true );
+	theGame.MoveFreeCamera( pos, rot );
+	LogChannel( 'GFG', "free cam pos " + VecToStringPrec( pos, 3 ) + " target " + VecToStringPrec( target, 3 ) + " pitch " + rot.Pitch + " yaw " + rot.Yaw );
 }
 
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
@@ -2024,6 +2085,12 @@ function GfgLogHoldPose()
 	{
 		GfgLogMatrix( "dummy", gfgDummy.GetLocalToWorld() );
 		GfgLogBone( gfgDummy, "dummy_handle", 'handle' );
+	}
+	if ( gfgMagOut && gfgMagEnt )	// 暫時：彈匣在左手上時，彈匣實體和骨頭的位置（03:3x 側面看不到彈匣）
+	{
+		GfgLogMatrix( "mag", gfgMagEnt.GetLocalToWorld() );
+		GfgLogBone( gfgMagEnt, "mag_handle", 'handle' );
+		LogChannel( 'GFG', "pose mag attached=" + gfgMagEnt.HasAttachment() );
 	}
 	LogChannel( 'GFG', "pose camera eye " + VecToStringPrec( rangedWeapon.GfgEyePosition(), 4 ) + " dir " + VecToStringPrec( rangedWeapon.GfgViewDirection(), 4 ) );
 }

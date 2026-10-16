@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 03:1x（**自主模式**；第 19 項做好、遊戲裡驗證過；現在做：第 8 項 B 的收尾——側面看換彈）
+最後更新：2026-10-17 04:2x（**自主模式**；第 8 項 B：彈匣替身顯示修好、側面看到彈匣拿下來又裝回；現在做：左手握彈匣的手勢、左腰位置）
 
 ---
 
@@ -19,17 +19,28 @@
   - 實測：30 隻狼、5 隻狼各一次：沒拔劍、自動舉 AK（`raise AK … pstate=CombatFists`）；收著 AK 按 1：`sword draw blocked`；暫時指令 `gfgsword()`（繞過擋劍直接拔鋼劍）：沒戰鬥 0.3 秒內收回背上、戰鬥中收完接著舉 AK；拔劍中按住左鍵：收劍 → 舉 AK → 連射 29 發；騎馬戰鬥開始：騎馬舉 AK、1.2 秒 17 發、W 照常走
   - 戰鬥中按 C 收起 AK 會再自動舉起（同原版戰鬥中收劍會馬上再拔）
   - 暫時的（清理時拿掉）：`gfgsword()`、`gfgSwordTestBypass`、紀錄 `sword draw blocked`、`sheathe sword for AK`、`raise AK`、`sword wait`、`raise wait`
-- **現在做：第 8 項 B 的收尾**（03:1x）
+- **現在做：第 8 項 B 的收尾**（03:1x～）
   - 抓的時機改好、遊戲裡看過：「上一格在 3 公分內、這一格不再變近」才抓 → 慢動作測 `mag out t=0.3008 dist=0.0009`（原本一進 3 公分就抓：2.9 公分）
-  - 側面看的方法（**03:1x 可用**）：`gfgnoturn(true)`（暫時指令：身體不跟著準心轉）＋ `slow(0.05)`（`temp.ws:8210`：換彈 2.4 秒變 48 秒）＋ 滑鼠把遊戲鏡頭往左繞（`d rmove -330 0 10 15`）→ 從左前方看到 Geralt 的左側和 AK；看完 `slow(1)`、`gfgnoturn(false)`
-    - 測法（g.sh）：`con "settime(1, 12)" "closeTutorialPopup()"` → `d down left; sleep 2.5; d up left`（約 25 發）→ `con "gfgnoturn(true)" "slow(0.05)"` → `d down left` 等紀錄 `mag out`（慢動作每發 2 秒，最多 75 秒）→ `d up left` → 轉鏡頭 → `burst … 2500` 毫秒一張
-    - 03:18 第一次：`mag out t=0.301 dist=0.0011`、`mag in t=1.50`；左側截圖 `ns1`～`ns6`（scratchpad `desk\`）：AK 有貼圖顏色了（重開 REDkit 後）、左手往下拉；**解析度不夠，還看不清彈匣在不在手上、槍上有沒有彈匣** → 下一步：鏡頭拉近（滑鼠滾輪）、`wshot … scale=1` 裁 Geralt 那一塊（他在畫面左半邊，x 約 400～900、y 約 350～750）
+  - **側面看的方法（04:1x 定案）**：暫時指令 `gfgfree(角度, 距離, 高度)`＝原版 `theGame.EnableFreeCamera`／`MoveFreeCamera`（`game.ws:161、167`）把鏡頭放在槍旁邊、朝向槍（角度：從 Geralt 正前方往左轉幾度；`gfgfree(0, 0, 0, true)` 關）；原版指令 `moveCamera(x, y, z, pitch, yaw, 0)` 可以微調（yaw 0 = 朝 +Y，pitch 負 = 往下）
+    - **自由鏡頭開著時：遊戲收不到滑鼠（主控台可以）、`GfgCameraTick` 不跑**（抓彈匣、`[GFG] pose` 紀錄都在裡面）→ 一定要抓到彈匣（`mag out`）之後才開
+    - F1 也會開自由鏡頭，但同時開任務選單（F1 = PanelJour），之後輸入卡住 → 只能 F10 結束遊戲
+    - 暫時指令 `gfgshots(n)`：設定已射發數（`shotCount`）→ 換彈時機可控
+    - 測法（g.sh `side_reload2 前綴 [角度=45] [距離=1.3] [高度=0] [張數=14] [間隔=4000] [慢動作=0.02]`）：`gfgnoturn(true)`、`gfgshots(28)`、`slow(0.02)` → 按住左鍵到 `mag out` → 開自由鏡頭 → 每 4 秒拍一張（遊戲時間 0.08 秒）→ 關；換彈 2.4 秒在 0.02 倍是 120 秒
+  - **04:0x 修好：彈匣替身一直沒畫出來**：`GfgMagTick` 在同一格生成「沒彈匣的槍」和「彈匣」兩個替身時，後生成的彈匣之後顯示不出來（實測：主控台另外生成的、生成時立刻藏再顯示的都正常）→ 改成彈匣下一格才生成；原因是推論。暫時指令 `gfgmagshow(true)`：只顯示彈匣替身、藏真的 AK
+  - **04:1x 左前方 45° 慢動作看（`sv1`～`sv14`，scratchpad `desk\`）**：t 0.36～0.60 彈匣離開槍、跟著左手往下；槍上沒彈匣；t 1.32～1.45 彈匣回到彈匣口、1.50 裝上 → B 的邏輯完整
+    - **問題 1**：左手沒握住彈匣：掌心朝上張開、彈匣浮在手掌上方約 10 公分（`reload_pose.py` 的左手方向一律「維持底層相對槍的方向」＝握護木的手勢；抓的點是手腕在彈匣底下 4 公分）
+    - **問題 2**：手在左腰（t 0.68～1.24）時彈匣插進肚子裡看不到：紀錄算出彈匣中心在身體中線前 13 公分、離左手腕往右 10 公分、往上 11 公分
+    - 一般遊戲鏡頭（背後）看不太到換彈的手；側面、騎馬換角度時看得到
+  - **下一步：改 `reload_pose.py` 的左手**：拿彈匣的那段（0.30～1.50）手勢改成握彈匣（例：把握護木的手勢轉到彈匣的長軸上：彈匣口 F 0.169 U 0.095 → 底部 F 0.251 U −0.107，方向 (0.376, −0.927)）；左腰的位置往左、往外移，彈匣不插進身體；改完同樣 6 段重做、匯入、`side_reload2` 看
+    - 預覽：`two_hand_pose.py` 有 `render_preview`（Blender Workbench 畫骨架＋AK），可以照著做彈匣的版本離線先看
   - 試過、放棄的看法：
     - 原版固定鏡頭 `static_camera.w2ent`（02:5x）：方向試不出來（俯仰 0 時往下看地、朝向差 90°）
     - 拍照模式的鏡頭在拍照模式外直接用（`theGame.GetPhotomodeCamera()` → Activate／SetCameraWorldPosition）：**03:12 REDkit 當掉**（EXCEPTION_ACCESS_VIOLATION；故障回報選不回報、關掉）→ 程式已拿掉
     - 拍照模式（U 鍵）：能暫停、WASD／R／F 移動、右鍵拖曳轉向（教學視窗開著時打不開：先 `closeTutorialPopup()`），但手動找角度很慢；**用過之後同一次 REDkit 再開遊戲壞掉**（Geralt 一直往下掉、輪盤一直開關）
+    - 滑鼠把遊戲鏡頭繞到側面（03:1x）：鏡頭拉不近、解析度不夠；滑鼠滾輪是換法印（`input.settings` 的 `IK_MouseZ=(Action=ToggleSigns)`），不是拉近
   - REDkit 03:15 重開（第二次）：主視窗 **`0xAD0A1C`**、Asset Browser `0x35D0E38`（移到螢幕右下外面）；g.sh 已換
-  - 之後：騎馬換彈也看；清理時拿掉 `gfgnoturn`、`gfgNoTurn`
+  - 原版十字弩行為：換彈後不在戰鬥、沒瞄準 → 延遲後自動收起（`rangedWeapon.ws:146-157`）；測試時 AK 會被收起來，點一下畫面再拿出
+  - 之後：騎馬換彈也看；清理時拿掉 `gfgnoturn`、`gfgNoTurn`、`gfgfree`、`gfgshots`、`gfgmagshow`、`[GFG] pose mag`
 - 之後：開槍中側移 D −31°；曳光（先跳過）；清理暫時紀錄；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）
