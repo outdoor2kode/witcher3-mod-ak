@@ -32,6 +32,10 @@
     torso2 = E^(1−a1−a2)·(第 1 步的 torso2)、torso3 = E^(1−a1−a2−a3)·(第 1 步的 torso3) = 第 1 步的（a 的和要是 1）；
     E^s 用軸角（角度乘 s）；區域旋轉 = 父骨頭世界方向⁻¹·世界方向；區域位置不變
   - torso3 以下（胸口、手臂、AK、頭）的世界方向和之前一樣 → 槍、手不變
+- --pelvis-from 檔.re（2026-10-16 22:4x，第 17 項）：--full 的補正改用另一個檔的平均骨盆（不用底的動畫自己的骨盆）
+  - 原因：騎馬換彈 `horse_trot_reload_lowered`、`horse_gallop_reload_lowered` 的原版骨盆在模型座標朝後（179°、121°，Root 轉回來），
+    遊戲裡騎馬的骨盆來自騎乘動畫（覆蓋節點只取 torso 以上）→ 用換彈自己的骨盆補正，上半身被轉到後面（使用者回報「換彈 180° 往後看」）
+  - 用法：給同一個步伐的 aim_cycle 原版（例：`A/man_geralt_gabriel_horse_horse_trot_aim_cycle.re`）
 """
 import argparse
 import math
@@ -143,6 +147,8 @@ def full_mode(a, s1: dict, ref: dict) -> int:
     p1 = local(s1['pelvis'][0])[0]
     t1s = tuple(local(s1[b][0])[0] for b in SPINE)
     pm = mean_rotation([local(x)[0] for x in ref['pelvis']])
+    if a.pelvis_from:
+        pm = mean_rotation([local(x)[0] for x in read_frames(Path(a.pelvis_from))['pelvis']])
     shutil.copyfile(a.ref, a.out)
     with h5py.File(a.out, 'r+') as f:
         clip = f[A.CLIP]
@@ -155,7 +161,7 @@ def full_mode(a, s1: dict, ref: dict) -> int:
                     flat[c][:] = s1[b][0][c]
             if b in SPINE:
                 for i in range(n):
-                    pr = pm if a.mean else local(ref['pelvis'][i])[0]
+                    pr = pm if a.mean or a.pelvis_from else local(ref['pelvis'][i])[0]
                     q = A.mat_to_quat(spine_locals(pr, p1, t1s, a.spread)[b].T)
                     for c, v in zip(ROT, q):
                         flat[c][i] = v
@@ -167,7 +173,7 @@ def full_mode(a, s1: dict, ref: dict) -> int:
     worst_t3 = worst_barrel = 0.0
     for i in range(n):
         wn = A.fk(hier, {k: local(v[i]) for k, v in out.items()})
-        if a.mean:
+        if a.mean or a.pelvis_from:
             ln = {k: local(v[i]) for k, v in out.items()}
             ln['pelvis'] = (pm, ln['pelvis'][1])
             wn = A.fk(hier, ln)
@@ -195,6 +201,7 @@ def main() -> int:
                    help='Trajectory 軌照抄原版（不給檔名 = 第 2 個參數的原版；格數要一樣）')
     p.add_argument('--full', action='store_true', help='原版動畫為底（腿、骨盆、位移照原版），只換上半身')
     p.add_argument('--mean', action='store_true', help='--full 時 torso 用原版的平均骨盆補正（不逐格）')
+    p.add_argument('--pelvis-from', metavar='檔.re', help='--full 的補正改用這個檔的平均骨盆（騎馬換彈用騎乘的骨盆）')
     p.add_argument('--spread', type=float, nargs=3, default=[1.0, 0.0, 0.0], metavar=('A1', 'A2', 'A3'),
                    help='補正分給 torso、torso2、torso3 的比例（預設 1 0 0：全部在 torso）')
     a = p.parse_args()

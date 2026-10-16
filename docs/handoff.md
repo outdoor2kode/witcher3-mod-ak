@@ -54,18 +54,20 @@
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭做好**（21:3x，第 11 項一起改：射線離頭部骨頭 0.17 公尺內 ×4，人類 1365、加暴擊 1692）。槍口火光：未開始。推算和實測 `docs\m3.md`「子彈、傷害」 |
 
-### 接續的步驟（2026-10-16 21:5x）
+### 接續的步驟（2026-10-16 22:5x）
 
-0. **先做這些（第二批）**
-   - 側面連拍的好位置：背對發光大字、對著牆（牆當背景），`$D burst "$P/前綴" 16 30 rect=600,300,520,460 scale=0.45 hold=d,shift pre=60`
-   - 第 13、14 項（移動中瞄準時腰扭太多）：開槍中移動是全身瞄準＋雙手版側移動畫 `man_geralt_gabriel_strafe_*` 6 段（commit 67ce769：`move_pose.py --full` 把 Geralt 原版十字弩側移的上半身換成雙手持槍）；原版的腿朝移動方向跑、上半身轉 90° 瞄準（單手十字弩看不太出來，雙手持槍就很明顯）
-     - **決定的方向（21:5x）**：改用 NPC 十字弩兵（雙手持弩，和人類 NPC 同一套骨架 `man_base`）的瞄準移動動畫（全身：臀部朝前、腳側步）蓋掉這 6 段；站姿瞄準已經借用過 NPC 的雙手瞄準（`CLAUDE.md` §6.11、`docs\m3.md`「雙手持槍：第二輪查詢」）
-     - 22:0x 查到：NPC 十字弩兵動畫組 `animations\man\combat\man_crossbow.w2anims`（名稱 `man_npc_bow_*`）有瞄準側移 `strafe_walk_f`、`_b`、`_fl`、`_fr`、`_bl`、`_br`、`_fl45`、`_fr45`、`_bl45`、`_br45`（＋各自的停步）；我們的 6 段是 `man_geralt_gabriel_strafe_f`、`_f_45l`、`_f_45r`、`_b`、`_b_45l`、`_b_45r`（對照要先確認 NPC 的 `fl` 和 `fl45` 哪個是 45°、哪個是 90°）
-     - **注意**：NPC 的十字弩在右手（`def_item_npcweapons.xml` 的 `hold_slot="r_weapon"`），AK 在左手 → 不能直接複製；要用 NPC 的腿、骨盆、脊椎，手臂照雙手持槍重算（`tools\move_pose.py --full` 的做法：先讀它的用法）
-     - **做法（22:0x 讀 `tools\move_pose.py` 檔頭後定）**：`--full` 是「腿、骨盆、位移（`--motion`）照底的動畫，torso 以下換成第 1 步的雙手持槍、torso 每格補正成站姿瞄準的方向」→ 底換成 NPC 的 `man_npc_bow_strafe_walk_*`（NPC 側移時骨盆配合側身瞄準）就好，手臂不用另外算：AnimBrowser 開 `man_crossbow.w2anims` → Export animation（.re）→ `"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/move_pose.py assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re NPC側移.re 輸出.re 格數 --full --motion` → 輸出取名 `man_geralt_gabriel_strafe_*` → 匯入蓋掉舊的 6 段（`import_one`）
-     - 步驟：找 NPC 十字弩兵的動畫組（`enemy_crossbow.w2ent`／十字弩兵模板的 `CAnimAnimsetsParam`，`docs\m3.md` 第二輪查詢有記）裡瞄準時前後左右走的動畫 → AnimBrowser Copy／Paste 到 `gfg_ak47_geralt.w2anims`、改名成 `man_geralt_gabriel_strafe_*`（先刪舊的）→ 動畫事件（腳步）要不要補 → 遊戲裡側面、背面連拍比對腰扭；不行再考慮自己轉骨盆／脊椎（`tools\move_pose.py`、`tools\horse_pose.py`）
-   - 第 16～18 項（騎馬）：拔槍時槍是反的（原版騎馬拔十字弩的動畫，槍的方向是十字弩的握法）、換彈轉 180°、往後射上半身轉 180°
-   - 之後：第一批第 8 項（換彈動畫）、第 10 項槍口火光、第 6 項長測、清理暫時紀錄（新增：`ray hit`、`ray miss`、`manual hit`、`coll`、`gfgwolf` 的 3～5 種類）
+0. **先做這些（第二批：騎馬 16～18）**（22:4x～22:5x 查到原因、定了做法；`move_pose.py --pelvis-from` 已加、已 commit，還沒用）
+   - **第 17 項原因**：騎馬換彈 4 段 `man_geralt_gabriel_horse_{idle,walk,trot,gallop}_reload_lowered` 是 `move_pose.py --full` 做的；trot、gallop 的原版骨盆在模型座標朝後（179°、121°，Root 轉回來），補正用了換彈自己的骨盆，但遊戲裡騎馬的骨盆來自騎乘動畫（覆蓋節點只取 torso 以上）→ 上半身被轉到後面（idle、walk 骨盆 2～3° 所以 17:2x 停著測沒發現）。量法：暫存 `s13ootyaw.py`
+     - 修法：`move_pose.py 底層.re A\man_geralt_gabriel_horse_{gait}_reload_lowered.re G\同名 --full --pelvis-from A\man_geralt_gabriel_horse_horse_{cycle}_aim_cycle.re --spread 0.2 0.4 0.4`（gait→cycle：idle→breathing_slow、walk、trot、gallop）；匯入（plain）後**檢查事件還在**（`OnWeaponReload` 0.7 秒、`RaiseWeapon` 1.05 秒起 0.1167、左右 `ReinOff`、`HandIkOff`；不在就用 `add_ev`／`add_dur` 補）
+     - 「沒有換彈動畫」：和第一批第 8 項一起做（之後）
+   - **第 18 項原因**：騎馬瞄準的底層 aim_cycle 本身就有 60° 腰扭（側身上半身＋朝前的骨盆，全在 torso 一節）；左右差值只轉脊椎 → 往後 180° 變成扭 180°（人體不可能）。右手持長槍坐在馬上，肩膀最多轉約 80～90°；側身持槍往右只剩 30°
+     - 決定：① 8 段 aim_cycle（含 `_with_sword`）改用正面持槍底層：`move_pose.py G\square\man_geralt_gabriel_aim_idle_square.re A\原版 aim_cycle G\同名 --full --spread 0.2 0.4 0.4`（底層腰扭 26°）；② `horse_pose.py A G G` 重做 16 段水平／垂直差值（24 段單位不用重匯）；③ 腳本 `GfgHorseAimPose`：`aimHorizontal` 夾在右 60°、左 110°（腰扭不超過約 85°），記 `gfgHorseAimOut`；`GfgHorseTick` 的 `pressed` 加 `&& !gfgHorseAimOut`（超出就放開扳機）；可能的話準心也藏起來
+       - `aimHorizontal` = AngleDistance(馬的朝向, 鏡頭 yaw)/180（`useVehicle.ws:1722`；我們的 `GfgHorseAimPose` 照抄）；**正負哪邊是左要用紀錄確認**（推論：負 = 左）
+       - 試過、沒採用：往左時從正面持槍漸漸換回側身持槍（左邊可到 140°），差值要含手臂 IK，太複雜
+     - 驗證：騎馬往右 50°、70°，往左 100°、130°，正後方：連拍＋`[GFG] twist`（腰扭）＋開槍有沒有被擋
+   - **第 16 項**（騎馬拔槍時槍是反的）：拔槍 'WeaponDraw' 播原版十字弩的 `…_aim_start_to_reload_lp`（左手把弩甩到前面，AK 照雙手瞄準的擺法掛在左手 → 方向不對）；17:16 試過雙手版、17:2x 移除（原因沒記，必要時查對話紀錄）。做法未定：例如拔槍那段先藏槍（`SetHideInGame`，同第 12 項），手到瞄準姿勢再出現；或做一段「左手從背後拿到前面」的動畫
+   - 第 13、14 項：沒開槍走跑做好（見上表）；**開槍中側移**（全身側移 6 段）另外量過（22:4x，相對準心，正 = 右）：W 骨盆 65、肩 63（扭 −2）；W+D 91／82（−9）；D 112／81（−31）；A 38／44（6）；W+A 34／49（15）；穩定時槍管對準準心 0～2°，起步 0.5～1 秒偏 40～60°。D 的 −31° 之後有空再改（想法：NPC 十字弩兵側移 `assetsnims\man_npc_bow_strafe_walk_*.re` 已匯出，但速度是 Geralt 的 2 倍 2.4 公尺／秒，要另外處理）
+   - 之後：第一批第 8 項（換彈動畫）、第 10 項槍口火光、第 6 項長測、清理暫時紀錄（新增：`ray hit`、`ray miss`、`manual hit`、`coll`、`gfgwolf` 的 3～5 種類、`twist`（`GfgLogTwist`、`GfgLineHeading`））
    - 測試小技巧（21:xx 學到）：`restart_all`（g.sh；點遊戲畫面拿焦點 → F10 → 重載腳本 → 開遊戲，約 1.5 分鐘）；遊戲中用選單熱重載沒反應；`sweep 檔名 dy 次數`＝按住左鍵往上掃；**burst 的前綴要寫完整路徑 `"$P/名稱"`**，不然存到專案資料夾；`gfgwolf` 用 Geralt 身體的朝向，不是鏡頭
 
 1. 第 10 項：
