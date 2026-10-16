@@ -47,6 +47,11 @@
      - 弩箭共用模板 `witcher_bolts\base\bolt_base.w2ent` 有特效（實體上直接 `PlayEffect`）：`arrow_trail`（`fx\weapons\trails\arrow\bold_trail.w2p`）、`arrow_trail_orange`、`arrow_trail_red`、`arrow_trail_fire`、`arrow_trail_underwater`、`sparks`（`fx\weapons\block\kontra\counterattack_fx1.w2p`）、`arrow_trail_mutation_9`、`red_arrow_trail_mutation_9`
      - Firearms（參考 mod）的槍口煙火在 DLC 打包檔裡，腳本沒有特效，不能照抄
    - 計畫（自己決定）：AK 的箭 → 藏起 `bolt` 模型、播 `arrow_trail_orange` 當曳光（照 CS2 `m_nTracerFrequency` 3：每 3 發一發曳光，其他只有很淡的或沒有）、速度改快（`ShootProjectileAtPosition` 包裝裡換 velocity，例 350 公尺／秒，角度 0）；打到牆壁地面播 `sparks`、不再插著（原本「插在牆上的箭不刪」是箭的設計，換子彈後沒有意義 → 播完火花刪掉）
+   - 實作步驟（18:5x 查好，下一步直接寫）：
+     1. 包 `W3BoltProjectile.OnProjectileShot`（原版 `arrowProjectile.ws:19-34`：沒有軌跡時 `ActivateTrail( defaultTrail )` ＝ `arrow_trail`＋破空聲 `cmb_arrow_swoosh`）：AK 的箭（`gfgAkRange > 0`，`ThrowProjectile` 包裝裡先設好）→ 呼叫原版後把 `CDrawableComponent` 都 `SetVisible(false)`（同 `arrowProjectile.ws:395-402` `SmartDestroy` 的寫法）；每 3 發 `ActivateTrail('arrow_trail_orange')`，其他 `StopEffect( activeTrail )`（或換很淡的）
+     2. `ShootProjectileAtPosition/AtBone` 的包裝：AK 的箭把 velocity 換成子彈速度（先試 350 公尺／秒）、angle 換 0（直線）
+     3. `OnProjectileCollision` 的包裝：打到 Static／Terrain → `PlayEffect('sparks')`，短時間後刪掉（取代 `GfgAddStuckBolt`；`gfgStuckBolts` 相關的程式拿掉）
+     4. 測：站著連射打牆（截圖看曳光、火花、牆上沒有箭）、打狼（命中、傷害照舊）、騎馬開槍
    - 槍口火光：再找原版粒子（`D:\depot\fx\...`，例：`fx\fire`、`fx\signs\igni` 的小火花），做法二選一：AK 的實體模板加特效（REDkit Entity Editor）或在槍口生成一個帶特效的實體
    - 傷害：先查弩箭的傷害怎麼算（箭的物品屬性＋十字弩），再設計（CS2 36／爆頭 ×4 換算成巫師 3 的數值）
 2. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
