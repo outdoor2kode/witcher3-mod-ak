@@ -43,7 +43,7 @@
 
 1. 第 3 項（騎馬姿勢）：
    - 48 段已匯出（15:15，`assets\anims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
-   - **48 段都做好了**（16:5x，commit d3073a5）：輸出在 `assetsnims\gfg\`（.re 不進 git，重做：`move_pose.py … --full` 做 8 段 aim_cycle，再 `"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/horse_pose.py assets/anims assets/anims/gfg assets/anims/gfg`）
+   - **48 段都做好了**（16:5x，commit d3073a5）：輸出在 `assets\anims\gfg\`（.re 不進 git，重做：`move_pose.py … --full` 做 8 段 aim_cycle，再 `"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/horse_pose.py assets/anims assets/anims/gfg assets/anims/gfg`）
      - 量原版（十字弩的軸取站著瞄準第 0 格朝前）：騎馬差值是 **local**，時間角度規則和地面站著瞄準一樣（水平每秒 180°、垂直約每秒 90°、第 60 格不偏、第 0～30 格倒放）；ref 方式不合理
      - 16 段水平／垂直：只轉脊椎（`aim_delta.write_delta`，local）；24 段射擊／別射我：單位
      - 檢查：4 個底層槍管水平朝前（0°、0°）；水平＋垂直同時套、套在 aim_cycle 每一格：槍管誤差 0.0°、右手掌心離握把 0.01 公分
