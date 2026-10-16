@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 18:2x（**自主模式**；第 1、2、4、5、7 項做好；第 3 項做好但使用者回報騎馬側面瞄準腰扭（下一步）；第 6 項待長測；8、9、10 項還沒開始）
+最後更新：2026-10-16 18:5x（**自主模式**；第 1、2、3、4、5、7 項做好；第 6 項待長測；8、9、10 項還沒開始）
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲 | **做好、遊戲裡看過**（commit 2729ec3、67ce769）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`）。移動沒開槍→上半身朝前（13:00 截圖：往鏡頭跑不扭）；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`＋`inAimThrowForOverlay`，不設的話起步卡 1.5～2 秒）＋雙手版側移動畫 6 段（13:3x 截圖：側移、後退兩手都在槍上，1.6～1.9 公尺／秒）。側移動畫沒有原版的腳步事件（腳步聲） |
 | 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
-| 3 | 騎馬的姿勢完全錯 → 修好 | **做好，但要再改（使用者 17:5x 回報）**：騎馬往側面瞄準時腰扭得很不自然（使用者附的截圖＝`rein1.png`：往右約 90°，下半身朝馬的方向、上半身轉 90°，扭轉集中在腰）→ 見「接續的步驟」2。原本（17:3x）：騎馬瞄準換成雙手持槍：8 段 aim_cycle（`move_pose.py --full`）、16 段水平／垂直差值（`tools\horse_pose.py`，只轉脊椎、local）、24 段射擊／別射我（單位）、4 段換彈 `horse_*_reload_lowered`（雙手版＋事件 `OnWeaponReload` 0.7 秒、`RaiseWeapon` 1.05 秒）；拔槍、收槍照原版。驗證：停著、走、Canter、Gallop 槍管和鏡頭差 2.3° 以內；左右、背後、往上 30° 都跟得上；朝馬頭往下最多約 −20°（原版動畫圖的限制 #4315）；連射 30 發 → 換彈 1 秒 → 回到瞄準。細節 `docs\m3.md`「雙手持槍：騎馬」 |
+| 3 | 騎馬的姿勢完全錯 → 修好 | **做好、遊戲裡看過**（18:5x）。使用者 17:4x 回報騎馬側面瞄準腰扭（`rein1.png`）→ 左右轉改成分給 torso 15%、torso2 40%、torso3 45%（`horse_pose.py` 的 `H_WEIGHTS`；骨盆不能分：覆蓋節點 #4423 只取 torso 以上）：側面 90° 時腰只轉 13.4°（原本 45°），截圖比對腰帶附近不再扭折；槍管差右 91° 0.2°、左 89° 0.9°、背後 0.4°。另外修了韁繩：同名蓋過原版 aim_cycle 時少了 `LeftReinOff` 事件 → 韁繩一直連在拿槍的雙手上 → 8 段 aim_cycle 補左右 `ReinOff`、4 段騎馬換彈補左右 `ReinOff`＋`HandIkOff`（截圖：韁繩垂在馬頸上；連射→換彈→回到瞄準正常）。細節 `docs\m3.md`「騎馬：腰扭、韁繩」。原本（17:3x）：騎馬瞄準換成雙手持槍：8 段 aim_cycle（`move_pose.py --full`）、16 段水平／垂直差值（`tools\horse_pose.py`，只轉脊椎、local）、24 段射擊／別射我（單位）、4 段換彈 `horse_*_reload_lowered`（雙手版＋事件 `OnWeaponReload` 0.7 秒、`RaiseWeapon` 1.05 秒）；拔槍、收槍照原版。驗證：停著、走、Canter、Gallop 槍管和鏡頭差 2.3° 以內；左右、背後、往上 30° 都跟得上；朝馬頭往下最多約 −20°（原版動畫圖的限制 #4315）；連射 30 發 → 換彈 1 秒 → 回到瞄準。細節 `docs\m3.md`「雙手持槍：騎馬」 |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | **做好、遊戲裡看過**（18:1x）：拿著 AK 時 X 叫馬、E 上馬、騎馬拿著 AK 按住 E 下馬都可以，開始上下馬時 AK 立刻收到背上（截圖：1.2 秒內坐上馬；騎馬拿著 AK 右下角有「Dismount [Hold] E」；下馬後站在地上、AK 在背上）。原因有三層：① AK 一直在瞄準狀態，`Lock()` 擋掉例外以外的所有動作（`rangedWeapon.ws:401-422`，含叫馬、上下馬），拿出時另外鎖上下馬（`:1145-1146`）→ `GfgCameraTick` 每格解開 `EIAB_CallHorse`、`EIAB_MountVehicle`、`EIAB_DismountVehicle`；② 不在戰鬥中時，互動元件看到拿著十字弩就把互動吃掉（`components.ws:139-157` `IsCrossbowHeld`）→ 包 `CInteractionComponent.OnInteraction`：上馬這一個互動在 AK 拿著、不是真的攻擊時放行；③ 戰鬥動作中把 `"MountHorse"` 列入封鎖（`interactionsManager.ws:111-114`）→ 包 `GetBlockedActions` 拿掉。上下馬開始時收槍：`MountTheVehicle`／`DismountTheVehicle` 的 `OnEnterState` 包裝（`GfgHolsterForVehicle`）。空手照原版；用 E 下馬後騎馬開輪盤正常（§24.8 的舊問題沒有再出現）。紀錄裡的 `DismountTheVehicle::OnLeaveState, 'vehicle' is still set` 斷言空手下馬也有（原版）。暫時指令 `gfghorsehere()`（reference_level 的馬跑不過來）留到最後清理 |
 | 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（16:3x）。使用者 15:1x 更正：衝刺＝按 Shift；照原版擺手跑，但手上的槍要拿正（附圖：AK 直立在背後、槍口朝上）。做法：衝刺時手臂照原版擺；真的 AK（模型＋裝好的箭）藏起來，顯示「替身」AK（同模板自己生成，標籤 `gfg_carry_dummy`），每格帶偏移掛到左手：槍口朝前下 30°、往右 8°（相對玩家），握在彈匣前的機匣；開始 0.25 秒、結束 0.15 秒漸變；預測下一格手腕方向。為什麼要替身：物品系統把真的 AK 的動畫元件直接掛在 l_weapon，對實體 `CreateAttachment` 只動實體矩陣、畫面不變（15:4x 那版「驗證」看的是實體矩陣，其實沒效果；`docs\findings.md` §26、`CLAUDE.md` §6.18）。驗證（替身的 handle 骨頭）：槍管和目標差平均 2.3～2.6°、一直朝下 25°～38°；正常速度側面連拍：左手握機匣、槍口朝前下；衝刺跳躍、衝刺中按 C 收槍（槍回背上）、收拔後再衝刺都正常，沒有腳本錯誤 |
 | 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
@@ -41,14 +41,9 @@
 
 ### 接續的步驟（2026-10-16 18:2x）
 
-1. 第 3 項後續（使用者 17:5x）：騎馬左右瞄準不要全壓在腰
-   - 現在：`tools\horse_pose.py` 的水平差值只轉 torso、torso2（下半身跟著馬不能轉）→ 側面 90° 時腰扭 90°
-   - 改法（自己決定）：轉動分散到骨盆（大腿反向轉回，腿維持跨在馬上）＋ torso、torso2、torso3（越上面分越多），太大的角度設上限（例 ±110°，超過的部分槍不再跟準心，子彈照樣飛向準心）；先查加法節點會不會套到骨盆（差值裡骨盆不是單位時）
-   - 地面不用改：站著時下半身會跟著轉（`GfgAkTurnTick`）
-   - 改完：重做 16 段水平差值 → 重新匯入（Local，會問 override）→ 截圖側面 90°、背後、往前，量槍管和鏡頭的差
-2. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
-3. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
-4. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`gfghorsehere`、`holster for vehicle`、`mount interaction allowed with AK`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
+1. 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫：地面 `reload_lowered`、`reload_front_2` 和騎馬 4 段 `horse_*_reload_lowered` 一起換；事件要留著）
+2. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
+3. 全部做完拿掉暫時偵測紀錄 `GfgLogHoldPose`、`GfgLogDiag`、`GfgHorseCamLog`、`gfghorsehere`、`holster for vehicle`、`mount interaction allowed with AK`、`forceHolster`／`rangedForceHolster` 的紀錄；照 §14「結束」收尾
 - 騎馬測試（`g.sh`）：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）；動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
 - 測試小技巧（暫存資料夾 `desk\g.sh`，session 結束就沒了）：`game_start`＝開遊戲到拿出 AK（約 1 分鐘：play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`wolf_test N 秒`＝關無敵、生狼
   - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`
