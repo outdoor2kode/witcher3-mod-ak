@@ -1283,8 +1283,10 @@ function GfgRotateDirection( dir : Vector, up : float, right : float ) : Vector
 
 // 子彈的目標點：從鏡頭沿著準心的方向（平常是畫面中央；鎖定時是鎖定目標身上）加上散布打射線，取最近的命中點；後座力已經轉到鏡頭上
 // 寫法照原版 CalculateAimPosition（playerAiming.ws:553-616，碰撞群組 :33-49）；原版那個是 private，不能直接呼叫
+// 這條射線只會打到牆、地面等；角色打不到（第 11 項：2026-10-16 實測）→ 角色另外判斷（W3BoltProjectile.GfgFindActorOnRay）
+// rayStart、rayDir：射線的起點、方向（含散布）
 @addMethod(Crossbow)
-function GfgAimPoint() : Vector
+function GfgAimPoint( out rayStart : Vector, out rayDir : Vector ) : Vector
 {
 	var dir, start, end, hit, lockPoint, aimDir : Vector;
 	var results : array<SRaycastHitResult>;
@@ -1309,6 +1311,8 @@ function GfgAimPoint() : Vector
 	dir = GfgRotateDirection( aimDir, radius * SinF( angle ), radius * CosF( angle ) );
 	start = GfgEyePosition() + dir * 0.5;	// 原版也從鏡頭前 0.5 公尺開始（playerAiming.ws:324）
 	end = start + dir * GfgRange();
+	rayStart = start;
+	rayDir = dir;
 	hit = end;
 
 	groups.PushBack( 'RigidBody' );
@@ -1359,6 +1363,20 @@ function GfgAimPoint() : Vector
 		}
 	}
 	return hit;
+}
+
+// 暫時（第 11 項）：元件的說明（實體名稱、是不是移動元件＝膠囊、元件名稱）
+function GfgCompDesc( comp : CComponent ) : string
+{
+	var ent : CEntity;
+	var isAgent : bool;
+
+	if ( !comp )
+		return "comp=none";
+	ent = comp.GetEntity();
+	if ( (CMovingAgentComponent)comp )
+		isAgent = true;
+	return "ent=" + ent.GetName() + " agent=" + isAgent + " comp=" + comp.GetName();
 }
 
 // ===== 準心：拿著 AK 時一直顯示，固定在原本的位置（畫面中央）=====
@@ -1757,6 +1775,24 @@ function OnGameCameraPostTick( out moveData : SCameraMovementData, dt : float )
 	return result;
 }
 
+// 地面戰鬥中拿著 AK：上下、左右的目標角度也設成現在的角度（第 11 項）
+// 原版的戰鬥鏡頭（選項 GetCmbtCamera：r4Player.ws:16259）每格把上下角度拉回 -12°＋高低差（combat.ws:571-595；沒有硬鎖定時）
+// → 抬鏡頭瞄頭後，鏡頭 1 秒內自己掉回目標的腳邊，子彈跟著打低（2026-10-16 21:3x 實測，慢動作也一樣）
+// 做法同上面的騎馬、原版按住中鍵瞄準（aimThrow.ws:361、:371）；硬鎖定（Z）時照原版
+@wrapMethod(CR4PlayerStateCombat)
+function OnGameCameraPostTick( out moveData : SCameraMovementData, dt : float )
+{
+	var result : bool;
+
+	result = wrappedMethod( moveData, dt );
+	if ( parent.rangedWeapon && parent.rangedWeapon.GfgIsAkDrawn() && !parent.IsHardLockEnabled() )
+	{
+		moveData.pivotRotationController.SetDesiredHeading( moveData.pivotRotationValue.Yaw );
+		moveData.pivotRotationController.SetDesiredPitch( moveData.pivotRotationValue.Pitch );
+	}
+	return result;
+}
+
 // 騎馬拿著 AK 時用原版按住中鍵瞄準的鏡頭（使用者 2026-10-14 選定；docs/findings.md §24.7）
 // - 原版：按住中鍵時 aiming = true（useVehicle.ws:1660-1671），每格設給 vehicleCbtMgrAiming（:1734）、鏡頭往右 1.4、往上 0.15 公尺（:1749-1752）
 // - vehicleCbtMgrAiming 為 true 時：馬的鏡頭不自動轉回馬的後方（horseRiding.ws:400-402），每格的後段只把距離設成 2.2 公尺就結束
@@ -1928,18 +1964,21 @@ function ShowRadialMenu()
 function ThrowProjectile( targetPosIn : Vector )
 {
 	var player : CR4Player;
-	var target : Vector;
+	var target, rayStart, rayDir : Vector;
 
 	target = targetPosIn;
 	player = (CR4Player)GetOwner();
 	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
 	{
-		target = player.rangedWeapon.GfgAimPoint();
+		target = player.rangedWeapon.GfgAimPoint( rayStart, rayDir );
 		gfgAimTarget = target;
 		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
 		if ( !player.IsDiving() )
+		{
 			gfgAkRange = player.rangedWeapon.GfgRange();
-		// 原版自動瞄準的條件：鎖定的目標是 NPC、有戰鬥音樂、沒在中鍵瞄準（playerBoltProjectile.ws:353-354），成立時箭會改射向那個 NPC 的身體
+			// 準心射線經過的角色（第 11 項）：有的話子彈用 AtBone 打那個角色（下面的包裝）
+			GfgFindActorOnRay( rayStart, rayDir, VecDistance( rayStart, target ) );
+		}
 	}
 	wrappedMethod( target );
 }
@@ -1957,7 +1996,11 @@ var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProje
 @addField(W3AdvancedProjectile)
 var gfgAimTarget : Vector;		// AK：準心的射線點（ThrowProjectile 包裝設定）
 @addField(W3AdvancedProjectile)
-var gfgShotFrom : Vector;		// 發射起點（判斷爆頭用）
+var gfgHitActor : CActor;		// AK：準心射線經過的角色（ThrowProjectile 包裝設定；沒有 = NULL）
+@addField(W3AdvancedProjectile)
+var gfgHitPos : Vector;			// AK：打中的點（射線上離那根骨頭最近的點）
+@addField(W3AdvancedProjectile)
+var gfgHitNormal : Vector;		// AK：碰撞的法線（射線的反方向）
 
 // 發射時要用的射程
 @addMethod(W3AdvancedProjectile)
@@ -1979,32 +2022,72 @@ function GfgBulletSpeed() : float
 }
 
 // 這兩個是 final 函式（advancedProjectile.ws:60-78）；包 final 函式有作用（StateEnter：docs/findings.md §17.8、§17.9）
+// AK 的子彈一律 AtPosition（第 11 項）：
+// - 準心射線經過角色（GfgFindActorOnRay）→ 射向打中的點，發射後立刻手動觸發碰撞（GfgManualHit）
+//   角色身上沒有可靠的碰撞：AtBone 打頭、胸口會碰撞，打腳、小腿、骨盆會穿過去打到後面的地面（2026-10-16 21:1x 實測）
+// - 沒有 → 射向射線點（牆、地面）
+// 原版有目標時改用 AtBone 自動瞄準 torso2（playerBoltProjectile.ws:353-377；20:1x 實測：瞄頭也打在胸口同一點）→ AK 的子彈改走 AtPosition
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtPosition( angle : float, velocity : float, target : Vector, optional range : float, optional collisionGroups : array<name> )
 {
-	var a, v : float;
+	var a, v, r : float;
+	var tgt : Vector;
+
 	a = angle;
 	v = velocity;
+	r = range;
+	tgt = target;
 	if ( gfgAkRange > 0.f )
 	{
 		a = 0.f;
 		v = GfgBulletSpeed();
+		r = GfgShotRange( range );
+		if ( gfgHitActor )
+			tgt = gfgHitPos;
 	}
-	gfgShotFrom = GetWorldPosition();
-	wrappedMethod( a, v, target, GfgShotRange( range ), collisionGroups );
+	wrappedMethod( a, v, tgt, r, collisionGroups );		// 不是 AK 的箭：參數照原版
+	if ( gfgAkRange > 0.f && gfgHitActor )
+		GfgManualHit();
 }
 
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
 {
-	// AK 的子彈不用原版的自動瞄準（有目標時射向 NPC 的骨頭：playerBoltProjectile.ws:353-377）→ 一律射準心的射線點（CLAUDE.md §7）
-	// 2026-10-16 20:1x 實測：自動瞄準時不管準心瞄頭還是胸口都打在胸口同一點，不會爆頭
 	if ( gfgAkRange > 0.f )
 	{
-		ShootProjectileAtPosition( angle, velocity, gfgAimTarget, range, collisionGroups );
+		ShootProjectileAtPosition( angle, velocity, gfgAimTarget, range, collisionGroups );		// 上面的包裝
 		return;
 	}
 	wrappedMethod( angle, velocity, target, targetBone, range, collisionGroups );		// 不是 AK 的箭：照原版
+}
+
+// AK 的子彈打中角色：發射後立刻手動觸發碰撞（群組 Character、元件＝角色的移動元件，和原版子彈撞到角色時一樣：21:1x 紀錄）
+// → 原版的處理：傷害（ProcessDamageAction）、打肉的聲音、子彈停下來刪掉（arrowProjectile.ws:225-243、playerBoltProjectile.ws:162-181）
+// 不等子彈飛到：子彈一格畫面飛 12 公尺，同一格裡會先撞到人後面的地面（21:2x 實測：射程設成剛好到人，OnRangeReached 也來不及）；
+// 715 公尺／秒飛 30 公尺只要 0.04 秒，等於瞬間命中
+@addMethod(W3AdvancedProjectile)
+function GfgManualHit()
+{
+	var actor : CActor;
+	var groups : array< name >;
+
+	actor = gfgHitActor;
+	gfgHitActor = NULL;
+	groups.PushBack( 'Character' );
+	LogChannel( 'GFG', "manual hit " + actor.GetName() + " pos=" + VecToString( gfgHitPos ) + " active=" + isActive );		// 暫時（第 11 項）
+	OnProjectileCollision( gfgHitPos, gfgHitNormal, actor.GetMovingAgentComponent(), groups, 0, 0 );
+	LogChannel( 'GFG', "manual hit done active=" + isActive );		// 暫時（第 11 項）
+}
+
+// 暫時（第 11 項）
+function GfgNamesDesc( names : array< name > ) : string
+{
+	var s : string;
+	var i : int;
+
+	for ( i = 0; i < names.Size(); i += 1 )
+		s += NameToString( names[i] ) + ",";
+	return s;
 }
 
 // 碰撞：AK 的子彈打到牆壁、地面時播火花（第 9 項）
@@ -2017,15 +2100,8 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 	var victimActor : CActor;
 
 	wasScheduled = isScheduledForDestruction;
-	// 爆頭：碰撞點離頭部骨頭 0.25 公尺內（原版只有打到 Ragdoll 時才知道骨頭：arrowProjectile.ws:91-94；
-	// 子彈先撞到角色的膠囊 Character 就算命中、沒有骨頭 → 原版的判定（playerBoltProjectile.ws:79-83）幾乎不會成立：19:5x 實測瞄頭 6 發都不是；
-	// 拿掉 Character 只打 Ragdoll 時打不到人：20:0x 實測）
-	if ( gfgAkRange > 0.f && collidingComponent )
-	{
-		victimActor = (CActor)collidingComponent.GetEntity();
-		if ( victimActor && victimActor != GetOwner() )
-			gfgHeadHit = GfgIsHeadOnLine( victimActor, pos );
-	}
+	if ( gfgAkRange > 0.f )
+		LogChannel( 'GFG', "coll " + GfgCompDesc( collidingComponent ) + " groups=" + GfgNamesDesc( hitCollisionsGroups ) + " idx=" + actorIndex + " pos=" + VecToString( pos ) + " active=" + isActive );		// 暫時（第 11 項）
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
@@ -2081,27 +2157,111 @@ function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNo
 @addField(W3BoltProjectile)
 var gfgHeadHit : bool;		// 這發打在頭上（OnProjectileCollision 包裝裡判斷）
 
-// 頭部骨頭到子彈直線（發射起點 gfgShotFrom → 碰撞點）的最近距離 < 0.15 公尺 = 爆頭（子彈是直線：角度 0、速度 715）
+// ===== 準心射線經過哪個角色（第 11 項：使用者 2026-10-16「打不中是個大問題」）=====
+// 角色對射線、子彈都沒有碰撞（2026-10-16 實測：RayCastSync 只回傳地面和牆；715、60 公尺／秒的子彈都從人身上穿過去，只有幾發打到小腿）；
+// 原版的箭打得到人，是因為有目標時用 ShootProjectileAtBone 追著骨頭飛（playerBoltProjectile.ws:353-377）
+// → 自己判斷：射線（鏡頭 → 打到的牆或地面）離角色最近的骨頭（FindNearestBoneToEdgeWS：components.ws:325；原版劍砍到哪根骨頭也這樣找：attackAction.ws:421）
+//   在 GfgBodyRadius 內就算打中；發射後立刻手動觸發碰撞（GfgManualHit）
+// 爆頭：射線離頭部骨頭（GetHeadBoneIndex：actor.ws:711，各種骨架都有）GfgHeadRadius 內
 @addMethod(W3BoltProjectile)
-function GfgIsHeadOnLine( victim : CActor, hitPos : Vector ) : bool
+function GfgFindActorOnRay( start, dir : Vector, maxDist : float )
 {
-	var head, dir, rel : Vector;
-	var idx : int;
-	var lineDist : float;
+	var ents : array< CGameplayEntity >;
+	var actor : CActor;
+	var anim : CAnimatedComponent;
+	var a, b : Vector;
+	var i, idx, bestIdx : int;
+	var t, d, r, bestT, bestD, missD : float;
+	var missActor : CActor;
 
-	idx = victim.GetBoneIndex( 'head' );
-	if ( idx == -1 )
+	gfgHitActor = NULL;
+	missD = 1000.f;
+	gfgHeadHit = false;
+	a = start;
+	b = start + dir * maxDist;
+	bestT = maxDist + 1.f;
+	// 先粗選：鏡頭前方水平 120° 內、射線長度內的活著的角色（actorsStorage.ws:118）
+	FindGameplayEntitiesInCone( ents, start, VecHeading( dir ), 120.f, maxDist + 2.f, 100, '', FLAG_OnlyAliveActors + FLAG_ExcludePlayer );
+	for ( i = 0; i < ents.Size(); i += 1 )
 	{
-		LogChannel( 'GFG', "head check: no head bone " + victim.GetName() );		// 暫時（第 10 項）
-		return false;
+		actor = (CActor)ents[i];
+		// 自己的馬、死掉、昏迷、友善的打不到（原版的規則：throwable.ws:110-131）
+		if ( !actor || actor == GetOwner() || !CanCollideWithVictim( actor ) )
+			continue;
+		anim = actor.GetRootAnimatedComponent();
+		if ( !anim )
+			continue;
+		idx = anim.FindNearestBoneToEdgeWS( a, b );
+		if ( idx < 0 )
+			continue;
+		d = GfgRayBoneDist( actor, idx, a, dir, maxDist, t );
+		r = GfgBodyRadius( actor );
+		// 頭在最上面：射線從頭上方、旁邊經過時最近的骨頭是頭 → 用頭的大小判斷（2026-10-16 21:2x 實測：離頭 0.23 公尺被算成打中身體）
+		if ( idx == actor.GetHeadBoneIndex() )
+			r = GfgHeadRadius( actor );
+		if ( d >= r && d < missD )
+		{
+			missD = d;
+			missActor = actor;
+		}
+		if ( d < r && t < bestT )
+		{
+			gfgHitActor = actor;
+			bestT = t;
+			bestIdx = idx;
+			bestD = d;
+		}
 	}
-	head = victim.GetBoneWorldPosition( 'head' );
-	dir = VecNormalize( hitPos - gfgShotFrom );
-	rel = head - gfgShotFrom;
-	lineDist = VecLength( rel - dir * VecDot( rel, dir ) );
-	LogChannel( 'GFG', "head check from=" + VecToString( gfgShotFrom ) + " hit=" + VecToString( hitPos ) + " head=" + VecToString( head )
-		+ " hitDist=" + VecDistance( hitPos, head ) + " lineDist=" + lineDist );		// 暫時（第 10 項）
-	return lineDist < 0.15f;
+	if ( !gfgHitActor )
+	{
+		if ( missD < 2.f )
+			LogChannel( 'GFG', "ray miss " + missActor.GetName() + " d=" + missD + " r=" + GfgBodyRadius( missActor ) + " capsule=" + GfgCapsuleRadius( missActor ) );		// 暫時（第 11 項）
+		return;
+	}
+	gfgHitPos = a + dir * bestT;
+	gfgHitNormal = -dir;
+	idx = gfgHitActor.GetHeadBoneIndex();
+	if ( idx >= 0 )
+		gfgHeadHit = GfgRayBoneDist( gfgHitActor, idx, a, dir, maxDist, t ) < GfgHeadRadius( gfgHitActor );
+	LogChannel( 'GFG', "ray hit " + gfgHitActor.GetName() + " idx=" + bestIdx + " d=" + bestD + " r=" + GfgBodyRadius( gfgHitActor ) + " t=" + bestT + " head=" + gfgHeadHit
+		+ " headD=" + GfgRayBoneDist( gfgHitActor, gfgHitActor.GetHeadBoneIndex(), a, dir, maxDist, t ) );		// 暫時（第 11 項）
+}
+
+// 骨頭到射線（a 起、方向 dir、長 maxDist 的線段）的距離；t 傳回沿射線的位置
+@addMethod(W3BoltProjectile)
+function GfgRayBoneDist( actor : CActor, idx : int, a, dir : Vector, maxDist : float, out t : float ) : float
+{
+	var p : Vector;
+
+	p = actor.GetBoneWorldPositionByIndex( idx );
+	t = ClampF( VecDot( p - a, dir ), 0.f, maxDist );
+	return VecDistance( p, a + dir * t );
+}
+
+// 身體的半徑：射線離最近的骨頭這麼近就算打中（骨頭是關節的位置，關節之間的身體也要算到）
+// 人類 0.25 公尺（2026-10-16 21:2x 實測：腳到頭掃射都判斷正確）；大型怪物跟著碰撞膠囊放大（人類的膠囊半徑 0.35）
+@addMethod(W3BoltProjectile)
+function GfgBodyRadius( actor : CActor ) : float
+{
+	return 0.25f * MaxF( 1.f, GfgCapsuleRadius( actor ) / 0.35f );
+}
+
+@addMethod(W3BoltProjectile)
+function GfgCapsuleRadius( actor : CActor ) : float
+{
+	var mac : CMovingPhysicalAgentComponent;
+
+	mac = (CMovingPhysicalAgentComponent)actor.GetMovingAgentComponent();
+	if ( !mac )
+		return 0.35f;
+	return mac.GetCapsuleRadius();
+}
+
+// 頭的半徑：射線離頭部骨頭這麼近就算爆頭（大型怪物一樣跟著碰撞膠囊放大）
+@addMethod(W3BoltProjectile)
+function GfgHeadRadius( actor : CActor ) : float
+{
+	return 0.17f * MaxF( 1.f, GfgCapsuleRadius( actor ) / 0.35f );
 }
 
 @addMethod(W3BoltProjectile)
@@ -2218,6 +2378,12 @@ exec function gfgwolf( optional dist : float, optional kind : int, optional leve
 		template = (CEntityTemplate)LoadResource( 'fists' );		// 測試用的人類敵人（gameplay.xml：enemy_fists_easy.w2ent）
 	else if ( kind == 2 )
 		template = (CEntityTemplate)LoadResource( 'nekker' );		// 怪物（打精華、銀）
+	else if ( kind == 3 )
+		template = (CEntityTemplate)LoadResource( 'troll' );		// 大型怪物（第 11 項：骨頭間距大）
+	else if ( kind == 4 )
+		template = (CEntityTemplate)LoadResource( 'bies' );
+	else if ( kind == 5 )
+		template = (CEntityTemplate)LoadResource( 'golem' );
 	else
 		template = (CEntityTemplate)LoadResource( 'wolf' );
 	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * dist;
