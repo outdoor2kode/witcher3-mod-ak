@@ -21,13 +21,15 @@
   - 暫時的（清理時拿掉）：`gfgsword()`、`gfgSwordTestBypass`、紀錄 `sword draw blocked`、`sheathe sword for AK`、`raise AK`、`sword wait`、`raise wait`
 - **現在做：第 8 項 B 的收尾**（03:1x）
   - 抓的時機改好、遊戲裡看過：「上一格在 3 公分內、這一格不再變近」才抓 → 慢動作測 `mag out t=0.3008 dist=0.0009`（原本一進 3 公分就抓：2.9 公分）
-  - 側面看的工具：
-    - 原版固定鏡頭 `gfgcam`：**放棄**（02:5x 試 6 種角度：俯仰 0 時往下看地、朝向差 90°，方向試不出來）→ 程式已換掉
-    - **新的 `gfgview( 角度, 距離, 高度, 俯仰 )`／`gfgviewoff()`**（編譯過、**沒測**）：用拍照模式的鏡頭（`theGame.GetPhotomodeCamera()`，CCustomCamera），照 `photomodeManager.ws:96-111` 設位置、方向；`GfgCamera()` 在看的時候回傳原本的遊戲鏡頭（瞄準不受影響）
-    - 慢動作：`slow(0.05)`（`temp.ws:8210`）有效：換彈 2.4 秒變 48 秒；在慢動作裡按住左鍵等紀錄出現 `mag out`（每發 2 秒）
-    - 拍照模式（U 鍵）：教學視窗開著時打不開（`HasActiveTutorial`：先 `closeTutorialPopup()`）；能暫停、WASD／R／F 移動、右鍵拖曳轉向，畫面上方有鏡頭座標；但手動找角度很慢 → 改用 `gfgview`
-    - ⚠️ 用過拍照模式後，同一次 REDkit 再開遊戲壞掉（Geralt 一直往下掉、輪盤一直開關）→ **03:10 重開 REDkit**（主視窗 `0x631AFA`、Asset Browser `0x100FC2` 移到螢幕右下外面；g.sh 已換）；新模型的貼圖顏色要重開才有（`CLAUDE.md` §6.14）→ 這次重開後順便看
-  - 下一步：`game_start` → `con "settime(1, 12)" "closeTutorialPopup()"` → 射 26 發 → `slow(0.05)` → 按住左鍵等 `mag out` → `gfgview(90, 2.0, 1.2, 0)`（左側）截圖 → 換角度再截 → `gfgviewoff()`、`slow(1)`；騎馬換彈也看
+  - 側面看的方法（**03:1x 可用**）：`gfgnoturn(true)`（暫時指令：身體不跟著準心轉）＋ `slow(0.05)`（`temp.ws:8210`：換彈 2.4 秒變 48 秒）＋ 滑鼠把遊戲鏡頭往左繞（`d rmove -330 0 10 15`）→ 從左前方看到 Geralt 的左側和 AK；看完 `slow(1)`、`gfgnoturn(false)`
+    - 測法（g.sh）：`con "settime(1, 12)" "closeTutorialPopup()"` → `d down left; sleep 2.5; d up left`（約 25 發）→ `con "gfgnoturn(true)" "slow(0.05)"` → `d down left` 等紀錄 `mag out`（慢動作每發 2 秒，最多 75 秒）→ `d up left` → 轉鏡頭 → `burst … 2500` 毫秒一張
+    - 03:18 第一次：`mag out t=0.301 dist=0.0011`、`mag in t=1.50`；左側截圖 `ns1`～`ns6`（scratchpad `desk\`）：AK 有貼圖顏色了（重開 REDkit 後）、左手往下拉；**解析度不夠，還看不清彈匣在不在手上、槍上有沒有彈匣** → 下一步：鏡頭拉近（滑鼠滾輪）、`wshot … scale=1` 裁 Geralt 那一塊（他在畫面左半邊，x 約 400～900、y 約 350～750）
+  - 試過、放棄的看法：
+    - 原版固定鏡頭 `static_camera.w2ent`（02:5x）：方向試不出來（俯仰 0 時往下看地、朝向差 90°）
+    - 拍照模式的鏡頭在拍照模式外直接用（`theGame.GetPhotomodeCamera()` → Activate／SetCameraWorldPosition）：**03:12 REDkit 當掉**（EXCEPTION_ACCESS_VIOLATION；故障回報選不回報、關掉）→ 程式已拿掉
+    - 拍照模式（U 鍵）：能暫停、WASD／R／F 移動、右鍵拖曳轉向（教學視窗開著時打不開：先 `closeTutorialPopup()`），但手動找角度很慢；**用過之後同一次 REDkit 再開遊戲壞掉**（Geralt 一直往下掉、輪盤一直開關）
+  - REDkit 03:15 重開（第二次）：主視窗 **`0xAD0A1C`**、Asset Browser `0x35D0E38`（移到螢幕右下外面）；g.sh 已換
+  - 之後：騎馬換彈也看；清理時拿掉 `gfgnoturn`、`gfgNoTurn`
 - 之後：開槍中側移 D −31°；曳光（先跳過）；清理暫時紀錄；**開發完整後**才打包、裝進遊戲、Steam 版驗證（使用者 02:1x）
 
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）

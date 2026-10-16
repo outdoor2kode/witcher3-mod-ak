@@ -448,6 +448,12 @@ function GfgAkTurnTick()
 	var aimHeading, diff : float;
 	var firing, moving, fireMoving : bool;
 
+	if ( gfgNoTurn )	// 暫時（測試用）：gfgnoturn
+	{
+		gfgTurning = false;
+		GfgSetWalkInPlace( false );
+		return;
+	}
 	aimHeading = VecHeading( GfgCrosshairPoint() - GetWorldPosition() );
 	diff = AngleDistance( aimHeading, GetHeading() );
 	firing = rangedWeapon.GfgIsFiring();
@@ -1369,9 +1375,6 @@ function GfgCamera() : CCustomCamera
 {
 	var cam : CCustomCamera;
 
-	// 暫時：gfgview 看的時候畫面是拍照模式的鏡頭，瞄準照樣用遊戲鏡頭
-	if ( ownerPlayer && ownerPlayer.gfgViewOn && ownerPlayer.gfgViewPrevCam )
-		return ownerPlayer.gfgViewPrevCam;
 	cam = theGame.GetWorld().GetCameraDirector().GetTopmostCamera();
 	if ( !cam )
 		cam = theGame.GetGameCamera();
@@ -1881,66 +1884,23 @@ function GfgMagTick( akDrawn : bool )
 	LogChannel( 'GFG', "mag out t=" + FloatToString( now - gfgMagStart ) + " dist=" + FloatToString( dist ) );
 }
 
-// ===== 暫時（測試用，2026-10-17）：從指定角度看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
-// 02:5x 試過原版固定鏡頭（gameplay\camera\static_camera.w2ent）：方向一直不對（俯仰 0 時往下看地、朝向差 90°）→ 不用
-// 改用拍照模式的鏡頭（CCustomCamera：r4Game.ws:303），作法照 photomodeManager.ws:96-111：Activate → SetCameraWorldPosition／Rotation → UpdateWithoutInput；
-// 回復：原本的鏡頭 Activate( 0, false )（:137）
-// 瞄準、轉身、子彈照樣用遊戲鏡頭（GfgCamera：看這個鏡頭時回傳遊戲鏡頭）
-// 搭配 slow( 0.01 ) 放慢時間（temp.ws:8210）：換彈 2.4 秒變成 4 分鐘，可以換角度慢慢看
-// gfgview( 角度, 距離, 高度, 俯仰 )：角度相對 Geralt 的朝向（0 = 正前方、90 = 左邊、-90 = 右邊）；gfgviewoff() 回到遊戲鏡頭
+// ===== 暫時（測試用，2026-10-17）：從側面看 Geralt（換彈等動作從背後的遊戲鏡頭看不到）=====
+// 試過、放棄：原版固定鏡頭 static_camera.w2ent（02:5x：方向試不出來）；拍照模式的鏡頭在拍照模式外直接用（03:1x：REDkit 當掉，EXCEPTION_ACCESS_VIOLATION）
+// 做法：gfgnoturn( true ) 讓身體不跟著準心轉（GfgAkTurnTick 不做事），再用滑鼠把遊戲鏡頭繞到側面；gfgnoturn( false ) 回復
+// 搭配 slow( 0.05 ) 放慢時間（temp.ws:8210）：換彈 2.4 秒變成 48 秒
 @addField(CR4Player)
-var gfgViewPrevCam : CCustomCamera;
-@addField(CR4Player)
-var gfgViewOn : bool;
+var gfgNoTurn : bool;
 
 @addMethod(CR4Player)
-function GfgView( angle : float, dist : float, height : float, pitch : float )
+function GfgSetNoTurn( on : bool )
 {
-	var cam, top : CCustomCamera;
-	var pos : Vector;
-	var rot : EulerAngles;
-
-	cam = theGame.GetPhotomodeCamera();
-	if ( !cam )
-	{
-		LogChannel( 'GFG', "view: no photomode camera" );
-		return;
-	}
-	top = (CCustomCamera)theGame.GetWorld().GetCameraDirector().GetTopmostCamera();
-	if ( !gfgViewOn )
-		gfgViewPrevCam = top;
-	pos = GetWorldPosition() + VecFromHeading( GetHeading() + angle ) * dist;
-	pos.Z += height;
-	pos.W = 1.f;
-	rot = EulerAngles( pitch, VecHeading( GetWorldPosition() - pos ), 0.f );
-	cam.Activate( 0.f, false );
-	cam.SetCameraWorldPosition( pos );
-	cam.SetCameraWorldRotation( rot );
-	cam.UpdateWithoutInput( true );
-	gfgViewOn = true;
-	LogChannel( 'GFG', "view pos " + VecToString( pos ) + " rot " + FloatToString( rot.Pitch ) + " " + FloatToString( rot.Yaw )
-		+ " prevTop " + ( gfgViewPrevCam == theGame.GetGameCamera() ) );
+	gfgNoTurn = on;
+	LogChannel( 'GFG', "noturn " + on );
 }
 
-@addMethod(CR4Player)
-function GfgViewOff()
+exec function gfgnoturn( on : bool )
 {
-	if ( gfgViewPrevCam )
-		gfgViewPrevCam.Activate( 0.f, false );
-	else
-		theGame.GetGameCamera().Activate( 0.f, false );
-	gfgViewPrevCam = NULL;
-	gfgViewOn = false;
-}
-
-exec function gfgview( angle : float, dist : float, height : float, optional pitch : float )
-{
-	thePlayer.GfgView( angle, dist, height, pitch );
-}
-
-exec function gfgviewoff()
-{
-	thePlayer.GfgViewOff();
+	thePlayer.GfgSetNoTurn( on );
 }
 
 // 裝上（或換彈中斷）：換回真的 AK；彈匣藏起來、掛回 l_weapon
