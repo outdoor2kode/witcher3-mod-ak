@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 23:5x（**自主模式**；第二批 11～18 全部做好；第一批：8 換彈動畫做到一半（reload_pose.py 寫好、還沒產生／匯入）、10 槍口火光未做、6 待長測）
+最後更新：2026-10-17 00:0x（**自主模式**；使用者提醒看全局 → 先打包、在 Steam 版遊戲驗證；第 8 項換彈 A 的 6 段做好、還沒匯入）
 
 ---
 
@@ -54,15 +54,22 @@
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭做好**（21:3x，第 11 項一起改：射線離頭部骨頭 0.17 公尺內 ×4，人類 1365、加暴擊 1692）。槍口火光：未開始。推算和實測 `docs\m3.md`「子彈、傷害」 |
 
-### 接續的步驟（2026-10-16 23:4x）
+### 接續的步驟（2026-10-17 00:0x 改順序）
 
-0. **先做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
+- **最優先：打包、在 Steam 版遊戲裡驗證**（使用者 10-17 00:0x：「你真的做太久了，你是不是大方向錯了啊…偶爾拉出來看看全局」）
+  - 全局檢查的結論：動畫的做法沒歪（問題多是各狀態各缺一段雙手動畫；共同的根本＝側身底層，22:3x 已從根本換成正面持槍）；**真正更根本、一直沒做的是打包**：mod 從沒打包、Steam 版遊戲完全讀不到（`docs\findings.md` §13.16），改過的原版動畫圖（`pc_overlay.w2beh`、`pc_gameplay.w2beh`）、DLC 動畫組、腳本打包後能不能生效都沒驗證；REDkit 裡的遊戲本身也有毛病（開久了上不了馬）
+  - 步驟：① REDkit 打包（輸出在專案的 `packed\`、`publish\`）② 裝進遊戲要寫 `<W3_GAME_DIR>\mods\`（唯讀，`CLAUDE.md` §11）→ 已在 00:0x 問使用者（同意讓 Claude 複製，或使用者自己複製）③ Steam 版跑基本流程：拿 AK、開槍、換彈、騎馬 ④ 回來匯入換彈 A 的 6 段（見下面第 8 項）；彈匣分離（B）等 Steam 版驗證過再做
+
+0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
    - **第一批第 8 項：AK 真正的換彈動畫**（使用者：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）（23:4x 開始）
      - 要換的 6 段：地面 `man_geralt_gabriel_reload_lowered`、`man_geralt_gabriel_reload_front_2`（`pc_overlay.w2beh` 只引用這兩段；現在是第 1 步側身姿勢截短，36／38 格），騎馬 4 段 `horse_{idle,walk,trot,gallop}_reload_lowered`（正面持槍、36 格）
      - 決定：分兩步。**A 先做動作**（彈匣不動）；**B 再做彈匣分離**（之後）
      - **A 進度（23:5x）**：`tools\reload_pose.py` 寫好、commit；用正面持槍底層試算（輸出到暫存 `s18\reload_test.re`）：73 格、兩手 IK 都到位（誤差 0）、左臂伸直 0.73～0.97、第 0 格和最後一格等於底層。`move_pose.rot_pow` 加了零軸保護（幾乎相同的兩個旋轉會算出 NaN）
        - **下一步**：① 產生 6 段：地面 `reload_pose.py G\square\man_geralt_gabriel_aim_idle_square.re G\man_geralt_gabriel_reload_lowered.re`、`…_reload_front_2.re`（先備份 G 裡現在的兩段）；騎馬 4 段的底層就是現在的 `G\man_geralt_gabriel_horse_{gait}_reload_lowered.re`（輸入輸出同名 → 先備份到 `G\backup_reload_static_2355\`，輸出到暫存再複製回 G）② 關遊戲（F10）→ `rm_anim` 6 段 → `import_one plain` 6 段 → 加事件（`add_ev` 是 simple event；`add_dur`、`add_track`、`add_dur_row 500/550`、`add_dur_row4`、`add_dur_row5`：第 1～5 條軌道）→ `save_gab` → `anim_events.py` 讀檔確認 ③ 遊戲裡：地面站著、走路、騎馬各連射 30 發到換彈，慢動作 0.125 倍（`d key numminus` ×3）連拍，看左手、槍、頭；`[GFG] pose` 的 `l_hand`／`l_weapon` 紀錄；換彈到能開火的時間
-       - **23:5x 產生 6 段（輸出在暫存 `s18/rl/`，還沒複製回 G）**：備份已做（`G/backup_reload_static_2355/` 6 段）；地面 2 段正常；**騎馬 4 段左手差 0.8～1.3 公尺**：`POUCH` 是模型座標寫死的，騎馬換彈檔的模型座標不同（骨盆高度、trot/gallop 骨盆朝後）→ 改成相對骨盆：`pouch_rel = 正面持槍底層的骨盆世界⁻¹ · POUCH`，每個底層用自己檔案的骨盆 `pouch = 骨盆世界 · pouch_rel`（推導：遊戲裡 torso 以上的區域變換不變、骨盆換成騎乘的 → 檔案世界到遊戲世界 = 騎乘骨盆 · 檔案骨盆⁻¹，所以相對檔案骨盆定義就對）；改完重跑 4 段，檢查左手誤差 0
+       - **6 段做好、已複製進 G（10-17 00:0x），還沒匯入 REDkit**：備份 `G\backup_reload_static_2355\`（6 段靜止版）；6 段的兩手、槍誤差都是 0、左臂伸直 0.73～1.00
+         - 修了三個工具的錯：① 左腰改成相對骨盆（`--pouch-ref`、`--pouch-bone`）② 槍的位移、頭往下看改用「角色的軸」（`body_axes`：底層槍管的水平方向）：騎馬 trot 的檔整個模型朝後（槍管 −Y），原本照模型座標 → 槍往外推、頭往上抬、左手搆不到 ③ `l_weapon` 用 FK 讀回的左手算（搆不到時 `two_bone_ik` 回傳的手腕是目標，槍會跟著偏）
+         - 教訓：工具第一次碰到新種類的輸入（騎馬檔）出錯時，先查輸入哪裡不一樣（座標朝向、原點），不要先一個一個修症狀
+         - 離線預覽：暫存 `s18\rl_preview.py`（Blender 背景，右／前／左三個方向；`two_hand_pose` 的 `Anim`、`load_ak`、`primitive`）→ `s18\rlp_ground.png`：拿彈匣 → 左腰 → 彈匣口 → 繞到右邊拉槍機，左手沒穿過槍身
        - 檢查重點：左手經過彈匣時會不會穿過槍（槍座標的關鍵格在 `LEFT_KEYS`）；左腰的位置（`POUCH`）；右傾 30° 時槍會不會撞到臉；手肘方向（IK 保留原本的手肘平面）
      - 決定：底層一律正面持槍（地面用 `assets\anims\gfg\square\man_geralt_gabriel_aim_idle_square.re` 第 0 格；騎馬用現在的 `gfg\man_geralt_gabriel_horse_{gait}_reload_lowered.re` 第 0 格，已含騎乘骨盆補正）；長度 2.4 秒（CS2 `m_flDisallowAttackAfterReloadStartDuration` 2.47 秒）
      - 量到的（槍座標：原點 = 握把 `ag1_hand_r`、F 槍管、U 上、R 右，公尺；暫存 `s18\mag_pos.py`、`s18\base_info.py`）：

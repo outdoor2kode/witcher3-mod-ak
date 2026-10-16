@@ -39,7 +39,7 @@ GF = S.unit(A.BARREL)                              # 槍座標的軸（l_weapon 
 GU = S.unit(S.GUN_UP - GF * (S.GUN_UP @ GF))
 GR = np.cross(GF, GU)
 
-# 槍：(秒, 往右, 往前, 往上（公尺，模型座標）, 往右傾（度，上方往右）, 槍口往上（度）)；以握把為軸
+# 槍：(秒, 往右, 往前, 往上（公尺，角色的軸：body_axes）, 往右傾（度，上方往右）, 槍口往上（度）)；以握把為軸
 GUN_KEYS = [
     (0.00, 0.0, 0.0, 0.0, 0.0, 0.0),
     (0.30, -0.03, -0.06, -0.07, 30.0, 8.0),
@@ -66,7 +66,10 @@ LEFT_KEYS = [
     (1.88, (0.12, 0.00, 0.02)),     # 放開
     (2.20, 'hg'),
 ]
+# 左腰：正面持槍底層（--pouch-ref）的模型座標；換成相對骨盆，騎馬的底層用自己的骨盆換回來
+# （遊戲裡 torso 以上照這段動畫、骨盆換成騎乘的 → 相對骨盆的位置不變）
 POUCH = np.array([-0.17, 0.08, 1.02])
+POUCH_REF = Path(__file__).resolve().parent.parent / 'assets' / 'anims' / 'gfg' / 'square' / 'man_geralt_gabriel_aim_idle_square.re'
 LEFT_ARM = ('l_bicep', 'l_forearm', 'l_hand')
 RIGHT_ARM = ('r_bicep', 'r_forearm', 'r_hand')
 
@@ -108,9 +111,17 @@ def slerp_rot(r0: np.ndarray, r1: np.ndarray, w: float) -> np.ndarray:
     return r0 @ M.rot_pow(rel, w)
 
 
-def gun_at(t: float, g0: np.ndarray, grip0: np.ndarray) -> np.ndarray:
+def body_axes(g0: np.ndarray) -> np.ndarray:
+    """角色的 右、前、上（行向量）：前 = 底層槍管的水平方向（騎馬 trot 的檔整個模型朝後，不能用模型的軸）。"""
+    f = g0[:3, :3] @ GF
+    f = S.unit(np.array([f[0], f[1], 0.0]))
+    up = np.array([0.0, 0.0, 1.0])
+    return np.array([np.cross(f, up), f, up])
+
+
+def gun_at(t: float, g0: np.ndarray, grip0: np.ndarray, body: np.ndarray) -> np.ndarray:
     v = hermite([(k[0], k[1:]) for k in GUN_KEYS], t)
-    d, roll, pitch = v[:3], v[3], v[4]
+    d, roll, pitch = body.T @ v[:3], v[3], v[4]
     f0, r0 = g0[:3, :3] @ GF, g0[:3, :3] @ GR
     rg = A.axis_angle(r0, pitch) @ A.axis_angle(f0, roll)
     m = np.eye(4)
@@ -154,6 +165,9 @@ def main() -> int:
     p.add_argument('base', type=Path)
     p.add_argument('out', type=Path)
     p.add_argument('--length', type=float, default=2.4, help='長度（秒，預設 2.4）')
+    p.add_argument('--pouch-ref', type=Path, default=POUCH_REF, help='POUCH 是哪個檔第 0 格的模型座標（預設正面持槍底層）')
+    p.add_argument('--pouch-bone', default='pelvis',
+                   help='左腰跟著哪根骨頭（預設 pelvis：腰帶在骨盆上；torso = 和地面一樣的上半身相對位置）')
     a = p.parse_args()
 
     hier = A.read_skeleton(a.base)
@@ -161,13 +175,18 @@ def main() -> int:
     base = M.read_frames(a.base)
     loc0 = {k: M.local(v[0]) for k, v in base.items()}
     w0 = S.fk4(hier, loc0)
+    wr = S.fk4(A.read_skeleton(a.pouch_ref), {k: M.local(v[0]) for k, v in M.read_frames(a.pouch_ref).items()})
+    pb = a.pouch_bone
+    pouch = (w0[pb] @ np.linalg.inv(wr[pb]) @ np.append(POUCH, 1.0))[:3]
+    print(f'左腰（跟著 {pb}）：模型 ({pouch[0]:+.3f},{pouch[1]:+.3f},{pouch[2]:+.3f})（{pb} {np.round(w0[pb][:3, 3], 3)}）')
     g0 = w0['l_weapon']
     grip0 = g0[:3, :3] @ A.GRIP + g0[:3, 3]
     rel_r = np.linalg.inv(g0) @ w0['r_hand']
     rel_l = np.linalg.inv(g0) @ w0['l_hand']
     hg_lw = rel_l[:3, 3] - A.GRIP
     hg = (hg_lw @ GF, hg_lw @ GU, hg_lw @ GR)
-    g_hold = gun_at(0.5, g0, grip0)
+    body = body_axes(g0)
+    g_hold = gun_at(0.5, g0, grip0, body)
     pouch_rot = g_hold[:3, :3] @ rel_l[:3, :3]
 
     n = int(round(a.length * FPS)) + 1
@@ -175,14 +194,14 @@ def main() -> int:
     results, worst, reach = [], {'右手': 0.0, '左手': 0.0, '槍': 0.0}, []
     for i in range(n):
         t = i / FPS
-        g = gun_at(t, g0, grip0)
+        g = gun_at(t, g0, grip0, body)
         # 左手的關鍵格換成這一格的模型座標
         keys = []
         for kt, kv in LEFT_KEYS:
             if kv == 'hg':
                 keys.append((kt, gun_point(g, hg), g[:3, :3] @ rel_l[:3, :3]))
             elif kv == 'pouch':
-                keys.append((kt, POUCH, pouch_rot))
+                keys.append((kt, pouch, pouch_rot))
             else:
                 keys.append((kt, gun_point(g, kv), g[:3, :3] @ rel_l[:3, :3]))
         lpos = hermite([(k[0], k[1]) for k in keys], t)
@@ -191,9 +210,9 @@ def main() -> int:
         lt = S.rigid(lrot, lpos)
         rt = g @ rel_r
         loc = dict(loc0)
-        # 頭往下看：繞模型的 X 軸
+        # 頭往下看：繞角色的右方
         hdeg = float(hermite([(k[0], np.array([k[1]])) for k in HEAD_KEYS], t)[0])
-        hw = A.axis_angle(np.array([1.0, 0.0, 0.0]), -hdeg) @ w0['head'][:3, :3]
+        hw = A.axis_angle(body[0], -hdeg) @ w0['head'][:3, :3]
         loc['head'] = (w0[par['head']][:3, :3].T @ hw, loc0['head'][1])
         solved = {}
         solved.update(S.two_bone_ik(w0, LEFT_ARM, lt))
@@ -204,7 +223,8 @@ def main() -> int:
                 m = np.linalg.inv(parent) @ solved[name]
                 loc[name] = (m[:3, :3], loc0[name][1])
                 parent = solved[name]
-        m = np.linalg.inv(solved['l_hand']) @ g
+        # l_weapon 用 FK 讀回的左手算（搆不到時 two_bone_ik 回傳的手腕是目標，不是實際位置 → 槍會跟著偏）
+        m = np.linalg.inv(S.fk4(hier, loc)['l_hand']) @ g
         loc['l_weapon'] = (m[:3, :3], m[:3, 3])
         results.append(loc)
         # 檢查：FK 讀回
