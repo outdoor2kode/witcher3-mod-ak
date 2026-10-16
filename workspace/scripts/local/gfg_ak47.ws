@@ -1482,6 +1482,14 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
 			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
 			UnblockAction( EIAB_HardLock, 'RangedWeapon' );
+			// 叫馬、上下馬：拿著 AK 也可以（第 4 項，使用者 2026-10-16：要先按 C 收槍才能叫馬、才出現長按 E 下馬 → 順一點）
+			// 原版拿著十字弩時：瞄準狀態的 Lock() 擋掉例外以外的所有動作（rangedWeapon.ws:401-422），拿出時另外鎖上下馬（:1145-1146，收好才解：:56-61）
+			// 叫馬：左手沒拿可用物品（火把等）時直接叫（playerInput.ws:748-758）；上下馬開始時立刻收槍（下面 MountTheVehicle／DismountTheVehicle 的包裝）
+			UnblockAction( EIAB_CallHorse, 'RangedWeapon' );
+			UnblockAction( EIAB_MountVehicle, 'RangedWeapon' );
+			UnblockAction( EIAB_MountVehicle, 'ShootingCrossbow' );
+			UnblockAction( EIAB_DismountVehicle, 'RangedWeapon' );
+			UnblockAction( EIAB_DismountVehicle, 'ShootingCrossbow' );
 			GfgClearDeadSlideTarget();
 		}
 	}
@@ -1653,6 +1661,34 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 	}
 	parent.GfgHorseCamLog( vehicleCombatMgr, false );
 	return result;
+}
+
+// ===== 上下馬（船也是）：開始時拿著 AK 就立刻收到背上（第 4 項）=====
+// 原版拿著十字弩不能上下馬（rangedWeapon.ws:1145-1146）；左手的可用物品（火把等）上馬時也是直接收（mountHorse.ws:21 HideUsableItem）
+// 上馬、上船都經過 MountTheVehicle.OnEnterState（mountHorse.ws:19、mountBoat.ws 的 super.OnEnterState）；下馬、下船都經過 DismountTheVehicle.OnEnterState（dismountHorse.ws:24）
+// 收法同跳進水裡（CExplorationStateJump 的包裝）
+@addMethod(CR4Player)
+function GfgHolsterForVehicle()
+{
+	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+	{
+		LogChannel( 'GFG', "holster for vehicle: state=" + GetCurrentStateName() );	// 暫時
+		OnRangedForceHolster( true, true );
+	}
+}
+
+@wrapMethod(CR4PlayerStateMountTheVehicle)
+function OnEnterState( prevStateName : name )
+{
+	parent.GfgHolsterForVehicle();
+	return wrappedMethod( prevStateName );
+}
+
+@wrapMethod(CPlayerStateDismountTheVehicle)
+function OnEnterState( prevStateName : name )
+{
+	thePlayer.GfgHolsterForVehicle();
+	return wrappedMethod( prevStateName );
 }
 
 // 暫時的偵測紀錄（第 3 項：騎馬換彈時瞄準鏡頭被關掉，查原因）：用不用瞄準鏡頭、相關狀態改變時記一行
@@ -2051,4 +2087,22 @@ function GfgRecoilKickUp( shot : int ) : float
 		case 29: return 0.0106f;
 	}
 	return 0.f;
+}
+
+// 暫時（第 4 項的測試用；做完和其他暫時紀錄一起拿掉）：把玩家的馬傳送到面前 3 公尺、側面朝玩家
+// reference_level 按 X 叫馬，馬生成了（editor.log：player_horse）卻跑不過來
+exec function gfghorsehere()
+{
+	var horse : CEntity;
+	var pos : Vector;
+
+	horse = theGame.GetEntityByTag( 'playerHorse' );
+	if ( !horse )
+	{
+		LogChannel( 'GFG', "gfghorsehere: no playerHorse" );
+		return;
+	}
+	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * 3.f;
+	horse.TeleportWithRotation( pos, EulerAngles( 0.f, thePlayer.GetHeading() + 90.f, 0.f ) );
+	LogChannel( 'GFG', "gfghorsehere: " + VecToString( pos ) );
 }
