@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 14:5x（**自主模式**；第 1、2、5、6、7 項做好，3、4、8、9、10 項還沒開始）
+最後更新：2026-10-16 15:4x（**自主模式**；第 1、2、6、7 項做好；第 5 項改成擺手版、收尾中；第 3 項進行中；4、8、9、10 項還沒開始）
 
 ---
 
@@ -32,17 +32,21 @@
 | 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
 | 3 | 騎馬的姿勢完全錯 → 修好 | **進行中**（15:0x）：14:54 截圖：騎馬拿 AK 是十字弩的姿勢（左手拿、槍直立在臉旁）。騎馬瞄準在 `pc_rider.w2beh` #4267：BlendOverride #4423（上半身 70 根）的覆蓋來源＝`man_geralt_gabriel_horse_horse_{breathing_slow,walk,trot,gallop}_aim_cycle`（#4439；拿劍時 `…_with_sword`：#4499），上面再疊加（AT_Local）：水平 `horse_{idle,walk,trot,gallop}_aimpose_horizontal_rp`（#4628）＋垂直 `…_aimpose_vertical_rp_{center,left,right}`（#4676）→ 別射我 `…_dont_shoot_me_bro{,_left,_right}`（#5139）→ 射擊 `…_shoot_additive_{center,left,right}`（#4386）。做法（同地面）：8 段 aim_cycle 換雙手版（`move_pose.py --full` 的作法：骨盆照原版、torso 補正）；16 段水平／垂直換「只轉脊椎」差值（`aim_delta.py` 的作法，角度從原版量）；24 段射擊／別射我換成不動的差值（單位）。全部在 `animations\man\combat\man_geralt_gabriel.w2anims` |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | 未開始 |
-| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（14:35）：重開 REDkit 後 `pc_overlay.w2beh` 手臂覆蓋版生效：衝刺中掌心離握把 0.3 公分（之前 28～95）、截圖兩手在槍上、槍口朝前下。決定：衝刺時兩手握槍（不擺手）；使用者原話「維持…擺手跑步」→ 若要擺手，之後做「一手拿槍、另一手擺」的版本（見「之後可以再做」） |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **改成擺手版、收尾中**（15:4x）。使用者 15:1x 更正：衝刺＝按 Shift；維持不能開槍、照原版擺手跑，但手上的槍要拿正（附圖 #6、#7：AK 直立在背後、槍口朝上）。14:35 的「兩手握槍不擺手」不符合。做法：衝刺時手臂照原版擺（`GfgArmsHoldTick` 只在跳躍、落地蓋手臂）；`GfgCarryTick` 每格把 AK 重新掛到左手 slot、帶相對變換（`CreateAttachment`），讓槍口朝前下 30°、往右 8°（相對玩家），握的點＝彈匣前的機匣（右手握把往前 12、往上 5 公分）在左掌；開始 0.25 秒、結束 0.15 秒漸變；結束時還拿在手上就掛回左手、不帶偏移。原因：原版擺手時左手從臀部後面甩到胸前、手腕轉一百多度（15:16 每 0.05 秒量），槍固定在手上就會從朝下甩到朝上。驗證：紀錄（正常速度、慢動作）槍管就是目標方向、握的點離掌心 0.2～2.9 公分；慢動作側面截圖 AK 在左手、腰的高度、槍口朝前。試過放棄：改 AK 動畫元件的 `SetPosition`／`SetRotation`（元件本來就有 180° 區域旋轉；設了之後紀錄裡的矩陣不變，畫面上槍倒放在腳前地上） |
 | 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
 | 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **做好、遊戲裡看過**（14:42）：站立跳、衝刺跳各連拍 14～18 張（每 0.1 秒，`desk.ps1 burst`）：起跳、空中、落地、再跑，兩手一直在槍上，沒有從擺手突然跳成持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | 未開始 |
 | 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
 
-### 接續的步驟（2026-10-16 14:5x）
+### 接續的步驟（2026-10-16 15:4x）
 
+0. 第 5 項收尾（腳本已改、已編譯、commit b8fdacd；遊戲裡看過紀錄和慢動作截圖）：
+   - 正常速度側面連拍：先到空曠處（鏡頭靠牆會變頭部特寫），`d keydown d; d keydown shift`、1 秒後 `d rmove -150 0 6 15` 一次，再 `desk.ps1 burst`（不帶 hold）
+   - 衝刺跳躍、落地的過渡（落地時手臂覆蓋淡出 0.5 秒、提槍淡入 0.25 秒）；衝刺中按 C 收槍：槍要回到背上、不能卡在手上
+   - 拿掉暫時的主控台指令 `gfgcomps`、`gfgcomp`、`gfgatt`（gfg_ak47.ws 最後面）和 `GfgLogHoldPose` 的「衝刺時每 0.05 秒」→ 編譯 → commit
 1. 第 3 項（騎馬姿勢）：
-   - 15:05 起背景匯出 48 段到 `assets\anims\man_geralt_gabriel_horse_*.re`（`g.sh` 的 `export_anim`、`horse_names`；檢查：`ls assets/anims | grep -c horse` 應該 48；少的用 `export_anim 名稱` 補）
+   - 48 段已匯出（15:15，`assetsnims\man_geralt_gabriel_horse_*.re`）。騎馬瞄準的時間（15:0x 查）：水平 = aimHorizontal + aimOffset + 2.0（`pc_rider.w2beh` #6051、#6030；數學節點沒寫運算＝預設加法），aimHorizontal = AngleDistance(馬頭方向, 鏡頭 Yaw)/180（`useVehicle.ws:1720-1729`）；垂直 = aimVertical（經 #4319 比較、阻尼）+ 2.0（#6073），aimVertical = 鏡頭 Pitch/90（`:1730`）；aimOffset（內部變數）的值沒查 → 角度用原版十字弩的方向反推
    - 接著寫 `tools\horse_pose.py`（用 Blender 內建 Python：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I`，h5py 在 `tools\_vendor\pylib`）：
      a. **做好了**（15:1x，不用新工具：`move_pose.py <第1步> <原版> assets/anims/gfg/<同名>.re --full`，8 段都檢查槍管方向差 0°）8 段 aim_cycle：照 `move_pose.py --full`（原版為底，torso 以下換成第 1 步 `assets\anims\gfg\man_geralt_gabriel_aim_idle_rp.re` 第 0 格，torso 每格依原版骨盆補正）→ 上半身在模型座標朝前（＝馬的前方）
      b. 量原版：aim_cycle 第 0 格套上原版水平／垂直差值（試 local 和 ref 兩種套法，看哪個合理）→ 每格十字弩的方向（十字弩在 l_weapon 的軸：用 `ex_man_geralt_gabriel_aim_idle.re` 第 0 格「朝前」反推）→ 每格的左右角、上下角
@@ -60,6 +64,8 @@
   - 主控台指令曾打進 REDkit 右邊 Scene 的搜尋框（焦點在那裡）→ 編輯模式下點一下畫面空白處（天空）把焦點移走
   - 原地跳旁邊有高台會變成攀爬（攀爬照原版收槍）→ 到空曠處測
   - 連拍：`desk.ps1 burst <前綴> <張數> <間隔毫秒> rect=… hold=w,shift pre=1500 key=space`
+  - **慢動作**：遊戲中按數字鍵盤減號（`d key numminus`）3 次 = 0.125 倍，`numplus` 3 次回到 1 倍；**F10 重開遊戲後不會重設**（右上角紅字 Time scale）
+  - 側面拍左手：衝刺中 `d rmove -150 0 6 15`～`-250` 轉鏡頭（鏡頭在右後方時左手的槍被身體擋住：看起來「槍不見」不一定真的不見）
 - 偵測紀錄 `GfgLogDiag`（`[GFG] diag`）：`fullBodyAnimWeight`、`playerSpeedForOverlay`（衝刺 1.5、跑 1.0）、滑動／畫面目標等
 
 ### 之後可以再做
@@ -123,11 +129,11 @@
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
 | 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加第 1 步的 `--place 0.30323 0.01147 -0.23203 -0.80333 -0.21400 0.55576 -0.02721 0.94542 0.32472`**（`docs\m3.md`「雙手持槍：第 1 步」）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
-| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **做好、遊戲裡看過**（14:50）：被打中時有兩條收槍路徑：`OnHitStart`→`OnRangedForceHolster`（已擋：`gfgInHitStart`）、`InputLockFailsafe`（`rangedWeapon.ws:458-466`：受擊動作期間 combatActionType 0、全身權重 1、不能做戰鬥動作 → 當成攻擊中收槍）→ `Crossbow.OnForceHolster` 包裝：failsafe 呼叫、拿著 AK、不是真的輕／重攻擊（`IsInCombatAction_Attack`）就不收。實測關無敵被 6 隻狼咬：紀錄 `forceHolster blocked`、AK 一直在手上、沒有自動拔劍；戰鬥中開槍是舉槍射擊姿勢（特寫截圖） |
-| 3 | 騎馬的姿勢完全錯 → 修好 | **進行中**（15:0x）：14:54 截圖：騎馬拿 AK 是十字弩的姿勢（左手拿、槍直立在臉旁）。騎馬瞄準在 `pc_rider.w2beh` #4267：BlendOverride #4423（上半身 70 根）的覆蓋來源＝`man_geralt_gabriel_horse_horse_{breathing_slow,walk,trot,gallop}_aim_cycle`（#4439；拿劍時 `…_with_sword`：#4499），上面再疊加（AT_Local）：水平 `horse_{idle,walk,trot,gallop}_aimpose_horizontal_rp`（#4628）＋垂直 `…_aimpose_vertical_rp_{center,left,right}`（#4676）→ 別射我 `…_dont_shoot_me_bro{,_left,_right}`（#5139）→ 射擊 `…_shoot_additive_{center,left,right}`（#4386）。做法（同地面）：8 段 aim_cycle 換雙手版（`move_pose.py --full` 的作法：骨盆照原版、torso 補正）；16 段水平／垂直換「只轉脊椎」差值（`aim_delta.py` 的作法，角度從原版量）；24 段射擊／別射我換成不動的差值（單位）。全部在 `animations\man\combat\man_geralt_gabriel.w2anims` |
+| 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
+| 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
 | 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
-| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **做好、遊戲裡看過**（14:35）：重開 REDkit 後 `pc_overlay.w2beh` 手臂覆蓋版生效：衝刺中掌心離握把 0.3 公分（之前 28～95）、截圖兩手在槍上、槍口朝前下。決定：衝刺時兩手握槍（不擺手）；使用者原話「維持…擺手跑步」→ 若要擺手，之後做「一手拿槍、另一手擺」的版本（見「之後可以再做」） |
+| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；第 1 步的值：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Yaw −68.9、Roll 92.6（已 commit；單手版是 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | Claude（desk.ps1） | |
 | 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
 
 - 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍
