@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 20:12（**自主模式**；第 1、2、3、4、5、7、9 項做好；第 6 項待長測；第 10 項：傷害公式做好、爆頭判定修中、槍口火光未做；第 8 項還沒開始）
+最後更新：2026-10-16 20:15（**自主模式**；第 1、2、3、4、5、7、9 項做好；第 6 項待長測；第 10 項：傷害公式做好、爆頭判定修中、槍口火光未做；第 8 項還沒開始）
 
 ---
 
@@ -39,14 +39,17 @@
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭 ×4 還不會觸發**（見接續步驟）。槍口火光：未開始。推算和實測 `docs\m3.md`「子彈、傷害」 |
 
-### 接續的步驟（2026-10-16 20:12）
+### 接續的步驟（2026-10-16 20:15）
 
 1. 第 10 項：
-   - **爆頭判定（下一步，20:12 停在這裡）**：原版的爆頭靠 Ragdoll 碰撞的骨頭（`arrowProjectile.ws:91-94`），子彈先撞到角色膠囊（`Character`）就算命中、沒有骨頭 → 不會爆頭
+   - **爆頭判定（下一步，20:15 停在這裡）**：原版的爆頭靠 Ragdoll 碰撞的骨頭（`arrowProjectile.ws:91-94`），子彈先撞到角色膠囊（`Character`）就算命中、沒有骨頭 → 不會爆頭
      - 試過、放棄：AK 子彈的碰撞群組拿掉 `Character`（只打 `Ragdoll`）→ 打不到人（20:0x）
      - 現在的程式（20:12 commit、編譯過）：`GfgIsHeadOnLine`：頭部骨頭到子彈直線（`gfgShotFrom` → 碰撞點）的最近距離 < 0.15 公尺 = 爆頭；`head` 骨頭找得到（紀錄 `[GFG] head check`）
-     - **20:12 發現原因**：瞄頭、瞄胸口，子彈都打在同一點（目標胸口，比頭部骨頭低 0.45 公尺）→ 測試時「硬鎖定」是開的：`GfgAimPoint` 在 `IsHardLockEnabled()` 時改朝 `GfgLockPoint`（目標軀幹骨頭＋0.2 公尺；`gfg_ak47.ws` 約 1287 行，既有設計：鎖定（Z）時準心在鎖定目標身上）
-     - 下一步：(1) 查為什麼測試時會硬鎖定（`game_start` 的按鍵？生成敵人後自動？）→ 測爆頭前先解除（按 Z 或確認紀錄）；(2) 不鎖定時瞄頭打一發，看 `[GFG] head check … lineDist=` 是否 < 0.15、`ak dmg … head=true`、傷害 ×4；(3) 鎖定時打不到頭是設計（鎖定＝瞄軀幹），寫進 `docs\m3.md`
+     - **20:15 查到的原因**：不管準心瞄頭還是胸口，子彈都打在目標胸口同一點（比頭部骨頭低 0.45 公尺，紀錄 hit 座標完全一樣）；不是硬鎖定（按 Z 才出現鎖定菱形，解除後還是一樣）
+       → 推測是原版的自動瞄準：`W3BoltProjectile.ThrowProjectile`（`playerBoltProjectile.ws` 約 250 行起）有目標時用 `ShootProjectileAtBone( 目標, 骨頭 )`，我們的 `ShootProjectileAtBone` 包裝保留了骨頭
+     - 下一步：讀原版 `ThrowProjectile` 和我們的 `ThrowProjectile` 包裝；AK 的子彈一律 `ShootProjectileAtPosition( GfgAimPoint() )`（`CLAUDE.md` §7：子彈飛向準心的射線點）→ 再瞄頭測 `head check lineDist`、`head=true`、傷害 ×4
+       - 注意：改了之後靠近時的命中可能變難（原版靠骨頭自動瞄準）→ 打固定靶、打移動的狼都測
+     - 測試時的瞄準：`con` 之後鏡頭上下重設；小的 `rmove`（每次 5 像素以下）常被吃掉；Z＝硬鎖定（目標名字旁出現菱形），子彈改朝鎖定點（`GfgLockPoint`：軀幹＋0.2 公尺，既有設計）
      - 測法：`con "gfgwolf(6,1,31)"`（31 級人類、站著不動）→ `d rmove -10 -30 2 20`、`d rmove -10 -15 1 20`、再 `d rmove 0 -15 1 20` → 點一下左鍵 → 紀錄 `[GFG] head check … hitDist= lineDist=`、`[GFG] ak dmg … head=`
    - 傷害公式已驗證（20:0x）：狼（5 級，165 血）一發倒；1 級人類 41.25 血；31 級人類 2763.75 血、每發 384.87；實際＝基礎＋58（人的血）、基礎×1.25＋58（怪物的精華）
    - 槍口火光（＋曳光）：REDkit Entity Editor 在 AK 的實體模板加特效（找原版粒子，例：`fx\weapons\obstacle_hit\sparks_colision.w2p`、`fx\weapons\trails\sparks\fire_sparks_trail.w2p`、`fx\skills\maiming_shot\maiming_shot_crossbow_fx.w2p`；`r4data\fx` 有 2003 個 `.w2p`），每發 `PlayEffect`；槍口位置要從模型算（CS2 `m_vecMuzzlePos0`）
