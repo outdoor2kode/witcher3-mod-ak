@@ -2174,3 +2174,32 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 其他功能裡的紀錄只刪那一行，功能不動
 - §13～§24 提到的 `GFG` 紀錄（`trigger=`、`auto fire`、`recoil:`、`stuck*`、`bolt*`、`radial: …` 等）之後不會再出現
 - 還會出現、不是 `GFG` 頻道的兩行：第 30 發的 `Value '30' not handled`（§24.6）、`UpdateLookAtVariables` 的 `Accessing invalid handle`
+
+## 26. 拿在手上的物品：畫面上的模型跟著「物品系統掛在 slot 的動畫元件」（2026-10-16 遊戲實測）
+
+查第 5 項（衝刺時擺手、槍要拿正）時發現；腳本在 `workspace\scripts\local\gfg_ak47.ws`（`GfgCarryTick`、`GfgCarrySpawnDummy`）。
+
+### 26.1 現象
+
+- 衝刺時每格對 AK 實體呼叫 `BreakAttachment()`＋`CreateAttachment( thePlayer, 'l_weapon', 位移, 角度 )`（`entity.ws:342-343`）：
+  - `rangedWeapon.GetLocalToWorld()`（實體）照設的偏移走（紀錄每格都對）
+  - AK 自己骨架的 `handle` 骨頭（`GetBoneWorldMatrixByIndex`）相對左手 `l_weapon` 的擺法**完全不變**（和不偏移時差 0～0.7°）
+  - 模型蒙皮在 `handle` 骨頭上（`CLAUDE.md` §6.14）→ 畫面上的槍照原版跟著手轉（左手甩到後面時直立、槍口朝上：使用者附圖的樣子）
+- 拔槍時：`rangedWeapon.HasAttachment()` false、`thePlayer.HasChildAttachment( AK 的動畫元件 )` false、`HasChildAttachment( AK 實體 )` false（`entity.ws:344`、`:352`）
+- AK 動畫元件 `SetPosition`／`SetRotation`（`components.ws:22-25`）設成 0：紀錄、畫面都沒變
+- 結論（推論，證據一致）：物品系統把物品的動畫元件直接掛在 slot 骨頭上，腳本的實體掛載碰不到它；之前用實體矩陣「驗證」過的提槍其實沒有出現在畫面上
+  - 以後量物品在畫面上的擺法：看物品骨架的骨頭（例：AK 的 `handle`），不要看實體矩陣
+
+### 26.2 做法：替身
+
+- 用同一個模板 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent` 自己生成一把（`theGame.CreateEntity`，`game.ws:129`；帶標籤 `gfg_carry_dummy`、`PM_DontPersist`）
+  - `RangedWeapon.OnSpawned` 會 `Initialize( 父實體 )` → `State_WeaponWait` 的 `OnEnterState` 解除玩家的動作鎖（`rangedWeapon.ws:31-35`、State_WeaponWait）→ 包裝 `OnSpawned`：有這個標籤就不初始化
+- 自己生成的實體：骨架跟著實體走 → `CreateAttachment` 的偏移看得到（實測：替身掛在手上方 1 公尺，畫面上就浮在那裡；`handle` 相對替身實體的擺法和真的 AK 一樣：原點 (0, 0, −0.072)、軸互換）
+- 衝刺時：真的 AK 的模型元件 `witcher_crossbow_lvl1` 和裝好的箭（`deployedEnt`，對齊在槍管裡）藏起來（`CDrawableComponent.SetVisible`：`components.ws:473`；`SetVisibility`：`rangedWeapon.ws:563`），替身顯示並每格帶偏移掛到 `l_weapon`；結束時反過來，替身掛回 `l_weapon` 不帶偏移（下次換過去不會跳）
+- 預測下一格的手腕方向：相對變換要到下一格才套上（每格紀錄：不預測時槍管和目標差平均 9.6°、最大 16.6°；預測後平均 2.3°、最大 8.2°）
+- 實測（替身的 `handle`）：槍管和目標（玩家座標往下 30°、往右 8°）差平均 2.3～2.6°、最大 8.7～11.3°；槍管一直朝下 25°～38°；正常速度側面連拍：左手握在機匣、槍口朝前下、槍托朝後上（像單手提著步槍跑）
+- 也測過：衝刺中跳躍（淡出 → 空中、落地雙手持槍 → 淡入）、衝刺中按 C 收槍（槍回背上、手上沒有殘留）、收槍再拔再衝刺（替身照常）；替身沒有造成腳本錯誤
+
+### 26.3 紀錄的讀取時機
+
+- `GfgLogHoldPose` 在 `GfgCameraTick` 裡、提槍計算之前寫 → 紀錄裡實體的位置是上一格的；跑步 5 公尺／秒時實體和 `l_weapon` 差約 9 公分（不偏移時也一樣）→ 是紀錄的時機，不是畫面落後
