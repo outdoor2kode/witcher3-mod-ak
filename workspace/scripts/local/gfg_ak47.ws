@@ -1712,7 +1712,8 @@ exec function gfgcam( angle : float, dist : float, height : float, optional pitc
 	target = thePlayer.GetWorldPosition() + Vector( 0.f, 0.f, 1.3f );
 	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() + angle ) * dist;
 	pos.Z += height;
-	// 01:5x：用 VecToRotation( target - pos ) 時畫面整片天空 → 改成水平朝向 Geralt，俯仰另外給（測正負）
+	pos.W = 1.f;	// GetWorldPosition() 的 W 1 加上 VecFromHeading()×距離 會變成 3（01:5x 紀錄）→ 位置跑掉
+	// 01:5x：用 VecToRotation( target - pos ) 時畫面整片天空（當時 W = 3）→ 改成水平朝向 Geralt，俯仰另外給
 	rot = EulerAngles( pitch, VecHeading( target - pos ), 0.f );
 	LogChannel( 'GFG', "debug cam pos " + VecToString( pos ) + " rot " + FloatToString( rot.Pitch ) + " " + FloatToString( rot.Yaw ) );
 	thePlayer.GfgSetDebugCam( (CStaticCamera)theGame.CreateEntity( tmpl, pos, rot ) );

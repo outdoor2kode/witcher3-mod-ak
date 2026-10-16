@@ -8,6 +8,13 @@
 
 ---
 
+## 使用者回來時先看這裡（2026-10-17 02:0x 使用者說「自主暫停 我接手」）
+
+- 自主模式已暫停：看門狗、續做排程（job 6de2cbf7）、保持清醒都停了；恢復時照 `CLAUDE.md` §14「開始時」重開
+- 這段做完的：第 10 項槍口火光（commit 1e415c9）；打包的 `succesfullyCooked: false` 查過（不影響遊戲，`findings` §27）；第 8 項 B 彈匣分離第一版（add67e5：紀錄顯示 0.27 秒彈匣拿出、1.5 秒裝回）
+- 沒做完：B 的畫面還沒看到（從背後被身體擋住）→ 暫時指令 `gfgcam` 的固定鏡頭位置 W 修成 1（**編譯過、還沒進遊戲測**；最後一次 `restart_all` 的 F10 沒成功，遊戲還開著、用的是舊腳本）
+- 要使用者決定的：裝進遊戲（`mods\`、`dlc\`）在 Steam 版驗證（00:1x 問的，還沒回覆）
+
 ## 第二批問題（使用者 2026-10-16 20:4x 回報、同時「恢復自主模式」）
 
 使用者 20:2x～20:4x 自己玩了一下。截圖在 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\images\10.png`～`16.png`（session 暫存）。
@@ -76,7 +83,7 @@
     1. 側面看：暫時指令 `gfgcam(角度, 距離, 高度)`、`gfgcamoff()`（**01:5x 寫好、編譯過，commit 了**；`gfg_ak47.ws` 的 `GfgSetDebugCam`）：原版固定鏡頭 `gameplay\camera\static_camera.w2ent`（寫法照 `poster.ws:98-104`：`CreateEntity` → `Run()`；結束 `Stop()`、`Destroy()`）；瞄準、轉身用的是遊戲鏡頭（`GfgCamera()`），固定鏡頭不影響 → Geralt 不會跟著轉
        - **01:5x 第一次試：畫面整片天空**（`gfgcam(50, 2.0, 0.2)`；紀錄有 `Static camera 'static_camera196'`，`gfgcamoff()` 正常關掉）→ 角度不對：`VecToRotation( target - pos )` 的 Pitch 正負或鏡頭模板的軸可能不同 → 先試 Pitch 取負、或只給 Yaw（`EulerAngles(0, 朝向, 0)`）看畫面朝哪
        - 同一次連射其實有開火、有換彈（紀錄 `mag out t=0.266 dist=0.029`、`mag in t=1.52`；子彈打向遠方沒有 `bullet sparks` 紀錄）
-       - 01:5x 第二次：改成水平朝向＋手動俯仰（`gfgcam(角度, 距離, 高度, 俯仰)`，編譯過、**還沒 commit 這一版**）→ 畫面是模糊的地磚；紀錄 `debug cam pos 50.89 -7.00 6.22 3.0`：**位置的 W = 3**（`GetWorldPosition()` 的 W 1 ＋ `VecFromHeading()×距離` 的 W）→ **下一步：`pos.W = 1.f`** 再試（第一次整片天空應該也是這個原因）
+       - 01:5x 第二次：改成水平朝向＋手動俯仰（`gfgcam(角度, 距離, 高度, 俯仰)`，編譯過、commit 285659c）→ 畫面是模糊的地磚；紀錄 `debug cam pos 50.89 -7.00 6.22 3.0`：**位置的 W = 3**（`GetWorldPosition()` 的 W 1 ＋ `VecFromHeading()×距離` 的 W）→ **下一步：`pos.W = 1.f`** 再試（第一次整片天空應該也是這個原因）
        - 測法：`restart_all` → `con "settime(1, 12)" "gfgcam(50, 2.0, 1.2, 0)"` → 截圖；換彈：先射 26 發（`d down left; sleep 2.6; d up left`）→ 開 gfgcam → 再射 0.5 秒 → `burst` 每 150 毫秒 14 張；`gfgcamoff()` 關
     2. 抓的距離 2.9 公分（剛好在門檻邊）：改成「3 公分內、而且距離不再變小」才抓，裝回時比較準
     3. 重開 REDkit（新模型才有貼圖顏色：`CLAUDE.md` §6.14）再看一次；騎馬換彈也看
