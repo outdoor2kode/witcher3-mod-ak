@@ -1539,8 +1539,10 @@ function GfgMuzzleFlash()
 {
 	var fx : W3VisualFx;
 
+	// 模板：原版刀劍火花 sword_colision_fx（gameplay.xml:131）的複本，改成槍口用：拿掉刀劍碰撞聲、光 0.06 秒半徑 3、粒子只噴 0.1 秒、整段 0.8 秒
+	// 路徑寫法照 signEntity.ws:708（第二個參數 true = 路徑，不是別名）
 	if ( !gfgMuzzleTmpl )
-		gfgMuzzleTmpl = (CEntityTemplate)LoadResource( 'sword_colision_fx' );		// 暫時：先用原版的刀劍火花驗證做法（gameplay.xml:131）
+		gfgMuzzleTmpl = (CEntityTemplate)LoadResource( "dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent", true );
 	if ( !gfgMuzzleTmpl )
 		return;
 	fx = (W3VisualFx)theGame.CreateEntity( gfgMuzzleTmpl, GetWorldPosition(), GetWorldRotation() );

@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-17 01:0x（**自主模式**；第 8 項換彈 A、第 6 項長測做完；打包做好、等使用者同意裝進遊戲；現在做：第 10 項槍口火光）
+最後更新：2026-10-17 01:3x（**自主模式**；第 8 項換彈 A、第 6 項長測、第 10 項槍口火光做完；打包做好、等使用者同意裝進遊戲；現在做：查打包的 succesfullyCooked、曳光）
 
 ---
 
@@ -52,7 +52,7 @@
 | 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **做好、遊戲裡看過**（14:42）：站立跳、衝刺跳各連拍 14～18 張（每 0.1 秒，`desk.ps1 burst`）：起跳、空中、落地、再跑，兩手一直在槍上，沒有從擺手突然跳成持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | **A 動作做好、遊戲裡驗證過**（10-17 00:5x）：新工具 `tools\reload_pose.py`，2.4 秒：拿下彈匣 → 左腰換新的 → 裝上 → 繞到右邊拉槍機；地面 2 段、騎馬 4 段；紀錄：右手一直在握把、左手照設計走、約 2.1 秒後接著射；站著換彈時肩膀轉正 33°（槍仍朝準心）。細節 `docs\m3.md`「換彈動畫」。**B 彈匣分離（彈匣真的拿下來）未做** |
 | 9 | 射出去的還是箭，不是子彈 → 要做 | **做好、遊戲裡看過**（19:2x）：箭的模型藏起來（只藏 `CMeshComponent`）、關掉箭的軌跡、715 公尺／秒直線；打到牆壁地面播火花（`sparks`），牆上不留箭；打狼命中正常。**曳光沒做**：原版箭的軌跡在子彈速度下看不到（細節 `docs\m3.md`「子彈、傷害」）→ 跟第 10 項槍口火光一起用 Entity Editor 做特效時再看 |
-| 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭做好**（21:3x，第 11 項一起改：射線離頭部骨頭 0.17 公尺內 ×4，人類 1365、加暴擊 1692）。槍口火光：未開始。推算和實測 `docs\m3.md`「子彈、傷害」 |
+| 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 子彈速度 715（做好）；**傷害公式做好、遊戲裡驗證過**（20:0x）：每發 穿刺 10×等級＋20、銀 ×1.25、距離衰減 0.98^(距離/12.7)；31 級打 31 級的人類（2763.75 血）每發 384.87 → 8 發倒；銀 466.58（＝基礎×1.25＋58）。**爆頭做好**（21:3x，第 11 項一起改：射線離頭部骨頭 0.17 公尺內 ×4，人類 1365、加暴擊 1692）。推算和實測 `docs\m3.md`「子彈、傷害」。**槍口火光做好、遊戲裡看過**（10-17 01:2x）：自己的特效模板 `dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent`（原版刀劍火花的複本：拿掉刀劍聲、光 0.06 秒半徑 3、粒子只噴 0.1 秒），每發掛在 `l_weapon` 的槍口；連射時槍前端每發一團星狀閃光、晚上地面被照亮。細節 `docs\m3.md`「槍口火光」、REDkit 操作 `docs\findings.md` §28 |
 
 ### 接續的步驟（2026-10-17 00:0x 改順序）
 
@@ -62,22 +62,12 @@
   - 打包後同一次開著的 REDkit 按 play game 當掉 → 00:3x 重開 REDkit（主視窗 `0x1809A4`；g.sh 已換；AnimBrowser 要用時重開、更新 `GAB`）
   - 開遊戲前先把編輯器鏡頭移到地面（滑鼠指地面按 J）：00:40 從高處摔死、死亡選單選錯 → 遊戲直接結束
 
-- **現在做：第 10 項槍口火光**（10-17 01:0x 開始；第 6 項長測做完、第 8 項 A 做完）
-  - 查過（01:0x）：原版沒有現成的槍口火光；十字弩模板 `witcher_crossbow_base.w2ent`（AK 模板 include 它）只有技能光暈 `crippling_shot_crossbow_buff`；子彈模板 `bolt_base.w2ent` 有 8 個特效（各色箭軌跡 `arrow_trail*`、`sparks`）；`sparks` = 動態光（橘 255/149/105、半徑 4、0.008 秒起）＋粒子 `fx\weapons\block\kontra\counterattack_fx1.w2p`（掛 `CPhantomComponent0`）
-  - 腳本不能在任意位置直接播粒子，只能對實體 `PlayEffect`（模板裡定義的特效）
-  - **原版有現成的寫法**（01:1x 查到）：`btTaskAttack.ws:339-357` 刀砍到東西時：`weaponEntity.CalcEntitySlotMatrix( slot名, m )` 算刀尖位置 → `theGame.CreateEntity( LoadResource( 'sword_colision_fx' ), 位置 )` → `PlayEffect( 'sparks' )`
-    - 別名 `sword_colision_fx`（`gameplay.xml:131`）＝ `fx\weapons\obstacle_hit\sword_colision_fx.w2ent`：類別 `W3VisualFx`（`visual_fx.ws:6`：`DestroyOnFxEnd( 特效名 )` 播完自己刪、`SetDestroyTime`）；元件 `CEffectDummyComponent0`、`CSoundEmitterComponent`
-    - 4 個特效（暫存 `swordfx.txt`）：`sparks`＝動態光（半徑 0.85）＋**聲音 `cmb_sword_colli…`（刀劍碰撞聲，槍不能用）**＋粒子 `fx\weapons\obstacle_hit\sparks_colision.w2p`；`wood`（有聲音）；`fist`＝一團煙 `fits_smoke_hit.w2p`（沒光、沒聲音）；`blood`（有聲音）
-  - **決定的做法**：
-    1. REDkit Asset Browser 把 `sword_colision_fx.w2ent` 複製到 `dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent`（試右鍵 Copy → 我們的資料夾 Paste，或開檔另存）
-    2. 實體編輯器（雙擊開檔）的特效分頁改 `sparks`：刪掉聲音那條；光：半徑 0.85 → 約 2.5、時間縮短；粒子可換成火焰爆發（候選 `fx\signs\igni\cone\igni_cast.w2p`、`fx\signs\igni\instant\fire_hit_fx1.w2p`）；或另加一個特效名 `flash`
-    3. 腳本（`gfg_ak47.ws`，每發開火時）：槍口位置 → `CreateEntity( 模板, 槍口 )` → `PlayEffect( 'sparks' )` → `DestroyOnFxEnd( 'sparks' )`；槍口位置：AK 的 `bolt` slot（`CalcEntitySlotMatrix`；`bolt` slot 在 `handle` 骨頭，箭頭在槍口後 1 公分）往槍管方向推箭長，或用現有的子彈起點 `gfgShotFrom`；替身顯示時用替身
-    4. 新 workspace 檔：REDkit 開著時新建的檔遊戲讀不到 → 建完重開 REDkit（`CLAUDE.md` §6.16）
-  - 備案：直接用原版 `sword_colision_fx` 的 `fist`（槍口的煙）＋子彈模板的 `sparks`（不發射、藏模型）
-  - **01:2x 進度**：槍口位置算好：AK 模型槍管最前端 = 槍座標 F 0.669、U 0.096、R 0（暫存 `s18\muzzle_pos.py`）→ `l_weapon` 座標 (0.2368, 0.0409, 0.1710)；腳本第一版 `GfgMuzzleFlash`（`gfg_ak47.ws`，開火的 `OnProcessThrowEvent` 之後呼叫）：先用原版 `sword_colision_fx` 驗證做法：`CreateEntity` → `CreateAttachment( 玩家, 'l_weapon', 槍口 )` → `PlayEffect('sparks')` → `DestroyOnFxEnd('sparks')`；**編譯過、還沒進遊戲測**
-    - 下一步：F10 → `reload_edit` → `game_start`（先把編輯器鏡頭移到地面：滑鼠指地面按 J）→ 點放一發、截圖看火花在不在槍口（`l_weapon` 是不是玩家的 slot 名稱：不是的話會掛到腳邊）；連射看效果、效能
-    - 再做自己的模板（上面第 1、2 步）：去掉刀劍聲、光調大、時間縮短（原版 `sparks` 長 2.1 秒，`DestroyOnFxEnd` 每 0.2 秒檢查一次）
-  - 曳光（第 9 項沒做的）：可以試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到，再確認）
+- **第 10 項槍口火光：做好**（10-17 01:2x；上表第 10 項）
+  - 打包要重做：這次的改動（槍口火光模板 `dlc\gunforgeralt\data\fx\`、腳本、2.4 秒的換彈動畫組）都在第一次打包（00:1x）之後
+- **現在做（01:3x）**：
+  1. 查第一次打包的 `info.json` 寫 `"succesfullyCooked": false` 的原因（打包是全局最根本的一步：`logs\publish …log`）
+  2. 曳光（第 9 項沒做的；CS2 每 3 發一發曳光 `m_nTracerFrequency` 3）：先試子彈模板現成的 `arrow_trail_orange`／`arrow_trail_fire`（之前 715 公尺／秒時原版軌跡看不到）；不行就用槍口火光同一套做法（自己的特效模板）；限時，做不好就記下來、先跳過
+  3. 之後：第 8 項 B（彈匣分離）、開槍中側移 D −31°；清理暫時紀錄放最後（Steam 版驗證之後）
 
 0. **之後做這些**（第二批 11～18 都做完了；第一批剩第 8、10、6 項）
    - **第一批第 8 項：AK 真正的換彈動畫**（使用者：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）（23:4x 開始）

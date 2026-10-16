@@ -2218,3 +2218,21 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 紀錄裡的錯誤（不影響輸出）：`SoundModCooker Fatal Error: Wwise installation not found`（沒有聲音，跳過）；`Dynamic class resolve for resource 'scripts\local\gfg_ak47.ws' failed`
 - `info.json` 的 `"succesfullyCooked": false`（原因不明；11 步都寫 finished）
 - ⚠️ 打包後（重建了虛擬 depot），同一次開著的 REDkit 重開世界、按 play game **當掉**（`EXCEPTION_ACCESS_VIOLATION`，堆疊在 Scaleform；紀錄停在 `World loaded` 之後）→ 打包完要重開 REDkit 再測
+
+## 28. 特效模板：複製原版、在 Entity Editor 改特效（2026-10-17 槍口火光實測）
+
+- **複製原版資源到 workspace**：Asset Browser 對檔案按右鍵 → **Save as...** → Windows 的存檔視窗（起點是專案資料夾）→ 檔名欄打完整路徑（例 `D:\OneDrive\Desktop\gunforgeralt\workspace\dlc\gunforgeralt\data\fx\gfg_muzzle_flash.w2ent`）→ Enter
+  - 目的資料夾要先存在（存檔視窗不會自己建）；在 REDkit 外面建的資料夾，Asset Browser 空白處右鍵 → **Refresh all** 之後才看得到
+  - Asset Browser 右上的 Search 找得到原版檔，找不到剛存的新檔 → 用路徑列（點 `virtualdepot` 回根目錄）一層層雙擊進去
+  - 存出來的檔有 `+` 圖示（加進專案）
+- **Entity Editor 的特效**：下方分頁 **Effects** → 右邊清單點特效名稱 → 清單上方第 2 個按鈕 **Edit effect**（雙擊、右鍵都沒反應）→ 上方多一個分頁 `Effect [名稱]`：時間軸（群組、軌道、項目）、曲線、屬性
+  - 時間軸縮放：一般滾輪只縮放一點點；**Shift＋滾輪以游標為中心縮放**（快）
+  - 一開始 0 秒附近被左邊的軌道名稱欄蓋住、看不到項目 → 游標放在時間軸最右邊 Shift＋滾輪往下（縮小）→ 0 秒露出來 → 游標放在 1 秒附近 Shift＋滾輪往上放大
+  - 點項目 → 下方屬性：`timeBegin`、`timeDuration`，加上各類別的欄位（光：`color`、`radius`、`brightness`、`attenuation`、`lightChannels`…；粒子：`particleSystem`、`spawner`）；點數值格 → 打字 → Enter
+  - 點時間軸空白處 → 特效本身（`CFXDefinition`）：`length`、`loopStart`、`loopEnd`、`showDistance`、`isLooped`…；`length` 改短時 `loopEnd` 會跟著變
+  - 群組名稱按右鍵：Append track、Insert／Append track group、Rename item、**Remove item**（刪整個群組）；軌道空白處按右鍵：Add track item
+  - 存檔：左上 **Save** 按鈕（寫進硬碟；`cr2w_dump.py` 讀回確認）
+  - 時間軸上方的播放鍵：預覽視窗沒有顯示粒子（`Particle emitters: 0`）→ 沒用，直接進遊戲看
+- 光的 `lightChannels` 預設 `LC_Characters`（原版刀劍火花、弩箭的光都沒存這個欄位 = 預設），遊戲裡晚上連射時地面也被照亮
+- 腳本載入自己的模板：`LoadResource( "dlc\…\xxx.w2ent", true )`（第二個參數 true = 路徑，不是別名：`signEntity.ws:708`）
+- 在 REDkit 裡存的新模板，同一次開著的 REDkit 開遊戲就讀得到（不用重開；和 §6.16 腳本產生的 workspace 檔不同）
