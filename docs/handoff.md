@@ -16,7 +16,7 @@
 - **等待一次最多 15 秒**（使用者 2026-10-16 從 30 秒改成 15 秒）：到時間先截圖檢查狀態再決定，不是直接關程式
 - 保持清醒：背景 `desk.ps1 awake 2147483`（12:3x 起，約 24.8 天；PowerShell 的 `Start-Sleep` 最多 2147483 秒）
 - 續做排程：CronCreate 每小時 :13（job `9924783b`；7 天後自動消失 → 2026-10-22 之後被叫醒時重排）
-- **context 到 38%**：更新交接檔、commit → 背景跑 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/claude_compact.ps1 <對話紀錄.jsonl>`（Bash 的 run_in_background）→ 結束這一輪；它會在終端機打 `/compact`、等壓縮完、再打「讀交接檔接著做」（`CLAUDE.md` §3、§14）
+- **context 到 45%**（使用者 16:2x 從 38% 改成 45%）：更新交接檔、commit → 背景跑 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/claude_compact.ps1 <對話紀錄.jsonl>`（Bash 的 run_in_background）→ 結束這一輪；它會在終端機打 `/compact`、等壓縮完、再打「讀交接檔接著做」（`CLAUDE.md` §3、§14）
   - 14:22 實測成功：/compact 送出、壓縮完、接著做的訊息送出（使用者剛好在輸入框打字 → 兩段接在一起送出）
 - **不准停超過 10 秒**（使用者 14:2x 加的規則，`CLAUDE.md` §14）：看門狗背景 `claude_compact.ps1 <紀錄> watch`（14:29 起，背景工作 bnz44l1oq）；收到 `[gfg-watchdog]` 訊息就查原因、排除、接著做
   - 對話紀錄：`C:\Users\beyon\.claude\projects\D--OneDrive-Desktop-gunforgeralt\<session id>.jsonl`；context 使用率：`%TEMP%\claude\gfg-context\<session id>.pct`

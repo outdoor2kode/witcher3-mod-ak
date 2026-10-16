@@ -68,12 +68,12 @@
     - hook 的輸入沒有 context 使用率，只有狀態列的輸入有（官方文件 statusline、hooks）
   - `hooks` 的 PostToolUse、UserPromptSubmit 跑 `.claude\hooks\context-check.sh`：到門檻提醒一次（Claude 收到 additionalContext、使用者看到 systemMessage）；降回門檻以下再重新計算
   - 2026-10-15 實測：設定存檔後，執行中的 session 立刻套用；提醒訊息送得到 Claude
-- 自動壓縮（2026-10-16）：`autoCompactWindow` 400000 → context 到 40 萬 tokens（這個模型 100 萬的 40%）時自動壓縮、接著做
+- 自動壓縮（2026-10-16）：`autoCompactWindow` 480000 → context 到 48 萬 tokens（這個模型 100 萬的 48%）時自動壓縮、接著做（保險用；平常 45% 由 Claude 自己壓縮，§14；16:2x 從 400000 調高，免得比 45% 先觸發）
   - 官方文件 model-config「Set the auto-compact window」：`autoCompactWindow` 任何設定檔都能放；預設要到約 96.7 萬才壓縮
   - 官方文件 settings「When edits take effect」：設定檔存檔後，執行中的 session 會重讀（`model`、`effortLevel`、`modelSettings` 例外）
   - Claude 不能從工具直接下 `/clear`、`/compact`（官方文件 slash-commands：內建指令只有 `/init` 等少數能用 Skill 叫）
   - **Claude 自己清理**（使用者 2026-10-16 要求：「你都能控制 WINDOWS 了」）：`tools\claude_compact.ps1` 在背景跑 → 等 Claude 這一輪結束（對話紀錄出現 `end_turn`）→ 在 Windows Terminal 打 `/compact`（或 `/clear`）→ 等壓縮完成（紀錄出現 `compact_boundary`）→ 打「讀交接檔接著做」
-    - 自主模式中 context 到 40%：先更新交接檔、commit → 背景跑這支 → 結束這一輪
+    - 自主模式中 context 到 45%：先更新交接檔、commit → 背景跑這支 → 結束這一輪
     - 預設 `/compact`：保留摘要、接續性較好（10-16 兩次自動壓縮也是 compact）；`/clear` 完全靠交接檔，換大任務時再用
     - 這個 session 的 `autoCompactWindow` 沒生效：實際自動壓縮在 96 萬、62 萬 tokens（10-16 04:13、06:59）
 
@@ -362,9 +362,9 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - **每次 commit 時一起更新**：session 可能被用量上限突然切斷（2026-10-13 發生過），不能等結束才寫
   - 只寫還在變動的：現在做到哪、還沒寫進本檔的決定、沒 commit 的檔案與測試進度、下一步、試過放棄的做法、相關的 `docs\findings.md` 章節
   - 已定案的寫進本檔，查證過的事實寫進 `docs\findings.md`
-  - **context 用到 35%**：hook 會提醒（§3）→ 手上的任務照做，同時更新交接檔；這次回覆的最後提醒使用者 `/clear`（使用者 2026-10-15）
-  - 40% 自動壓縮（§3）；使用者不在時（交接檔的「自主模式」）不用提醒 `/clear`
-  - **自主模式另有規則：§14**（context 不超過 45%、自己用 `tools\claude_compact.ps1` 壓縮）
+  - **context 用到 42%**：hook 會提醒（§3）→ 手上的任務照做，同時更新交接檔；這次回覆的最後提醒使用者 `/clear`（使用者 2026-10-15；2026-10-16 16:2x 門檻改成 45% 壓縮，提醒跟著從 35% 移到 42%）
+  - 48% 自動壓縮當保險（§3）；使用者不在時（交接檔的「自主模式」）不用提醒 `/clear`
+  - **自主模式另有規則：§14**（context 到 45% 自己用 `tools\claude_compact.ps1` 壓縮）
 - 確認了新的重要事實（路徑、API、格式）就更新本檔
 
 ---
@@ -473,7 +473,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 **不准停超過 10 秒**（使用者 2026-10-16：「有任何任何情況讓你沒有執行任何事超過10秒，就開始檢查原因並且排除」）
 - 任何情況沒有在執行東西超過 10 秒 → 馬上查原因、排除；合理的等待除外（例：遊戲、REDkit 載入、編譯、壓縮）
-- 這一輪不要結束；只有兩種情況可以結束：context 到 38% 交給 `claude_compact.ps1` 壓縮、自主模式結束
+- 這一輪不要結束；只有兩種情況可以結束：context 到 45% 交給 `claude_compact.ps1` 壓縮、自主模式結束
 - 看門狗（開始時啟動）：`claude_compact.ps1 <對話紀錄> watch`：分頁閒置（標題開頭 ✳）超過 10 秒、紀錄 10 秒沒變、沒有在壓縮 → 打一段 `[gfg-watchdog]` 開頭的訊息叫醒
   - 收到 `[gfg-watchdog]`：查停下來的原因、寫進交接檔、排除，接著做
   - 叫醒後很快又停：下一次等久一點（10 → 20 → … 秒，最多 10 分鐘）；使用者 5 秒內有操作鍵盤滑鼠時先等（最多 60 秒），免得接在使用者打的字後面
@@ -485,12 +485,13 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 4. 讀 context 使用率（`%TEMP%\claude\gfg-context\<session id>.pct`）
 5. 背景跑看門狗：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/claude_compact.ps1 <對話紀錄.jsonl> watch`（它會建立旗標 `%TEMP%\claude\gfg-context\<session id>.autonomous`；已經在跑就不用再開）
 
-**context 不能超過 45%**
+**context 到 45% 才壓縮**（使用者 2026-10-16 16:2x：「context 改成到 45% 再 compact or clear」；原本 38%）
 - 每次 commit 後、每做完一個大步驟，讀使用率
-- **到 38%**：把手上的小步驟做完（或停在安全的地方）→ 交接檔寫好「接續的步驟」→ commit → 背景跑 `tools\claude_compact.ps1 <對話紀錄.jsonl>`（Bash 的 run_in_background）→ **結束這一輪**
+- **到 45%**：把手上的小步驟做完（或停在安全的地方）→ 交接檔寫好「接續的步驟」→ commit → 背景跑 `tools\claude_compact.ps1 <對話紀錄.jsonl>`（Bash 的 run_in_background）→ **結束這一輪**
   - 它會選自己的分頁、打 `/compact`、等壓縮完，再打「讀交接檔接著做」（§3）
   - 預設 `/compact`；換到新的大項目、而且交接檔完整時可以用 `clear`
-- 35% 的 hook 提醒：開始收尾手上的步驟
+- 42% 的 hook 提醒：開始收尾手上的步驟
+- 保險：`autoCompactWindow` 480000（48%，§3），平常由上面的 45% 先處理
 - 對話紀錄：`C:\Users\beyon\.claude\projects\D--OneDrive-Desktop-gunforgeralt\<session id>.jsonl`
 
 **操作電腦**
