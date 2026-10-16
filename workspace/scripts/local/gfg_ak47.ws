@@ -1953,6 +1953,9 @@ function ThrowProjectile( targetPosIn : Vector )
 @addField(W3AdvancedProjectile)
 var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
 
+@addField(W3AdvancedProjectile)
+var gfgShotFrom : Vector;		// 發射起點（判斷爆頭用）
+
 // 發射時要用的射程
 @addMethod(W3AdvancedProjectile)
 function GfgShotRange( range : float ) : float
@@ -1984,6 +1987,7 @@ function ShootProjectileAtPosition( angle : float, velocity : float, target : Ve
 		a = 0.f;
 		v = GfgBulletSpeed();
 	}
+	gfgShotFrom = GetWorldPosition();
 	wrappedMethod( a, v, target, GfgShotRange( range ), collisionGroups );
 }
 
@@ -1998,6 +2002,7 @@ function ShootProjectileAtBone( angle : float, velocity : float, target : CEntit
 		a = 0.f;
 		v = GfgBulletSpeed();
 	}
+	gfgShotFrom = GetWorldPosition();
 	wrappedMethod( a, v, target, targetBone, GfgShotRange( range ), collisionGroups );
 }
 
@@ -2018,7 +2023,7 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 	{
 		victimActor = (CActor)collidingComponent.GetEntity();
 		if ( victimActor && victimActor != GetOwner() )
-			gfgHeadHit = VecDistance( pos, victimActor.GetBoneWorldPosition( 'head' ) ) < 0.25f;
+			gfgHeadHit = GfgIsHeadOnLine( victimActor, pos );
 	}
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
@@ -2074,6 +2079,29 @@ function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNo
 // 攻擊名還是 'bolt'：原版弩的技能（解剖知識、爆頭的暴擊等）照樣有效；抗性照原版
 @addField(W3BoltProjectile)
 var gfgHeadHit : bool;		// 這發打在頭上（OnProjectileCollision 包裝裡判斷）
+
+// 頭部骨頭到子彈直線（發射起點 gfgShotFrom → 碰撞點）的最近距離 < 0.15 公尺 = 爆頭（子彈是直線：角度 0、速度 715）
+@addMethod(W3BoltProjectile)
+function GfgIsHeadOnLine( victim : CActor, hitPos : Vector ) : bool
+{
+	var head, dir, rel : Vector;
+	var idx : int;
+	var lineDist : float;
+
+	idx = victim.GetBoneIndex( 'head' );
+	if ( idx == -1 )
+	{
+		LogChannel( 'GFG', "head check: no head bone " + victim.GetName() );		// 暫時（第 10 項）
+		return false;
+	}
+	head = victim.GetBoneWorldPosition( 'head' );
+	dir = VecNormalize( hitPos - gfgShotFrom );
+	rel = head - gfgShotFrom;
+	lineDist = VecLength( rel - dir * VecDot( rel, dir ) );
+	LogChannel( 'GFG', "head check from=" + VecToString( gfgShotFrom ) + " hit=" + VecToString( hitPos ) + " head=" + VecToString( head )
+		+ " hitDist=" + VecDistance( hitPos, head ) + " lineDist=" + lineDist );		// 暫時（第 10 項）
+	return lineDist < 0.15f;
+}
 
 @addMethod(W3BoltProjectile)
 function GfgHeadHit() : bool
