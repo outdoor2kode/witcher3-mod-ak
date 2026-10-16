@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-16 12:4x（**自主模式**：使用者回報 10 個問題，Claude 自己做、自己驗證）
+最後更新：2026-10-16 13:4x（**自主模式**；第 1、6 項做好，2、5、7 項改好待測，3、4、8、9、10 項還沒開始）
 
 ---
 
@@ -24,16 +24,30 @@
 
 | # | 問題（使用者的描述） | 狀態 |
 |---|---|---|
-| 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲（截圖：上半身朝準心、腿朝跑的方向） | **改了、測試中**（commit 2729ec3）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`），上半身一直朝鏡頭或狼。改法：移動沒開槍→上半身朝前；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`、`UpdateLocomotion` 包裝） |
-| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢（截圖：拳頭的戰鬥姿勢、AK 直立在右手） | 未開始 |
+| 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲 | **做好、遊戲裡看過**（commit 2729ec3、67ce769）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`）。移動沒開槍→上半身朝前（13:00 截圖：往鏡頭跑不扭）；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`＋`inAimThrowForOverlay`，不設的話起步卡 1.5～2 秒）＋雙手版側移動畫 6 段（13:3x 截圖：側移、後退兩手都在槍上，1.6～1.9 公尺／秒）。側移動畫沒有原版的腳步事件（腳步聲） |
+| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **改了、還沒進遊戲測**（commit 67ce769）：13:18 實測（關掉無敵被狼咬）→ 被打中時 AK 被收起再拔出、自動拔鋼劍（CombatSteel）。原版：`OnHitStart`→`WhenCombatActionIsFinished`→收弩（`r4Player.ws:13202-13209`、`:12843-12858`）；`OnCombatStart`、`OnReactToBeingHit` 自動拔劍（`:2155-2161`、`:2227-2240`）。改法：拿 AK 時擋掉這三處（`gfgAutoDrawGuard`、`gfgInHitStart`）。待測：被咬時 AK 不收、不拔劍、受擊動作是否正常 |
 | 3 | 騎馬的姿勢完全錯 → 修好 | 未開始 |
 | 4 | 上下馬流程不順：拿著 AK 要先按 C 收槍才能叫馬（X）、才出現長按 E 下馬 → 不影響功能的前提下順一點，不行就算了 | 未開始 |
-| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確（截圖：AK 在背後、槍管朝下） | 未開始 |
-| 6 | 打完狼群有時解除不了鎖定：一直面向最後殺死的狼、牠一直顯示血條（血 0），按 Z 或任何鍵都解不掉、跑遠也一樣（每次召喚 30 隻狼，不是每次都出現） | **改了、測試中**（commit 2729ec3）：原因（推論）＝拿著十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`），AK 不收 → 死掉的狼一直留著；改法 `GfgClearDeadSlideTarget`。暫時的偵測紀錄 `GfgLogDiag`（`[GFG] diag`）；使用者 12:02～12:30 的紀錄存在 `scratchpad\user_1202.log` |
-| 7 | 跳躍落地後瞬間變回持槍姿勢、不順；衝刺跳躍的落地更明顯 | 未開始 |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **改了、要重開 REDkit 才生效**：`tools\overlay_patch.py`（預設＝手臂覆蓋版，已寫到 workspace）把 #18505 改成「`inSlomoForOverlay` ≥ 1 時兩手臂用 `man_geralt_gabriel_aim_idle_rp` 蓋住」；腳本 `GfgArmsHoldTick` 在衝刺、空中、落地時設 1。13:37 實測衝刺時掌心離握把 28～95 公分 → 紀錄沒有重新載入 pc_overlay：REDkit 記憶體裡還是舊的圖 → 13:4x 重開 REDkit（見「下一步」）。決定：衝刺時兩手握槍（不擺手）；使用者若要擺手，再改成只蓋左手臂 |
+| 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
+| 7 | 跳躍落地後瞬間變回持槍姿勢、不順 | **改了、要重開 REDkit 才生效**：同第 5 項（空中、落地時兩手臂維持持槍姿勢，落地後約 0.5 秒淡出）。13:1x 截圖：落地那一格從擺臂直接跳到持槍 |
 | 8 | 換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫 | 未開始 |
 | 9 | 射出去的還是箭，不是子彈 → 要做 | 未開始 |
 | 10 | 槍口火光、子彈速度；傷害由 Claude 設計一個符合這遊戲的 | 未開始 |
+
+### 接續的步驟（2026-10-16 13:4x 中斷時）
+
+1. REDkit 13:4x 正在重開（開專案中；程序 21828）→ 開好後 File 選單開最近的世界 `reference_level`
+2. 進遊戲測第 5、7 項：衝刺時兩手在槍上（`tools\pose_check.py` 掌心離握把應該約 1 公分）、跳躍落地平順；看 `editor.log` 有沒有 `pc_overlay` 的錯誤
+3. 測第 2 項：`god()` 關掉、生成狼被咬（`spawn('wolf', 6, 4, true)`），AK 不收、不自動拔劍
+4. 接著做第 3、4 項（騎馬姿勢、上下馬流程）→ 第 9、10 項（子彈、槍口火光、彈速、傷害）→ 第 8 項（AK 換彈動畫）
+- 測試小技巧（暫存資料夾的 `desk\g.sh`，session 結束就沒了；內容：`d`＝desk.ps1、`shot`、`con`＝主控台指令、`reload_edit`、`diag`、`mont`＝拼圖）
+  - 腳本重新編譯：遊戲中滑鼠被限制在畫面內、點不到選單 → F10 回編輯模式 → Tools (232, 32) → Debuggers (280, 478) → Reload scripts (540, 638)
+  - 開遊戲後 Geralt 常從高處掉下摔死 → 死亡選單 down ×3、Enter 復活
+  - 輪盤教學有 2～3 頁；按完先截圖確認，多按一次 Space 會進冥想（Esc、按 W 站起來）
+  - 側面看衝刺：Shift＋A／D
+- **改了 workspace 裡的動畫圖（.w2beh）要重開 REDkit 才會讀到**（紀錄沒有重新載入的訊息；13:37 實測）
+- 偵測紀錄 `GfgLogDiag`（`[GFG] diag`）：`fullBodyAnimWeight`、`playerSpeedForOverlay`（衝刺 1.5、跑 1.0）、滑動／畫面目標等
 
 ## 操作備忘（Claude 自己操作 REDkit、遊戲時用；2026-10-16 實測）
 
@@ -91,13 +105,13 @@
 
 | # | 做什麼 | 誰 | 產物 |
 |---|---|---|---|
-| 1 | `tools\m3_build_ak.py`（指令在 `docs\m3.md`「第 3 步」，**最後加第 1 步的 `--place 0.30323 0.01147 -0.23203 -0.80333 -0.21400 0.55576 -0.02721 0.94542 0.32472`**（`docs\m3.md`「雙手持槍：第 1 步」）；單手版是 `--pitch -20.5`） | Claude | `assets\ak47\gfg_ak47.fbx`（只有一個叫 `handle` 的模型，頂點在 `handle` 骨頭座標系）、`gfg_ak47_m3.blend`（目視用） |
-| 2 | `tools\m3_textures.py`（指令在 `docs\m3.md`「第 4 步：準備好的檔案」） | Claude | `assets\ak47\gfg_ak47_d01.png`、`gfg_ak47_n01.png`（2048，法線圖的 alpha 是粗糙度） |
+| 1 | 往後跑（鏡頭朝 Geralt 按 W）或身體轉向時，上半身轉、下半身沒轉 → 扭曲 | **做好、遊戲裡看過**（commit 2729ec3、67ce769）：原因＝電腦版把 OT_Player 換成 OT_Camera（`r4Player.ws:5238-5246`）。移動沒開槍→上半身朝前（13:00 截圖：往鏡頭跑不扭）；站著／開槍→朝準心＋身體轉向（`GfgAkTurnTick`）；開槍中移動→全身瞄準側移（`gfgFireMoving`＋`inAimThrowForOverlay`，不設的話起步卡 1.5～2 秒）＋雙手版側移動畫 6 段（13:3x 截圖：側移、後退兩手都在槍上，1.6～1.9 公尺／秒）。側移動畫沒有原版的腳步事件（腳步聲） |
+| 2 | 附近有敵人（30 隻狼）時的戰鬥準備姿勢：開槍時沒變成射擊姿勢 | **改了、還沒進遊戲測**（commit 67ce769）：13:18 實測（關掉無敵被狼咬）→ 被打中時 AK 被收起再拔出、自動拔鋼劍（CombatSteel）。原版：`OnHitStart`→`WhenCombatActionIsFinished`→收弩（`r4Player.ws:13202-13209`、`:12843-12858`）；`OnCombatStart`、`OnReactToBeingHit` 自動拔劍（`:2155-2161`、`:2227-2240`）。改法：拿 AK 時擋掉這三處（`gfgAutoDrawGuard`、`gfgInHitStart`）。待測：被咬時 AK 不收、不拔劍、受擊動作是否正常 |
 | 3 | REDkit 匯入貼圖：資料夾 `dlc\gunforgeralt\data\items\weapons\gfg_ak47\` 右鍵 → Import → 2D Texture；群組 `WorldDiffuse`、`NormalmapGloss` | 使用者 | `gfg_ak47_d01.xbm`、`gfg_ak47_n01.xbm` |
 | 4 | REDkit 匯入模型：右鍵 → **Import → Mesh**（換模型時也用這個，蓋掉舊檔）；`importAsSkinnedMesh` = **true**、`xmlMetadataLocation` = `assets\ak47\gfg_ak47.xml`；接著的「Import mesh」選材質對話框按 **Cancel**；確認 `editor.log` 有 `HasSkinning: true (NODE 'handle')` | 使用者 | `gfg_ak47.w2mesh` |
 | 4' | 匯入之後：**重開 REDkit** 再進遊戲（或 Mesh editor → Materials → 重新指定 `Diffuse`、`Normal`）；不然遊戲裡沒有顏色 | 使用者 | |
-| 5 | 實體模板 `gfg_ak47.w2ent`：十字弩模板的複本，模型元件 `witcher_crossbow_lvl1` 的 `mesh` 指到 AK；slot `bolt`：骨頭 `handle`；第 1 步的值：位置 (0.067, −0.028, 0.019)、Pitch −53.4、Yaw −68.9、Roll 92.6（已 commit；單手版是 (0.435, 0, -0.031)、Roll 0／Pitch -20.4／Yaw -90） | Claude（desk.ps1） | |
-| 6 | `test.reddlc` 的實體模板掛載、物品 XML 的 `equip_template = "gfg_ak47"`（已 commit） | — | |
+| 5 | 衝刺：維持不能開槍、擺手跑，但拿槍的姿勢要正確 | **改了、要重開 REDkit 才生效**：`tools\overlay_patch.py`（預設＝手臂覆蓋版，已寫到 workspace）把 #18505 改成「`inSlomoForOverlay` ≥ 1 時兩手臂用 `man_geralt_gabriel_aim_idle_rp` 蓋住」；腳本 `GfgArmsHoldTick` 在衝刺、空中、落地時設 1。13:37 實測衝刺時掌心離握把 28～95 公分 → 紀錄沒有重新載入 pc_overlay：REDkit 記憶體裡還是舊的圖 → 13:4x 重開 REDkit（見「下一步」）。決定：衝刺時兩手握槍（不擺手）；使用者若要擺手，再改成只蓋左手臂 |
+| 6 | 打完狼群有時解除不了鎖定 | **改了**（commit 2729ec3）：原因（推論）＝拿十字弩時血條目標＝滑動目標（`r4Player.ws:6749-6753`），原版收槍時才清（`:13380-13385`）；`GfgClearDeadSlideTarget` 每格清掉死掉的。13:1x 狼群測試的偵測紀錄沒有出現死掉的滑動目標；原問題不是每次都會出現，長時間測試時再看 |
 
 - 不要用 Reimport → Mesh only：它沿用 REDkit 記憶體裡的匯入設定，REDkit 重開後 `importAsSkinnedMesh` 是 false → 模型沒綁骨頭、遊戲裡看不到槍
 - 改了 XML、`.reddlc`、模型、模板後，都要從 REDkit 重開遊戲
