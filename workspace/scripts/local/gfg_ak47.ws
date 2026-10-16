@@ -1495,6 +1495,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		if ( akDrawn )
 		{
 			GfgLogHoldPose();	// 暫時：量雙手持槍的實際位置（量完就拿掉）
+			GfgLogTwist();		// 暫時（第 13、14 項）
 			rangedWeapon.GfgCancelAutoHolster();
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
 			// AK 一直待在瞄準狀態 → 一直鎖著。只解除這一個（使用者 2026-10-14 選定；docs/findings.md §20.7）；沒有這個鎖時直接返回（playerInput.ws:251-254）
@@ -1542,6 +1543,45 @@ function GfgLogBone( ent : CEntity, label : string, bone : name )
 		LogChannel( 'GFG', "pose " + label + " bone not found" );
 	else
 		GfgLogMatrix( label, ent.GetBoneWorldMatrixByIndex( idx ) );
+}
+
+@addField(CR4Player)
+var gfgTwistLogTime : float;
+
+// 暫時（第 13、14 項）：兩點連線（右 → 左）的朝向：左邊的點減右邊的點，轉 -90°（Z 朝上）
+function GfgLineHeading( l, r : Vector ) : float
+{
+	var v, f : Vector;
+
+	v = l - r;
+	f.X = v.Y;
+	f.Y = -v.X;
+	return VecHeading( f );
+}
+
+// 暫時（第 13、14 項）：骨盆（兩大腿）、肩膀的朝向和腰扭，每 0.1 秒
+@addMethod(CR4Player)
+function GfgLogTwist()
+{
+	var now, hip, sh, velHead : float;
+	var vel : Vector;
+
+	now = theGame.GetEngineTimeAsSeconds();
+	if ( now - gfgTwistLogTime < 0.1 )
+		return;
+	gfgTwistLogTime = now;
+	hip = GfgLineHeading( GetBoneWorldPosition( 'l_thigh' ), GetBoneWorldPosition( 'r_thigh' ) );
+	sh = GfgLineHeading( GetBoneWorldPosition( 'l_shoulder' ), GetBoneWorldPosition( 'r_shoulder' ) );
+	vel = GetMovingAgentComponent().GetVelocity();
+	velHead = -999.f;
+	if ( VecLength2D( vel ) > 0.2 )
+		velHead = VecHeading( vel );
+	LogChannel( 'GFG', "twist t=" + FloatToString( now ) + " head=" + FloatToString( GetHeading() ) + " cam=" + FloatToString( theCamera.GetCameraHeading() )
+		+ " hip=" + FloatToString( AngleDistance( hip, GetHeading() ) ) + " sh=" + FloatToString( AngleDistance( sh, GetHeading() ) )
+		+ " tw=" + FloatToString( AngleDistance( sh, hip ) ) + " vel=" + FloatToString( VecLength2D( vel ) )
+		+ " velDir=" + FloatToString( AngleDistance( velHead, GetHeading() ) ) + " fire=" + rangedWeapon.GfgIsFiring() + " fireMove=" + gfgFireMoving
+		+ " full=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) + " ovl=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'PlayerOverlay' )
+		+ " gp=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'Gameplay' ) );
 }
 
 @addMethod(CR4Player)

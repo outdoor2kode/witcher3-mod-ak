@@ -26,6 +26,12 @@
   - 原因：拿著 AK 開走路模式時人不會動（2026-10-16 06:23、06:29 遊戲實測；原版動畫圖也一樣）；
     第 1 步的姿勢是站著的，Trajectory 不動；原版十字弩走跑動畫的 Trajectory 會往前（慢走 1.4 公尺／1.23 秒、快走 2 公尺／秒、跑 3.4 公尺／0.67 秒）
     → 推論：走路時的位移取自覆蓋動畫的位移（沒驗證；跑步時用靜止的姿勢也會動）
+- --spread a1 a2 a3（2026-10-16 22:xx，第 13、14 項）：補正分給 torso、torso2、torso3（預設 1 0 0 = 全部在 torso，同之前）
+  - 原因：走跑時骨盆朝前、上半身側身，差的角度全部擠在 torso 一節 → 看起來腰被折一個角（使用者回報「腰扭過多」）
+  - 做法（模型座標）：誤差 E = Pr·P1⁻¹（原版骨盆相對第 1 步骨盆）；torso 的世界方向 = E^(1−a1)·(第 1 步的 torso)、
+    torso2 = E^(1−a1−a2)·(第 1 步的 torso2)、torso3 = E^(1−a1−a2−a3)·(第 1 步的 torso3) = 第 1 步的（a 的和要是 1）；
+    E^s 用軸角（角度乘 s）；區域旋轉 = 父骨頭世界方向⁻¹·世界方向；區域位置不變
+  - torso3 以下（胸口、手臂、AK、頭）的世界方向和之前一樣 → 槍、手不變
 """
 import argparse
 import math
@@ -86,6 +92,33 @@ def trim(src: Path, dst: Path, n: int) -> None:
         f[ANIM].attrs['.animlength'] = (n - 1) / 30.0
 
 
+SPINE = ('torso', 'torso2', 'torso3')
+
+
+def rot_pow(r: np.ndarray, s: float) -> np.ndarray:
+    """旋轉的 s 倍（軸角：角度乘 s）。"""
+    ang = math.acos(max(-1.0, min(1.0, (np.trace(r) - 1) / 2)))
+    if ang < 1e-9:
+        return np.eye(3)
+    axis = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(ang))
+    return A.axis_angle(axis, math.degrees(ang) * s)
+
+
+def spine_locals(pr: np.ndarray, p1: np.ndarray, t1: tuple, spread) -> dict[str, np.ndarray]:
+    """--spread：骨盆 pr（區域 = 世界）上，torso、torso2、torso3 的區域旋轉。t1 = 第 1 步的三節區域旋轉，p1 = 第 1 步的骨盆。"""
+    e = pr @ p1.T
+    w1 = p1
+    left = 1.0
+    out, parent = {}, pr
+    for bone, r1, a in zip(SPINE, t1, spread):
+        w1 = w1 @ r1                    # 第 1 步的世界方向
+        left -= a
+        w = rot_pow(e, max(left, 0.0)) @ w1
+        out[bone] = parent.T @ w
+        parent = w
+    return out
+
+
 def upper_body(hier) -> list[str]:
     """torso 和它底下所有的骨頭。"""
     children: dict = {}
@@ -108,7 +141,7 @@ def full_mode(a, s1: dict, ref: dict) -> int:
     upper = upper_body(hier)
     n = len(ref['pelvis'])
     p1 = local(s1['pelvis'][0])[0]
-    t1 = local(s1['torso'][0])[0]
+    t1s = tuple(local(s1[b][0])[0] for b in SPINE)
     pm = mean_rotation([local(x)[0] for x in ref['pelvis']])
     shutil.copyfile(a.ref, a.out)
     with h5py.File(a.out, 'r+') as f:
@@ -120,10 +153,10 @@ def full_mode(a, s1: dict, ref: dict) -> int:
             for c in flat.dtype.names:
                 if c != 'time':
                     flat[c][:] = s1[b][0][c]
-            if b == 'torso':
+            if b in SPINE:
                 for i in range(n):
                     pr = pm if a.mean else local(ref['pelvis'][i])[0]
-                    q = A.mat_to_quat((pr.T @ p1 @ t1).T)
+                    q = A.mat_to_quat(spine_locals(pr, p1, t1s, a.spread)[b].T)
                     for c, v in zip(ROT, q):
                         flat[c][i] = v
             ds[...] = data
@@ -162,7 +195,12 @@ def main() -> int:
                    help='Trajectory 軌照抄原版（不給檔名 = 第 2 個參數的原版；格數要一樣）')
     p.add_argument('--full', action='store_true', help='原版動畫為底（腿、骨盆、位移照原版），只換上半身')
     p.add_argument('--mean', action='store_true', help='--full 時 torso 用原版的平均骨盆補正（不逐格）')
+    p.add_argument('--spread', type=float, nargs=3, default=[1.0, 0.0, 0.0], metavar=('A1', 'A2', 'A3'),
+                   help='補正分給 torso、torso2、torso3 的比例（預設 1 0 0：全部在 torso）')
     a = p.parse_args()
+    if abs(sum(a.spread) - 1) > 1e-6:
+        print('--spread 的和要是 1')
+        return 1
 
     s1 = read_frames(a.step1)
     if a.full:
@@ -182,17 +220,17 @@ def main() -> int:
 
     trim(a.step1, a.out, a.frames)
     with h5py.File(a.out, 'r+') as f:
-        ds = f[A.CLIP]['torso']['xformframes']
-        data = ds[()]
-        flat = data.reshape(-1)
-        for i in range(a.frames):
-            p1 = local(s1['pelvis'][i])[0]
-            t1 = local(s1['torso'][i])[0]
-            tn = pm.T @ p1 @ t1
-            q = A.mat_to_quat(tn.T)  # 檔案的四元數 → 矩陣後轉置 = 區域旋轉
-            for c, v in zip(ROT, q):
-                flat[c][i] = v
-        ds[...] = data
+        for b in SPINE:
+            ds = f[A.CLIP][b]['xformframes']
+            data = ds[()]
+            flat = data.reshape(-1)
+            for i in range(a.frames):
+                p1 = local(s1['pelvis'][i])[0]
+                t1s = tuple(local(s1[x][i])[0] for x in SPINE)
+                q = A.mat_to_quat(spine_locals(pm, p1, t1s, a.spread)[b].T)  # 檔案的四元數 → 矩陣後轉置 = 區域旋轉
+                for c, v in zip(ROT, q):
+                    flat[c][i] = v
+            ds[...] = data
         if a.motion is not None:
             mref = read_frames(Path(a.motion)) if a.motion else ref
             if len(mref['Trajectory']) != a.frames:
@@ -220,7 +258,7 @@ def main() -> int:
         b1 = w1['l_weapon'][0] @ A.BARREL
         bn = wn['l_weapon'][0] @ A.BARREL
         worst_barrel = max(worst_barrel, A.angle_deg(b1, bn))
-        allowed = {'torso', 'Trajectory'} if a.motion is not None else {'torso'}
+        allowed = set(SPINE) | ({'Trajectory'} if a.motion is not None else set())
         changed = [k for k in out if k not in allowed and not np.array_equal(out[k][i].tolist(), s1[k][i].tolist())]
         if changed:
             print(f'第 {i} 格 torso 以外的骨頭變了：{changed[:5]}')
