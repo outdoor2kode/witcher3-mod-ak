@@ -174,6 +174,7 @@
         - **動畫事件不在動畫裡，在動畫組的那一筆**（例：換彈中段裝箭的 `OnWeaponReload`）→ 同名蓋過去會少掉事件，要自己加（2026-10-16 實測，`docs\m3.md`「雙手持槍：換彈」）
           - AnimBrowser 選動畫 → 下方時間軸右鍵 **Add simple event**／**Add duration event** → 雙擊事件 → 右邊改 `eventName`、`startTime`、`duration` → Ctrl+S
           - 不要用 Copy／Paste 原版那筆再同名匯入：事件帶得過來，但遊戲裡每格報 `fully streamable` 錯誤（原因沒找到）
+          - 我們動畫組裡已經有的動畫，用 Import 同名重匯（換動畫資料）：那一筆的事件會保留（2026-10-16 23:0x 實測：騎馬換彈 4 段的 6 個事件、aim_cycle 8 段的韁繩事件都在）
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
       - 遊戲生成的玩家是 `gameplay\templates\characters\player\player.w2ent`（`game\witcher3.redgame` 的 `defaultPlayerTemplate`），它 include `geralt_player.w2ent`；dlc16 替 `geralt_player.w2ent` 加動畫組（2026-10-15 讀原版資料，`docs\m3.md`「第三輪查詢」）
       - **複製動畫到自己的動畫組**：Asset Browser 雙擊 `.w2anims` 開 AnimBrowser → **All animations** → 動畫右鍵 **Copy animation** → 另一個動畫組最上面那行右鍵 **Paste animation to set** → 右鍵 **Rename**；動畫資料原封不動（2026-10-15 實測，`docs\m3.md`「第 1～7 步的結果」）
@@ -401,6 +402,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
   - 十字弩兵：`spawn('xbow', 1, 15, true)`（別名 `gameplay.xml:1149` → `gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent`；未實測）
   - `god()`：無敵（`temp.ws:6054-6066`；未實測）
+  - 時間、天氣（看清楚畫面用）：`settime(1, 12)` 改成中午（`gameTime.ws:182`）；`changeweather('WT_Clear')` 改成晴天（`temp.ws:737`；2026-10-16 實測，下雨時中午也很暗）
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）

@@ -9,7 +9,7 @@
   windows                                  列出看得到的視窗：handle、程序、位置、標題
   shot <out.png> [scale=0.5] [rect=x,y,w,h] [grid=100]
                                            截桌面（全部螢幕或指定範圍）存 PNG；grid 畫格線、標螢幕座標
-  burst <前綴> <張數> <間隔毫秒> [scale=0.5] [rect=x,y,w,h] [hold=w,shift] [pre=毫秒] [key=space]
+  burst <前綴> <張數> <間隔毫秒> [scale=0.5] [rect=x,y,w,h] [hold=w,shift] [pre=毫秒] [key=space 或 key=shift,shift] [keyhold=shift]
                                            連拍：先按住 hold、等 pre、按一下 key，再每隔幾毫秒拍一張（看跳躍落地等快速動作）
   wshot <視窗> <out.png> [scale=…] [grid=…] [mode=print]
                                            截視窗的範圍；mode=print 用 PrintWindow：視窗被擋住也截得到（含 REDkit 的 D3D12 畫面）
@@ -336,7 +336,14 @@ switch ($cmd) {
         $holds = @(); if ($o.hold) { $holds = @($o.hold -split ',' | ForEach-Object { Get-Vk $_ }) }
         foreach ($k in $holds) { [Desk]::Key($k, $false); Start-Sleep -Milliseconds 20 }
         if ($o.pre) { Start-Sleep -Milliseconds ([int]$o.pre) }
-        if ($o.key) { $kk = Get-Vk $o.key; [Desk]::Key($kk, $false); Start-Sleep -Milliseconds 40; [Desk]::Key($kk, $true) }
+        # key 可以用逗號給好幾個，依序各按一下、間隔 80 毫秒（例：key=shift,shift 騎馬時連按兩下 = 全速奔馳；2026-10-16 23:1x 加）
+        if ($o.key) {
+            foreach ($kn in ($o.key -split ',')) { $kk = Get-Vk $kn; [Desk]::Key($kk, $false); Start-Sleep -Milliseconds 40; [Desk]::Key($kk, $true); Start-Sleep -Milliseconds 80 }
+        }
+        # keyhold：按完 key 之後再按住這些鍵，到連拍結束才放開（例：key=shift keyhold=shift = 點一下、第二下按住）
+        if ($o.keyhold) {
+            foreach ($kn in ($o.keyhold -split ',')) { $kk = Get-Vk $kn; [Desk]::Key($kk, $false); $holds += $kk; Start-Sleep -Milliseconds 20 }
+        }
         $sw = [Diagnostics.Stopwatch]::StartNew(); $frames = @(); $times = @()
         for ($i = 0; $i -lt $n; $i++) {
             $bmp = New-Object System.Drawing.Bitmap $w, $h

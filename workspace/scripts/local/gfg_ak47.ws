@@ -786,6 +786,10 @@ function GfgTryFire()
 	if ( !ownerPlayer.IsUsingVehicle() && ( ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() ) )
 		return;
 
+	// 騎馬瞄準超出左右範圍（第 18 項：GfgClampHorseAim）：槍沒對著準心，不開火；扳機狀態保留，回到範圍內還按著就接著射
+	if ( ownerPlayer.IsUsingVehicle() && ownerPlayer.gfgHorseAimOut )
+		return;
+
 	// 射速：下一發的時間由上一發的預定時間累加，不從實際開火的那一格畫面起算
 	// （從實際時間起算，實測只有 540 RPM：docs/findings.md §13.13）
 	if ( now < gfgNextShotTime )
@@ -1517,7 +1521,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		GfgAkTurnReset();
 	GfgArmsHoldTick( akDrawn );
 	GfgCarryTick( akDrawn, dt );
-	GfgUpdateCrosshair( akDrawn );
+	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
 }
 
 // ===== 暫時：量雙手持槍的實際位置（使用者 2026-10-15 同意；docs/m3.md「擺法 A 進遊戲：錯誤」；量完就拿掉）=====
@@ -1581,7 +1585,8 @@ function GfgLogTwist()
 		+ " tw=" + FloatToString( AngleDistance( sh, hip ) ) + " vel=" + FloatToString( VecLength2D( vel ) )
 		+ " velDir=" + FloatToString( AngleDistance( velHead, GetHeading() ) ) + " fire=" + rangedWeapon.GfgIsFiring() + " fireMove=" + gfgFireMoving
 		+ " full=" + FloatToString( GetBehaviorVariable( 'fullBodyAnimWeight' ) ) + " ovl=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'PlayerOverlay' )
-		+ " gp=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'Gameplay' ) );
+		+ " gp=" + GetRootAnimatedComponent().GetCurrentBehaviorState( 'Gameplay' )
+		+ " aimH=" + FloatToString( GetBehaviorVariable( 'aimHorizontal' ) ) + " out=" + gfgHorseAimOut + " veh=" + IsUsingVehicle() );
 }
 
 @addMethod(CR4Player)
@@ -1862,6 +1867,7 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 
 	if ( !rangedWeapon || !rangedWeapon.GfgIsAk() )
 	{
+		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false );
 		return false;
 	}
@@ -1879,6 +1885,7 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 
 	if ( !rangedWeapon.GfgIsAkDrawn() )
 	{
+		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false );
 		return false;
 	}
@@ -1898,16 +1905,18 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 	// 丟炸彈、施法、揮劍時用它們自己的那一組動畫（pc_rider.w2beh #2643）和鏡頭（丟炸彈的鏡頭同十字弩由原版設定：useVehicle.ws:1815、:2013、:1734）
 	if ( mgrState == 'ThrowBomb' )
 	{
+		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false, true );
 		return false;
 	}
 	if ( mgrState == 'CastSign' || mgrState == 'SwordAttack' )
 	{
+		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false );
 		return false;
 	}
 
-	GfgHorseAimPose( moveData );
+	GfgHorseAimPose( moveData, dt );
 
 	// 原版瞄準鏡頭：往右 1.4、往上 0.15 公尺（照抄 useVehicle.ws:1749-1752）
 	GfgSetHorseAimCam( !IsCameraLockedToTarget() );
@@ -1921,23 +1930,25 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 
 // 手臂瞄準的方向：照抄原版 ShootCrossbow 每格做的（RangedAttack.OnGameCameraTick 沒有按住中鍵瞄準的那一支：useVehicle.ws:1686-1739；
 // 除錯球 :1698、船的 SailingPassive :1702、:1721、炸彈 :1712-1713 不抄）。
-// 畫面上有目標（不是自己的馬）時朝目標，否則朝鏡頭的方向；actionType 設成十字弩那一組動畫（原版拿出時設定：:752）
+// 朝子彈飛的方向（GfgAimPoint）：Z 鎖定時朝鎖定點（GfgLockPoint），否則朝鏡頭的方向；actionType 設成十字弩那一組動畫（原版拿出時設定：:752）
+// 原版沒按住中鍵時，畫面上有目標（GetDisplayTarget）就朝目標（:1686-1707），十字弩的箭也自動瞄準它；
+// AK 的子彈一律飛向準心 → 2026-10-16 23:1x 實測：鏡頭朝正前方，附近有角色時槍朝左 48°，子彈卻往前飛 → 改成只在 Z 鎖定時朝目標
 @addMethod(CR4Player)
-function GfgHorseAimPose( moveData : SCameraMovementData )
+function GfgHorseAimPose( moveData : SCameraMovementData, dt : float )
 {
 	var rot : EulerAngles;
 	var headBoneIdx : int;
-	var headPos : Vector;
+	var headPos, lockPoint : Vector;
 	var horizontalVal, verticalVal : float;
 
 	SetBehaviorVariable( 'actionType', (int)EHCA_ShootCrossbow );
-	if ( GetDisplayTarget() && GetDisplayTarget() != GetUsedVehicle() )
+	if ( GfgLockPoint( lockPoint ) )
 	{
 		SetOrientationTarget( OT_Actor );
 		headBoneIdx = GetHeadBoneIndex();
 		if ( headBoneIdx >= 0 )
 			headPos = MatrixGetTranslation( GetBoneWorldMatrixByIndex( headBoneIdx ) );
-		rot = VecToRotation( GetLookAtPosition() - headPos );
+		rot = VecToRotation( lockPoint - headPos );
 		horizontalVal = AngleDistance( GetHeading(), rot.Yaw ) / 180.f;
 		verticalVal = ClampF( rot.Pitch, -90.f, 90.f ) / -90.f;
 	}
@@ -1948,9 +1959,81 @@ function GfgHorseAimPose( moveData : SCameraMovementData )
 		horizontalVal = AngleDistance( GetHeading(), moveData.pivotRotationValue.Yaw ) / 180.f;
 		verticalVal = ClampF( moveData.pivotRotationValue.Pitch, -90.f, 90.f ) / 90.f;
 	}
-	SetBehaviorVariable( 'aimHorizontal', horizontalVal );
+	SetBehaviorVariable( 'aimHorizontal', GfgClampHorseAim( horizontalVal, dt ) );
 	SetBehaviorVariable( 'aimVertical', verticalVal );
 	theGame.GetGameCamera().EnableScreenSpaceCorrection( true );
+}
+
+// ===== 騎馬瞄準的左右範圍（第 18 項）=====
+// 使用者 2026-10-16 20:4x：騎馬往後射「上半身轉 180、下半身不轉，不符合人體工學」
+// 騎馬時骨盆跟著馬（覆蓋節點 pc_rider.w2beh #4423 只取 torso 以上），往後瞄準只能靠脊椎轉；坐在馬上肩膀最多轉約 80～90°
+// 底層換成正面持槍後（瞄正前方時肩膀朝右 23.5°），往右 60°、往左 110° 時腰扭約 85°（tools/horse_pose.py 的差值，離線算）
+// 超出範圍：姿勢停在邊界、不開火（GfgTryFire）、準心藏起來（GfgCameraTick）；回到範圍內恢復
+// aimHorizontal = AngleDistance( 馬的朝向, 瞄準的方向 ) / 180（useVehicle.ws:1722）；負 = 左（水平差值第 45 格 = 往左 90°、對應 -0.5：tools/horse_pose.py）
+// 鏡頭從背後繞到另一邊時，限制後的值會一格從左邊界跳到右邊界（170°）→ 上半身經過前方轉過去（每秒 360°），轉的期間也算超出範圍
+@addField(CR4Player)
+var gfgHorseAimOut : bool;		// 這一格騎馬瞄準超出左右範圍（或正在轉過去）
+
+@addField(CR4Player)
+var gfgHorseAimH : float;		// 上一格設給動畫的 aimHorizontal
+
+@addField(CR4Player)
+var gfgHorseAimSwing : bool;	// 正在從一邊轉到另一邊
+
+@addMethod(CR4Player)
+function GfgHorseAimLeft() : float
+{
+	return 110.f;
+}
+
+@addMethod(CR4Player)
+function GfgHorseAimRight() : float
+{
+	return 60.f;
+}
+
+@addMethod(CR4Player)
+function GfgClampHorseAim( horizontalVal : float, dt : float ) : float
+{
+	var target, step : float;
+
+	target = ClampF( horizontalVal, -GfgHorseAimLeft() / 180.f, GfgHorseAimRight() / 180.f );
+	if ( AbsF( target - gfgHorseAimH ) > 0.25f )		// 一格跳超過 45°：不是滑鼠轉的，是換邊
+		gfgHorseAimSwing = true;
+	if ( gfgHorseAimSwing )
+	{
+		step = 2.f * dt;
+		if ( AbsF( target - gfgHorseAimH ) <= step )
+		{
+			gfgHorseAimH = target;
+			gfgHorseAimSwing = false;
+		}
+		else if ( target > gfgHorseAimH )
+			gfgHorseAimH += step;
+		else
+			gfgHorseAimH -= step;
+	}
+	else
+		gfgHorseAimH = target;
+	gfgHorseAimOut = target != horizontalVal || gfgHorseAimSwing;
+	return gfgHorseAimH;
+}
+
+// 原版中鍵瞄準（ShootCrossbow 沿用 RangedAttack 的鏡頭更新，每格設 aimHorizontal：useVehicle.ws:1672-1740）拿著 AK 時：左右範圍同上
+// 船（SailingPassive）、丟炸彈照原版
+@wrapMethod(W3VehicleCombatManagerStateRangedAttack)
+function OnGameCameraTick( out moveData : SCameraMovementData, timeDelta : float )
+{
+	var result : bool;
+
+	result = wrappedMethod( moveData, timeDelta );
+	if ( parent.GetCurrentStateName() == 'ShootCrossbow' && rider.GetCurrentStateName() == 'HorseRiding'
+		&& rider.rangedWeapon && rider.rangedWeapon.GfgIsAk() )
+	{
+		horizontalVal = rider.GfgClampHorseAim( horizontalVal, timeDelta );
+		rider.SetBehaviorVariable( 'aimHorizontal', horizontalVal );
+	}
+	return result;
 }
 
 // 騎馬時的動畫事件只交給戰鬥管理（horseRiding.ws:792-795），只有 ShootCrossbow 會再交給十字弩（useVehicle.ws:1757-1763、:2132-2134），閒置狀態不處理（:525）。
