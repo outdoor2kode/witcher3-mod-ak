@@ -52,6 +52,7 @@
      2. `ShootProjectileAtPosition/AtBone` 的包裝：AK 的箭把 velocity 換成子彈速度（先試 350 公尺／秒）、angle 換 0（直線）
      3. `OnProjectileCollision` 的包裝：打到 Static／Terrain → `PlayEffect('sparks')`，短時間後刪掉（取代 `GfgAddStuckBolt`；`gfgStuckBolts` 相關的程式拿掉）
      4. 測：站著連射打牆（截圖看曳光、火花、牆上沒有箭）、打狼（命中、傷害照舊）、騎馬開槍
+        - 19:0x 第一次測沒測成：`game_start` 復活後主控台指令打進 REDkit 右邊 Scene 搜尋框（框裡留著「setlevel」），AK 沒拿出來、之後死亡畫面、右上角紅字 Time scale → 下一步：F10 → 編輯模式點 Scene 搜尋框 Ctrl+A、Delete 清掉 → 點畫面天空移開焦點 → `game_start`；還是亂就重開 REDkit（記憶：原版情況也失效就重開）
    - 槍口火光：再找原版粒子（`D:\depot\fx\...`，例：`fx\fire`、`fx\signs\igni` 的小火花），做法二選一：AK 的實體模板加特效（REDkit Entity Editor）或在槍口生成一個帶特效的實體
    - 傷害：先查弩箭的傷害怎麼算（箭的物品屬性＋十字弩），再設計（CS2 36／爆頭 ×4 換算成巫師 3 的數值）
 2. 長時間測試：30 隻狼、開槍打完，看第 6 項（鎖定解不掉）有沒有再出現
