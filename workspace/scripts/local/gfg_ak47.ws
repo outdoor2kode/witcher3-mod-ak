@@ -589,15 +589,13 @@ function GfgCarrySpawnDummy()
 	gfgDummy.CreateAttachment( this, 'l_weapon' );	// 不帶偏移 = 真的 AK 的位置（換過去時不會跳）
 }
 
-// AK 模板的模型元件（gfg_ak47.w2ent 的 streamedAttachments：witcher_crossbow_lvl1）
+// 顯示、藏起 AK（真的 AK、替身）：整個實體，立刻生效（SetHideInGame 的 immediate：entity.ws:241）
+// 原本用模型元件的 SetVisible：會淡出、淡入 → 衝刺開始、結束時看得到半透明的槍留在原來的位置約 0.1 秒
+// （使用者 2026-10-16 20:4x 回報「衝刺開始和結束都會有個槍的影像殘留」；21:5x 每 35 毫秒連拍確認）
 @addMethod(CR4Player)
 function GfgSetMeshVisible( ent : CEntity, visible : bool )
 {
-	var mesh : CDrawableComponent;
-
-	mesh = (CDrawableComponent)ent.GetComponent( "witcher_crossbow_lvl1" );
-	if ( mesh )
-		mesh.SetVisible( visible );
+	ent.SetHideInGame( !visible, true );
 }
 
 // 真的 AK：模型和裝好的箭（箭對齊在槍管裡：docs/m3.md；AK 藏起來時箭會露出來）
