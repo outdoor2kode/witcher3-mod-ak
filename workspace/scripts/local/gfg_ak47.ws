@@ -1677,8 +1677,24 @@ function GfgHolsterForVehicle()
 	}
 }
 
-// 上馬的互動：玩家在戰鬥動作中時，原版把 "MountHorse" 列入封鎖（interactionsManager.ws:111-114）；拿著 AK 瞄準也算戰鬥動作
-// → AK 拿著、不是真的攻擊時不封鎖（2026-10-16 17:47 實測：沒有這段時有上馬提示，按 E 沒反應）
+// 上馬的互動（第 4 項）：原版拿著十字弩時有兩個地方擋上馬，AK 一直是拿著瞄準的狀態，兩個都會碰到
+// 1. 不在戰鬥中時，互動元件看到拿著十字弩就把互動吃掉（components.ws:139-157 IsCrossbowHeld → 回傳 true，馬收不到 OnInteraction）
+//    （2026-10-16 18:09 實測：空手按 E → CanProcessInteractionInput true → 馬的 OnInteraction；拿著 AK 時到 CanProcessInteractionInput 就停了）
+// 2. 玩家在戰鬥動作中時，"MountHorse" 被列入封鎖（interactionsManager.ws:111-114）
+// → 上馬這一個互動：AK 拿著、不是真的攻擊時放行；戰鬥中照原版（看互動元件的 isEnabledInCombat）
+@wrapMethod(CInteractionComponent)
+function OnInteraction( actionName : string, activator : CEntity )
+{
+	if ( GetActionName() == "MountHorse" && theGame.GetInteractionsManager().GetActiveInteraction() == this
+		&& thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack()
+		&& !( thePlayer.IsInCombat() && !thePlayer.IsSwimming() ) )
+	{
+		LogChannel( 'GFG', "mount interaction allowed with AK" );	// 暫時
+		return false;
+	}
+	return wrappedMethod( actionName, activator );
+}
+
 @wrapMethod(CInteractionsManager)
 function GetBlockedActions( out blockedActions : array< string > )
 {
