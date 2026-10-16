@@ -2011,6 +2011,15 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 	var victimActor : CActor;
 
 	wasScheduled = isScheduledForDestruction;
+	// 爆頭：碰撞點離頭部骨頭 0.25 公尺內（原版只有打到 Ragdoll 時才知道骨頭：arrowProjectile.ws:91-94；
+	// 子彈先撞到角色的膠囊 Character 就算命中、沒有骨頭 → 原版的判定（playerBoltProjectile.ws:79-83）幾乎不會成立：19:5x 實測瞄頭 6 發都不是；
+	// 拿掉 Character 只打 Ragdoll 時打不到人：20:0x 實測）
+	if ( gfgAkRange > 0.f && collidingComponent )
+	{
+		victimActor = (CActor)collidingComponent.GetEntity();
+		if ( victimActor && victimActor != GetOwner() )
+			gfgHeadHit = VecDistance( pos, victimActor.GetBoneWorldPosition( 'head' ) ) < 0.25f;
+	}
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
@@ -2063,6 +2072,15 @@ function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNo
 // AK：每發的基礎傷害隨 Geralt 的等級增加（敵人的血量也隨等級增加 → 打同等級的敵人要幾發大致固定）；
 // 爆頭 ×4（CS2 m_flHeadshotMultiplier）；距離衰減 ×0.98^(距離 / 12.7 公尺)（CS2 m_flRangeModifier：每 500 單位 ×0.98，1 單位 = 1 英吋）
 // 攻擊名還是 'bolt'：原版弩的技能（解剖知識、爆頭的暴擊等）照樣有效；抗性照原版
+@addField(W3BoltProjectile)
+var gfgHeadHit : bool;		// 這發打在頭上（OnProjectileCollision 包裝裡判斷）
+
+@addMethod(W3BoltProjectile)
+function GfgHeadHit() : bool
+{
+	return gfgHeadHit;
+}
+
 @addMethod(W3BoltProjectile)
 function GfgIsAkBullet() : bool
 {
@@ -2076,12 +2094,12 @@ function ProcessAction( act : W3DamageAction )
 
 	bolt = (W3BoltProjectile)act.causer;
 	if ( bolt && bolt.GfgIsAkBullet() && (W3Action_Attack)act )
-		GfgSetAkDamage( act );
+		GfgSetAkDamage( act, bolt );
 	wrappedMethod( act );
 }
 
 @addMethod(W3DamageManager)
-function GfgSetAkDamage( act : W3DamageAction )
+function GfgSetAkDamage( act : W3DamageAction, bolt : W3BoltProjectile )
 {
 	var dmg, dist, perLevel, flat, dbgPer, dbgFlat : float;
 
@@ -2096,8 +2114,11 @@ function GfgSetAkDamage( act : W3DamageAction )
 		flat = dbgFlat;
 	}
 	dmg = perLevel * GetWitcherPlayer().GetLevel() + flat;
-	if ( act.GetIsHeadShot() )
+	if ( act.GetIsHeadShot() || bolt.GfgHeadHit() )
+	{
 		dmg *= 4.f;
+		act.SetHeadShot();		// 原版爆頭的暴擊加成、Headshot 事件（damageManagerProcessor.ws:847-851）
+	}
 	if ( act.attacker && act.victim )
 	{
 		dist = VecDistance( act.attacker.GetWorldPosition(), act.victim.GetWorldPosition() );
@@ -2153,7 +2174,7 @@ function OnTakeDamage( action : W3DamageAction )
 
 // 暫時（第 9、10 項測試用，做完拿掉）：玩家正前方 dist 公尺（預設 8）生一隻敵對、不會動的狼當靶子
 // 不會動：CAIDoNothingAction 蓋過戰鬥 AI（同 DogNPC.ws:192-194）；敵對：同主控台 spawn（temp.ws:6932-6935）
-// kind 1：盜賊（人類、有護甲；路徑同 CLAUDE.md §12）；level > 0 時設等級（同主控台 spawn：temp.ws:6937-6940）
+// kind 1：人類、2：怪物；level > 0 時設等級（同主控台 spawn：temp.ws:6937-6940）
 exec function gfgwolf( optional dist : float, optional kind : int, optional level : int )
 {
 	var template : CEntityTemplate;
@@ -2165,7 +2186,9 @@ exec function gfgwolf( optional dist : float, optional kind : int, optional leve
 	if ( dist <= 0.f )
 		dist = 8.f;
 	if ( kind == 1 )
-		template = (CEntityTemplate)LoadResource( "characters\npc_entities\crowd_npc\bandit\bandit_lvl1.w2ent", true );
+		template = (CEntityTemplate)LoadResource( 'fists' );		// 測試用的人類敵人（gameplay.xml：enemy_fists_easy.w2ent）
+	else if ( kind == 2 )
+		template = (CEntityTemplate)LoadResource( 'nekker' );		// 怪物（打精華、銀）
 	else
 		template = (CEntityTemplate)LoadResource( 'wolf' );
 	pos = thePlayer.GetWorldPosition() + VecFromHeading( thePlayer.GetHeading() ) * dist;
