@@ -51,7 +51,7 @@
 1. #21：`test.reddlc` 已加第 5 個掛載器 `CR4ScaleformContentDLCMounter`（`scaleformDirectoryPath` = `dlc\gunforgeralt\data\gameplay\gui_new\`；REDkit 裡加、關視窗按 Yes 存；`cr2w_dump.py` 讀回確認），遊戲紀錄 `Mounted 168 DLC mounter(s)`（之前 167）
    - 但同一次開著的 REDkit 裡，介面找圖示的路徑還是只有原版那 11 個（`editor.log`：`Failed to convert path …`）→ 推論：介面的搜尋路徑在 REDkit 啟動時定好 → **重開 REDkit**（`f.sh` 的 `redkit_start`）再開遊戲看輪盤（Tab）、紀錄有沒有 `dlc\gunforgeralt\data\gameplay\gui_new\…`
    - 重開後還是不行：改放 `workspace\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_64x128.png`（介面第一個找的路徑 `gameplay\gui_new\`；是新檔名，不蓋原版）
-   - 好了以後：物品欄（10-18 01:4x 按 I 沒開起來，改用 Esc 選單）、左下角道具格也看一下；寫進 `docsindings.md`（新的一節）、commit
+   - 好了以後：物品欄（10-18 01:4x 按 I 沒開起來，改用 Esc 選單）、左下角道具格也看一下；寫進 `docs\findings.md`（新的一節）、commit
 2. #23 材質、#22 槍聲（想法：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線；查到再決定）
 
 **現在的狀態**
