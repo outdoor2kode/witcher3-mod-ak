@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 02:5x（**自主模式中**：先看下一節）
+最後更新：2026-10-18 03:0x（**自主模式中**：先看下一節）
 
 ---
 
@@ -50,6 +50,10 @@
 - 看材質用的暫時指令 `gfgfree`（另一個暫存檔）已刪掉、沒進 git；要再用照 commit 33a6a45
 - 現在 REDkit 開的世界是 White Orchard（`prolog_village`）：看顏色用它；測其他東西的話 `reference_level` 比較快
 **#22 查到的**（10-18 02:5x；還沒寫進 findings）
+- **CS3W 解出來了**（新工具 `tools\sound_cache.py`：`--list 萬用字元`、`--extract 資料夾 萬用字元`；只讀）：檔頭第 16 byte 檔案表位置、第 24 byte 檔案數（2174）、第 32 byte 名稱表位置、第 40 byte u32 名稱表大小；檔案表每筆 24 bytes（名稱位置、資料位置、大小）到檔尾；740 個 `.bnk`、1434 個 `.wem`（串流）
+- **十字弩射擊**（`<REDKIT_DIR>\assets\w3_audio\Events\combat.wwu:433`、`Actor-Mixer Hierarchy\combat.wwu`）：事件 `weapon_crossbow_shot` → 隨機容器 `weapon_crossbow_shot`（ShortID 615266803）→ 5 個 Sound：`_01` 540419932、`_02` 300419646、`_03` 903474054、`_04` 30599391、`_05` 621452767（原始檔 `Originals\SFX\combat\weapon\crossbow\weapon_crossbow_shot_0N.wav`）；另一個動作是手把震動 `haptic__crossbow_shot`
+  - 在 `combat.bnk`（22 MB；`combat.bnk` 在遊戲 cache 的位置 295579258）；CS2 有 4 種槍聲（`ak47_01～04`）
+  - 下一步：取出 `combat.bnk` → 寫 bnk 解析（BKHD 版本、DIDX、DATA、HIRC 的 CAkSound：plugin ID、串流類型、媒體 ID、大小）→ 找這 5 個 Sound 的媒體
 - 官方路線一定要 Wwise＋授權：REDkit 的 **Publish → Cook Mod Sounds** 會叫 `WwiseConsole.exe`（`-GenerateSoundBanks`、`convert-external-source`；找 PATH、`tools\wwise\x64\Release\bin\`、設定的位置），Wwise 專案沒授權碼時寫「license key not found in the Wwise audio project …, sound cooking will probably fail」（`editor.exe` 的字串）
   - REDkit 附了官方的 Wwise 專案：`<REDKIT_DIR>\assets\w3_audio\w3_audio.wproj`（Originals、Events、SoundBanks 的 .wwu 等）
   - Steam 的 REDkit 討論（開發者 Vattier 2024-12-20「Known issue workaround - sound cooking」）：Save and Publish 之後再按 Cook Mod Sounds，把 `packed\soundspc.cache` 複製到 `<遊戲>\mods\<mod>\content\`
@@ -70,7 +74,7 @@
   - 聲音（44.1 kHz 16 位元）：`sounds\weapons\ak47\ak47_01～04.wav`（立體聲 1.9～2.5 秒，連發的單發槍聲＋尾音）、`ak47-1.wav`、`ak47_distant.wav`（單聲道 4 秒）、`ak47_clipout_01`、`ak47_boltpull*`、`ak47_addammo_02`、`ak47_draw`；聲音事件定義 `soundevents\game_sounds_weapons.vsndevts`
 
 **接續的步驟**
-1. #22 槍聲：照上面「#22 查到的」的打算做（先解析 CS3W、找十字弩射擊的事件和媒體）
+1. #22 槍聲：照上面「#22 查到的」做；CS3W、十字弩射擊的事件已查到 → 下一步取出 combat.bnk、寫 bnk 解析找 5 個 Sound 的媒體
 2. 全部做完：照 `CLAUDE.md` §14「結束」收尾
 
 **現在的狀態**
