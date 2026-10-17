@@ -212,8 +212,8 @@ function ProcessFullBodyAnimWeight( optional forceUpperBodyAnim : bool ) : bool
 	result = wrappedMethod( forceUpperBodyAnim );
 	if ( !GfgIsAkDrawn() || ownerPlayer.IsSwimming() || ownerPlayer.GetCurrentStateName() == 'AimThrow' )
 		return result;
-	// 開槍中又在移動：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgAkTurnTick）
-	if ( ownerPlayer.gfgFireMoving && !forceUpperBodyAnim )
+	// 側移中（開槍中又在移動、戰鬥中朝目標移動）：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgAkTurnTick）
+	if ( ownerPlayer.gfgStrafing && !forceUpperBodyAnim )
 	{
 		setFullWeight = true;
 		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 1.f );
@@ -386,7 +386,10 @@ function GfgAkLookAtPoint() : Vector
 }
 
 @addField(CR4Player)
-var gfgFireMoving : bool;	// 開槍中又在移動：全身瞄準（腳用側移的動作）、身體朝準心
+var gfgStrafing : bool;		// 側移中：開槍中又在移動（身體朝準心），或戰鬥中朝目標移動（同持劍）；全身瞄準，腳用側移、後退的動作
+
+@addField(CR4Player)
+var gfgStrafeHeading : float;	// 側移時身體朝的方向（UpdateRequestedDirectionVariables 的包裝也用）
 
 @addField(CR4Player)
 var gfgTurning : bool;		// 站著時身體正在轉向準心
@@ -420,35 +423,89 @@ function GfgSetWalkInPlace( on : bool )
 	}
 }
 
+// 戰鬥中移動時朝哪裡（第 20 項，使用者 2026-10-18：「持劍走入怪物群，即便按下 S 後退時，不會整個人往後走，而是一直面對怪物。我認為持槍時也該仿照這樣」）
+// 照原版持劍：移動控制器在朝向目標是 OT_Actor 時，把動畫圖的面向設成「朝目標」（locomotionDirectController.ws:1166-1213）；
+// 只有附近有敵人（PCS_AlertNear）、格擋中目標夠近、或法印鎖定時才朝目標，否則朝角色自己的方向。
+// 遊戲裡量（2026-10-18，[GFG] face 紀錄）：持劍戰鬥中（CombatSteel、AlertNear）8 個方向都朝著狼走（約 2.4 公尺／秒）；衝刺、不在戰鬥中則朝移動方向
+// 不看朝向目標本身：拿十字弩時十字弩會自己加一個朝向目標（rangedWeapon.ws:878-891：開槍時準心附近沒有目標就是 OT_Camera），
+// 移動中不更新、一直留著（:479-485 只在站著時更新）→ 2026-10-18 實測開槍後一直是 OT_Camera。所以直接照原版 OT_Actor 那一支的條件判斷
+// 另外：目標死了不朝它（原版沒有這個條件；原版目標死了會換目標）
+@addMethod(CR4Player)
+function GfgCombatFaceHeading( out heading : float ) : bool
+{
+	var target : CGameplayEntity;
+	var actor : CActor;
+	var targetPos, toTarget : Vector;
+	var boneIndex : int;
+	var stance : EPlayerCombatStance;
+
+	target = GetTarget();
+	if ( !target )
+		target = moveTarget;
+	if ( !target )
+		return false;
+	actor = (CActor)target;
+	if ( actor )
+	{
+		if ( !actor.IsAlive() )
+			return false;
+		GetNearestTargetablePositionToPlayer( actor, targetPos, boneIndex );
+		toTarget = targetPos - GetWorldPosition();
+	}
+	else
+		toTarget = target.GetWorldPosition() - GetWorldPosition();
+	stance = GetPlayerCombatStance();
+	if ( stance == PCS_AlertNear
+		|| ( stance == PCS_Guarded && VecLength( toTarget ) < findMoveTargetDist )
+		|| ( IsActorLockedToTarget() && !IsHardLockEnabled() ) )
+	{
+		heading = VecHeading( toTarget );
+		return true;
+	}
+	return false;
+}
+
 // 每格（走路，AK 拿著時）：身體轉向準心
 // - 做法同原版中鍵瞄準：角度差超過門檻就用 SetCustomRotation 轉向鏡頭的方向（aimThrow.ws:268-305；SetCustomRotation：r4Player.ws:5086-5105）
-// - 開槍中又在移動：一直朝準心，上半身動畫圖改用全身瞄準（ProcessFullBodyAnimWeight 的包裝）→ 腳用側移、後退的動作
+// - 側移（開槍中又在移動：一直朝準心；戰鬥中沒開槍：一直朝目標，同持劍）：上半身動畫圖改用全身瞄準（ProcessFullBodyAnimWeight 的包裝）→ 腳用側移、後退的動作
 //   （上半身動畫圖 #18428 的 DirectionalMovement；原版中鍵瞄準移動時就是全身瞄準：rangedWeapon.ws:968-969）
+//   衝刺、不在戰鬥中（沒開槍）照原版朝移動方向（同持劍）
 @addMethod(CR4Player)
 function GfgAkTurnTick()
 {
-	var aimHeading, diff : float;
-	var firing, moving, fireMoving : bool;
+	var aimHeading, diff, strafeHeading : float;
+	var firing, moving, strafe : bool;
 
 	aimHeading = VecHeading( GfgCrosshairPoint() - GetWorldPosition() );
 	diff = AngleDistance( aimHeading, GetHeading() );
 	firing = rangedWeapon.GfgIsFiring();
 	moving = !bLAxisReleased;
 
-	fireMoving = firing && moving && !GetIsSprinting() && !IsInAir() && !IsSwimming() && GetCurrentStateName() != 'AimThrow';
-	if ( fireMoving != gfgFireMoving )
+	strafe = false;
+	if ( moving && !GetIsSprinting() && !IsInAir() && !IsSwimming() && GetCurrentStateName() != 'AimThrow' )
 	{
-		gfgFireMoving = fireMoving;
+		if ( firing )
+		{
+			strafe = true;
+			strafeHeading = aimHeading;
+		}
+		else
+			strafe = GfgCombatFaceHeading( strafeHeading );
+	}
+	if ( strafe != gfgStrafing )
+	{
+		gfgStrafing = strafe;
 		rangedWeapon.GfgRefreshFullBody();
 		// 實驗：上半身動畫圖的全身瞄準狀態機（#18428）從起始狀態直接進入移動的條件要 inAimThrow（#19444、#20031）；原版中鍵瞄準時設定（rangedWeapon.ws:1395-1396）
-		SetBehaviorVariable( 'inAimThrowForOverlay', (float)fireMoving );
+		SetBehaviorVariable( 'inAimThrowForOverlay', (float)strafe );
 	}
 
-	if ( fireMoving )
+	if ( strafe )
 	{
+		gfgStrafeHeading = strafeHeading;
 		gfgTurning = false;
 		GfgSetWalkInPlace( false );
-		SetCustomRotation( 'GfgAkAim', aimHeading, 0.f, 0.25f, false );
+		SetCustomRotation( 'GfgAkAim', strafeHeading, 0.f, 0.25f, false );
 		return;
 	}
 	if ( moving || GetCurrentStateName() == 'AimThrow' )
@@ -478,9 +535,9 @@ function GfgRefreshFullBody()
 @addMethod(CR4Player)
 function GfgAkTurnReset()
 {
-	if ( gfgFireMoving )
+	if ( gfgStrafing )
 	{
-		gfgFireMoving = false;
+		gfgStrafing = false;
 		if ( rangedWeapon )
 			rangedWeapon.GfgRefreshFullBody();
 		SetBehaviorVariable( 'inAimThrowForOverlay', 0.f );
@@ -489,14 +546,28 @@ function GfgAkTurnReset()
 	GfgSetWalkInPlace( false );
 }
 
-// 開槍中又在移動時，上半身動畫圖收到的速度改成要求的速度（同原版中鍵瞄準：locomotionDirectController.ws:316-327）
+// 側移中，上半身動畫圖收到的速度改成要求的速度（同原版中鍵瞄準：locomotionDirectController.ws:316-327）
 // 原版平常是實際速度不到 0.5 公尺／秒就給 0（:333-342）：全身瞄準時腳的動作來自上半身動畫圖，速度 0 → 腳不動 → 實際速度一直是 0（docs/findings.md §20 卡住的原因之一）
 @wrapMethod(CR4LocomotionPlayerControllerScript)
 function UpdateLocomotion()
 {
 	wrappedMethod();
-	if ( player.gfgFireMoving && moveSpeed > 0.f )
+	if ( player.gfgStrafing && moveSpeed > 0.f )
 		player.SetBehaviorVariable( 'playerSpeedForOverlay', moveSpeed, true );
+}
+
+// 側移中，動畫圖的「面向」改成身體實際朝的方向（GfgAkTurnTick 轉過去的方向）
+// 側移的動作依「移動方向 − 面向」挑（上半身動畫圖 DirectionalMovement 的輸入 requestedMovementDirectionForOverlay、requestedFacingDirectionForOverlay：docs/m3.md「開槍中側移」）；
+// 原版的面向：戰鬥中朝目標、平常朝鏡頭（locomotionDirectController.ws:1142-1225 → actor.ws:3580-3587）→ 戰鬥中開槍時身體朝準心、面向卻是目標，挑錯動作
+@wrapMethod(CActor)
+function UpdateRequestedDirectionVariables( headingYawWS : float, orientationYawWS : float )
+{
+	var player : CR4Player;
+
+	player = (CR4Player)this;
+	if ( player && player.gfgStrafing )
+		orientationYawWS = player.gfgStrafeHeading;
+	wrappedMethod( headingYawWS, orientationYawWS );
 }
 
 // ===== 跳躍、落地時兩手臂維持持槍（使用者 2026-10-16 回報：跳躍落地後瞬間變回持槍姿勢、不順）=====

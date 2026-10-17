@@ -2263,3 +2263,39 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 實測：沒拿 AK 走進 30 隻狼 → `Enter CombatFists`、自動舉 AK；按 1 → 擋掉；手上有劍 → 0.3 秒內收回背上（戰鬥中收完接著舉 AK）；拿著劍按住左鍵 → 收劍 → 舉 AK → 接著連射；騎馬戰鬥開始 → 騎馬舉 AK、可以開槍、馬照常走
 - **騎馬的戰鬥管理**是 `W3HorseCombatManager`，閒置狀態叫 **`HorseNull`**（繼承 `Null`：`horseRiding.ws:886-889`）；`GetCurrentStateName()` 回傳 `HorseNull`，不是 `Null`
 - 測試小事：遊戲被教學視窗暫停時（畫面角落 `Game Paused By`），F10 結束不了遊戲 → 先點一下遊戲畫面讓它繼續，再按 F10；**點遊戲畫面＝左鍵＝AK 的扳機**：AK 是選用物品時一點就拿出 AK（要測「AK 收著」時，點完再按 C 收）
+
+## 30. 移動時朝哪裡：持劍和持槍（2026-10-18 第 20 項；遊戲實測）
+
+量法：暫時紀錄 `[GFG] face`（每 0.1 秒：狀態、戰鬥姿態、朝向目標、移動類型、角色朝向、鏡頭、速度方向、移動目標方向）＋暫時指令 `gfgwolf`（不會動的敵對狼）；每個方向按住 2 秒，取後 60% 的中位數。量完都拿掉了
+
+**持劍**（`reference_level`；角度＝角色朝向減移動方向）
+
+| 情況 | 走（Alt） | 跑 | 衝刺（Shift） |
+|---|---|---|---|
+| 不在戰鬥中（`Exploration`、`PCS_Normal`） | 8 方向朝移動方向（差 1° 內），1.9 公尺／秒 | 8 方向朝移動方向，5.0～5.1 | 8 方向朝移動方向（差 6° 內），5.9～7.0 |
+| 戰鬥中、附近有敵人（`CombatSteel`、`PCS_AlertNear`） | （沒量；原版一樣只給走：下面） | **只能走**（2.3～2.6）；8 方向都**朝著狼**（按 S 後退、A／D 側移） | 朝移動方向（轉身跑），7.0 |
+
+- 野外拔劍：狀態還是 `Exploration`（`GetCurrentMeleeWeaponType()` = `PW_Steel`）；連拍 `sw_s`：按 S 轉身往鏡頭跑
+- 戰鬥中按 S 的連拍 `sw_cs`：背對鏡頭、朝著狼後退
+- 原版的機制：
+  - 移動控制器每格把「移動方向」「面向」交給動畫圖（`requestedMovementDirection`、`requestedFacingDirection`；`locomotionDirectController.ws:351`、`:1142-1225` → `actor.ws:3580-3587`）
+  - 面向：朝向目標是 `OT_Actor` 時，`PCS_AlertNear`（或格擋中目標夠近、法印鎖定）→ 朝目標（`GetTarget()`，沒有就 `moveTarget`；`:1166-1213`）；否則朝角色自己的方向
+  - 戰鬥姿態：移動目標在 `findMoveTargetDist` 內 → `PCS_AlertNear`（進入 10 公尺、大型 15 公尺；已經是 AlertNear 時放寬到 18 公尺：`combat.ws:897-902`、`:913-931`、`r4Player.ws:337`）；更遠 `PCS_AlertFar`
+  - `PCS_AlertNear` 時不能跑（`locomotionDirectController.ws:933-938` 的跑步條件只有 `PCS_Normal`、`PCS_AlertFar`）→ 戰鬥走路 `WalkAlertNear`（§20.6）
+- **拿十字弩時朝向目標會被十字弩自己蓋掉**：`SetOwnerOrientation`（`rangedWeapon.ws:878-891`）加一個自訂朝向目標 `RangedWeapon`，值是 `GetCombatActionOrientationTarget( CAT_Crossbow )`（`r4Player.ws:5349-5418`：畫面上沒有目標時 `OT_Camera` 等）；移動中不更新（`rangedWeapon.ws:479-485` 只在站著、沒瞄準時更新）→ 實測 AK 開槍後一直是 `OT_Camera`
+
+**持槍（改之前）**
+- 不在戰鬥中：跑、衝刺 8 方向朝移動方向（同持劍）；開槍中又在移動：朝準心、側移（§21 之後的做法）
+- 戰鬥中（沒開槍）：照野外規則跑（§20.11），5.1 公尺／秒、**朝移動方向**（按 S 轉身往回跑）← 和持劍不同
+
+**改法**（`gfg_ak47.ws`「戰鬥中移動時朝哪裡」）
+- 戰鬥中、附近有敵人、有活著的目標、沒衝刺、沒開槍：身體一直朝目標，用開槍中移動那一套側移、後退的腳步（上半身動畫圖的全身瞄準 `DirectionalMovement`）
+  - 條件照原版 `OT_Actor` 那一支（不看朝向目標本身，原因見上）；目標死了不朝它
+- 開槍中又在移動：照舊朝準心（槍要對準準心）
+- 側移時，動畫圖的「面向」改成身體實際朝的方向（包 `CActor.UpdateRequestedDirectionVariables`）：原版戰鬥中的面向是目標，開槍時身體朝準心 → 側移挑的動作會不對
+- 衝刺、AlertFar、不在戰鬥中：照舊朝移動方向（同持劍）
+
+**改之後**（戰鬥中、不會動的狼）
+- 8 方向都朝著狼（差 5° 內），1.75～2.1 公尺／秒（持劍的戰鬥走路 2.3～2.6）；連拍 `ak_cs`（S）、`ak_ca`（A）：兩手持槍朝狼，腳往後、往左踏
+- 衝刺：朝移動方向；開槍中移動（鏡頭轉開狼 50～70°）：朝準心（差 1° 內）；停火 3 秒後再移動：朝狼（差 3° 內）
+- 離狼 18 公尺以上（AlertFar）：轉身跑（同持劍）
