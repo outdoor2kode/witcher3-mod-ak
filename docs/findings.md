@@ -2378,3 +2378,68 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - `reference_level`（同一個角度比較）：從右邊看，下護木是棕色，不再是整把銀白
 - White Orchard（`levels\prolog_village\prolog_village.w2w`）下午 1 點晴天：上下護木橘棕色、機匣有光澤的灰色鋼、彈匣深色；左、右、前左三個角度都看得到顏色
 - `reference_level` 的地板、反射都是藍綠色，看顏色要用正式的世界（Asset Browser 搜尋 `prolog_village.w2w`，雙擊開；`play game`）
+
+## 33. AK 的槍聲：不用 Wwise 授權，自己做 SoundBank（2026-10-18 第 22 項；遊戲實測）
+
+使用者：「應該有不走這種要申請授權這麼麻煩的方式就可以拿到。你去取得並且實作。一定有」
+
+### 33.1 官方路線要 Wwise＋授權
+
+- REDkit 的 **Publish → Cook Mod Sounds** 會叫 `WwiseConsole.exe`（`-GenerateSoundBanks`、`convert-external-source`），版本要 2023.1；沒有授權碼時寫「license key not found in the Wwise audio project …」（`editor.exe`、`wcc_lite.exe` 的字串）
+- REDkit 附了官方的 Wwise 專案：`<REDKIT_DIR>\assets\w3_audio\w3_audio.wproj`（事件、階層的 `.wwu` 是 XML，可以直接讀）
+
+### 33.2 遊戲怎麼讀聲音
+
+- 遊戲：`<W3_GAME_DIR>\content\content0\soundspc.cache`（CS3W 第 2 版，4.6 GB；740 個 `.bnk`、1434 個串流 `.wem`）
+  - mod 可以自己帶 `mods\<mod>\content\soundspc.cache`（`CSoundCacheResolver: attaching '%s'`、`Failed to add sound cache '%s'. Reached chain length limit %u`：`wcc_lite.exe` 的字串）
+  - 格式（`tools\sound_cache.py` 的說明）：檔頭 64 bytes、資料從第 64 byte 起不對齊、名稱表、檔案表（每筆 24 bytes）
+  - **校驗碼 = FNV-1a 64 位元，算「名稱表＋檔案表」**（WolvenKit-7 `WolvenKit.Wwise/SoundCache/Sound_Cache.cs` 的 `CalculateChecksum`；用原版的檔算出來相符 `0x9dd2f32351ecfd84`）；遊戲會檢查（字串「Sound cache index file is corrupted: CRC error」）
+  - 檔頭第 48 byte = 最大的檔案大小進位到 4096 的倍數（原版 43264934 → 43266048）；第 8 byte 的 u64、第 44 byte 的 u32（原版 186）意思不明
+- **REDkit 開的遊戲：不讀 cache，讀 depot 的散檔 `soundbanks\pc\*.bnk`**（`<REDKIT_DEPOT>\soundbanks\Pc\`：739 個 `.bnk`＋`Media\`；`combat.bnk` 和遊戲 cache 裡的一樣大）
+  - **workspace 的同路徑也算**：加了 `workspace\soundbanks\pc\gfg_ak47.bnk`、重開 REDkit 後，`editor.log` 的 `CSoundBanksWhileInitTask - Started processing bank names - count [N]` 從 738 變 739
+  - 開機自動載入的：`<REDKIT_DEPOT>\gameplay\globals\soundbanks_always_load.csv`（320 個）；其他的用腳本 `theSound.SoundLoadBank( 檔名, async )`（`sound.ws:88`；原版例：`playerWitcher.ws:11396-11401` 套裝的音效）
+  - REDkit 的遊戲結束（F10）再開，腳本載入的 bank 還在（`SoundIsBankLoaded` 是 true）；`SoundUnloadBank` 再 `SoundLoadBank` 會重讀硬碟上的檔（換了 bank 的內容不用重開 REDkit）
+- 事件的 ID 是 Wwise 的 FNV-1 32 位元（小寫名稱）：`combat` → 2764240573，和 `combat.bnk` 的 bank ID 相同
+
+### 33.3 原版十字弩射擊的聲音
+
+- Geralt：`weapon_gabriel_shot`，寫在動畫事件檔 `<REDKIT_DEPOT>\sounds\characters\man\combat\man_geralt_gabriel_sounds.w2animev`，掛在 `man_geralt_gabriel_*shoot_additive_*` 這些射擊動畫上；NPC 的十字弩是 `weapon_crossbow_shot`（`man_crossbow_sounds.w2animev`）
+- AK 開火是腳本直接觸發、不播射擊動畫（§8.1、§19）→ 原版的射擊聲不會播；AK 的槍聲由腳本自己播
+- `combat.bnk`：bank 第 150 版（Wwise 2023.1）；十字弩射擊的 5 個 Sound 是 Vorbis、媒體放在 bank 裡；隨機容器 615266803 → actor-mixer 850914486（−5 dB、匯流排 2525614280）→ 最上層的 actor-mixer 16956895
+- 解析用 wwiser（bnnm/wwiser v20260808，`tools\_vendor\wwiser\wwiser.pyz`，不進 git）：`python -X utf8 tools/_vendor/wwiser/wwiser.pyz -d xml -dn <輸出> <bank>`，每個欄位都有位置
+
+### 33.4 做法
+
+- 聲音：CS2 的 `Weapon_AK47.Single`（`soundevents\game_sounds_weapons.vsndevts:20502-20595`）用 `ak47_02`、`ak47_01`、`ak47_04` 三個檔（沒用 `ak47_03`），`instance_limit = 1`
+- **`tools\ak_soundbank.py`**：WAV → PCM 的 WEM → `workspace\soundbanks\pc\gfg_ak47.bnk`（不用 Wwise）
+  - WEM：fmt 0x18 bytes（格式 0xFFFE、cbSize 6、第 0x14 byte 聲道設定 0x3102／0x4101：vgmstream `wwise.c`；遊戲 WEM 的值相同）、hash、junk、data（樣本從第 96 byte 開始，同遊戲 `fx_haptic.bnk` 的 WEM）
+  - bank：BKHD（照 `combat.bnk`，換 ID）、DIDX、DATA（每個媒體 16 對齊）、HIRC；物件從 `combat.bnk` 的十字弩射擊複製再改欄位（改之前先檢查範本的值）
+  - 事件 `gfg_ak47_shot` → 播放 → 隨機容器（不連續播同一個；同時最多 1 個、新的蓋掉舊的：CS2 的 instance_limit）→ 3 個 Sound（PCM，plugin 0x00010001）
+  - **隨機容器掛在十字弩的 actor-mixer 850914486 底下**：匯流排、3D 定位、遊戲的環境殘響跟著十字弩；不掛在十字弩的隨機容器底下（會被混進原版十字弩的隨機清單）
+  - 新的 ID 和原版 739 個 bank 比對過，沒有撞到（`--check`）
+- 腳本（`gfg_ak47.ws` 的 `GfgShotSound`）：每開一槍（`GfgTryFire`）→ bank 還沒載入就同步載入 → `ownerPlayer.SoundEvent( "gfg_ak47_shot" )`
+
+### 33.5 驗證：Claude 聽不到 → 錄電腦播的聲音
+
+- `tools\audio_rec.py`（WASAPI loopback；soundcard 0.4.6 裝在 `tools\_vendor\pylib314`，不進 git）
+- **測試音**：bank 暫時換成 1000／1500／2000 Hz 的 0.6 秒正弦波 → 遊戲裡錄到 2000.0 Hz、0.6 秒（能量 94% 在這個頻率）→ bank 載入、PCM 解碼、取樣率（44.1 kHz）都對
+- **槍聲**：各頻帶（30 Hz～16 kHz，9 個八度）的音量和 CS2 原檔的差距一致（−10～−12 dB，−6 dB 版本）→ 沒有被濾波；逐樣本的相關只有 0.5 左右（遊戲的環境殘響等；CS2 的三個檔彼此的相關就有 0.68～0.89）
+- **全自動**：按住約 1.5 秒錄到 16 發，間隔 0.084～0.118 秒（600 RPM）
+- **音量**（`SoundEvent` 掛在玩家身上，原版十字弩射擊 `weapon_gabriel_shot`：峰值 0.51、100 毫秒音量最大 −18.0 dBFS）：
+  - 0 dB：峰值 0.985（頂到上限，快破音）、−13.3 dBFS
+  - −6 dB：峰值 0.51、−19.2 dBFS（和十字弩差不多）
+  - **−3 dB（採用）**：峰值 0.67～0.74、−14.7～−15.1 dBFS（比十字弩大聲約 3 dB）
+- 注意：
+  - 主控台的 `SoundEvent(…)`（`theSound` 的全域物件）有時候錄不到聲音 → 測試掛在玩家身上
+  - 主控台沒打開時打字，字母會變成遊戲按鍵（10-18 進了拍照模式，遊戲暫停、錄到全 0）
+
+### 33.6 裝進遊戲時
+
+- REDkit 的 Publish 不會把 `workspace\soundbanks` 包進去（`packed\` 裡沒有 `soundspc.cache`）
+- → `python -X utf8 tools/sound_cache.py packed/mods/modgunforgeralt/content/soundspc.cache --pack workspace/soundbanks/pc/gfg_ak47.bnk`（寫完讀回來檢查校驗碼、內容）
+- 兩個意思不明的檔頭欄位照抄原版；**還沒在 Steam 版的遊戲測過**（使用者 2026-10-17：開發完整再裝）
+
+### 33.7 wcc_lite 的 EULA
+
+- 10-18 03:34 直接跑 `wcc_lite.exe cooksounds`（想看用法）之後，`tools\wcc_compile.py` 再跑時又跳出 EULA 視窗
+- 沒有替使用者按 Agree（`tools\wcc_compile.py` 的說明：要使用者本人確認）→ 改用 REDkit 的 Reload scripts 確認編譯（`Scriptables reloaded.`）

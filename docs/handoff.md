@@ -4,96 +4,49 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 03:0x（**自主模式中**：先看下一節）
+最後更新：2026-10-18 04:0x（自主模式結束：先看下一節）
 
 ---
 
-## 自主模式：10-18 00:4x 開始（使用者：「開啟自主模式」）
+## 使用者回來時先看這裡（2026-10-18 04:0x）
 
-背景程序：保持清醒（背景工作 `b93wuwqj3`）、看門狗（`bwrbdks2f`）、每小時續做排程（CronCreate `64531706`，第 13 分）
-
-**任務清單**（使用者 10-18 00:4x、01:0x、02:0x）
-
-| # | 任務 | 狀態 |
-|---|---|---|
-| 20 | 持槍的**面向方向**參考持劍：「持劍走入怪物群，即便按下 S 後退時，不會整個人往後走，而是一直面對怪物」；去看持劍時在戰鬥中、不在戰鬥中，走、跑、衝刺各方向的姿態，照著改善持槍的（「我單純指面向方向，其他不變，或者合理有根據地變化」） | **做好**（01:3x，commit `2aa9cdc`）：見下面 |
-| 21 | 物品欄、輪盤的 AK 圖示（原本是十字弩的）換成 AK-47 的圖（「你去找適合的圖來放。不管版權什麼的，我自己玩而已」）；補充（02:0x）：「輪盤的圖示不要是垂直，要是水平。物品則欄維持垂直」 | **做好**（02:1x）：見下面 |
-| 22 | AK 槍聲：「應該有不走這種要申請授權這麼麻煩的方式就可以拿到。你去取得並且實作。一定有」 | 聲音檔已取得（見下面），**下一個做** |
-| 23 | AK 材質顏色在遊戲裡很不明顯（反光；白天也常看不出有顏色）→ 找合理方法解決 | **做好**（02:4x）：見下面 |
-
-- 使用者另外說：「如果有必要的資料夾或工具存取權限，必要的話你就自己開」→ 10-18 01:3x 下載了 Source 2 Viewer 的命令列版（見下面）
-
-**#20 的結果**（細節 `docs\findings.md` §30、`CLAUDE.md` §7）
-- 持劍（遊戲裡量）：不在戰鬥中走、跑、衝刺 8 方向都朝移動方向；戰鬥中附近有敵人（AlertNear）只能走（2.3～2.6 公尺／秒），8 方向都朝著狼；衝刺朝移動方向
-- 持槍改成同樣的規則：戰鬥中、AlertNear、沒衝刺 → 朝目標，用開槍中移動那套側移、後退的腳步（1.75～2.1 公尺／秒）；開槍中移動照舊朝準心；衝刺、AlertFar、野外照舊朝移動方向
-- 自己做的決定：
-  - 戰鬥中的速度從跑（5.1）變成側移（約 2）：持劍在同樣情況也只能走（原版不給跑）；要快就衝刺（同持劍）
-  - 不看「朝向目標」本身（十字弩會把它蓋成鏡頭，移動中不更新），直接照原版 `OT_Actor` 那一支的條件；目標死了不朝它
-  - 站著不動照舊（準心偏 60° 以上才轉身）：使用者只說了移動
-- 量的時候用的暫時紀錄 `[GFG] face`、指令 `gfgwolf` 已拿掉（沒進 git）；`gfgwolf` 要再用照 commit e0bfb09
-
-**#21 的結果**（細節 `docs\findings.md` §31、`CLAUDE.md` §6 第 19 項、§7、§12）
-- 圖：CS2 物品欄的 AK（`tools\vpk_extract.py` 取出、Source 2 Viewer 命令列版轉 PNG、`tools\ak_icon.ps1` 做成圖示）
-  - 物品欄：`gfg_ak47_64x128.png`（直的；物品 XML 的 `icon_path`）
-  - 輪盤：`gfg_ak47_128x64.png`（水平，−8.4° 槍管水平）；`gfg_ak47.ws` 包 `CR4HudModuleRadialMenu.UpdateCrossbowItemData` 換路徑、框改 128×64（`multiplyX` 2、`multiplyY` 0.5）
-- `test.reddlc` 加了 `CR4ScaleformContentDLCMounter`；要重開 REDkit 才生效
-- 遊戲裡確認：輪盤水平、物品欄的 Ranged weapon 格直的
-- 自己做的決定：輪盤圖的角度選 −8.4°（3 個候選 0°、−8.4°、−13.8° 渲染比較，槍管水平的那個）；左下角道具格、其他地方照物品欄（直的）：使用者只說輪盤
-- 物品欄：拿著 AK 時打不開（十字弩的 `Lock()`，原版行為）→ 先按 C 收槍再按 I
-
-**#23 的結果**（細節 `docs\findings.md` §32、`CLAUDE.md` §6 第 16 項）
-- 原因：AK 的材質用了十字弩「金屬部分」的高光數值（`SpecularColor` 130、`RSpecScale` 1.5、`RSpecBase` -0.4）；CS2 的木頭是整把最光滑的 → 木頭 F0 約 0.14、灰色部分約 0.10（一般非金屬 0.04）→ 整把像鍍鉻
-- 改成 `SpecularColor` 59、`RSpecScale` 0、`RSpecBase` 1（固定 0.04）：新工具 `tools\mesh_material_patch.py` 原地改三個模型檔；匯入用的材質 XML 一起改
-- 遊戲裡確認：`reference_level` 同角度比較（銀白 → 棕色護木）；White Orchard 白天三個角度都看得到木頭的橘棕色、機匣的灰色鋼
-- 自己做的決定：用 CS2 貼圖的定義（幾乎全是非金屬 → 0.04），不做 `pbr_spec`＋高光貼圖（金屬度高的只有 6.2% 的小零件；要多匯入兩張貼圖、換材質圖）
-- 改之前的模型檔備份在 session 暫存 `s23\mesh_backup\`（要還原：`tools\mesh_material_patch.py … --set SpecularColor=130,130,130 --set RSpecScale=1.5 --set RSpecBase=-0.4`）
-- 看材質用的暫時指令 `gfgfree`（另一個暫存檔）已刪掉、沒進 git；要再用照 commit 33a6a45
-- 現在 REDkit 開的世界是 White Orchard（`prolog_village`）：看顏色用它；測其他東西的話 `reference_level` 比較快
-**#22 查到的**（10-18 02:5x；還沒寫進 findings）
-- **CS3W 解出來了**（新工具 `tools\sound_cache.py`：`--list 萬用字元`、`--extract 資料夾 萬用字元`；只讀）：檔頭第 16 byte 檔案表位置、第 24 byte 檔案數（2174）、第 32 byte 名稱表位置、第 40 byte u32 名稱表大小；檔案表每筆 24 bytes（名稱位置、資料位置、大小）到檔尾；740 個 `.bnk`、1434 個 `.wem`（串流）
-- **十字弩射擊**（`<REDKIT_DIR>\assets\w3_audio\Events\combat.wwu:433`、`Actor-Mixer Hierarchy\combat.wwu`）：事件 `weapon_crossbow_shot` → 隨機容器 `weapon_crossbow_shot`（ShortID 615266803）→ 5 個 Sound：`_01` 540419932、`_02` 300419646、`_03` 903474054、`_04` 30599391、`_05` 621452767（原始檔 `Originals\SFX\combat\weapon\crossbow\weapon_crossbow_shot_0N.wav`）；另一個動作是手把震動 `haptic__crossbow_shot`
-  - 在 `combat.bnk`（22 MB；`combat.bnk` 在遊戲 cache 的位置 295579258）；CS2 有 4 種槍聲（`ak47_01～04`）
-  - 下一步：取出 `combat.bnk` → 寫 bnk 解析（BKHD 版本、DIDX、DATA、HIRC 的 CAkSound：plugin ID、串流類型、媒體 ID、大小）→ 找這 5 個 Sound 的媒體
-- 官方路線一定要 Wwise＋授權：REDkit 的 **Publish → Cook Mod Sounds** 會叫 `WwiseConsole.exe`（`-GenerateSoundBanks`、`convert-external-source`；找 PATH、`tools\wwise\x64\Release\bin\`、設定的位置），Wwise 專案沒授權碼時寫「license key not found in the Wwise audio project …, sound cooking will probably fail」（`editor.exe` 的字串）
-  - REDkit 附了官方的 Wwise 專案：`<REDKIT_DIR>\assets\w3_audio\w3_audio.wproj`（Originals、Events、SoundBanks 的 .wwu 等）
-  - Steam 的 REDkit 討論（開發者 Vattier 2024-12-20「Known issue workaround - sound cooking」）：Save and Publish 之後再按 Cook Mod Sounds，把 `packed\soundspc.cache` 複製到 `<遊戲>\mods\<mod>\content\`
-- 遊戲的聲音：`<W3_GAME_DIR>\content\content0\soundspc.cache`（4.6 GB；開頭 `CS3W`、版本 2；欄位還沒解出來：第 24 byte 的 u64 = 2174 可能是檔案數）
-  - mod 可以自己帶 `soundspc.cache`（Nexus「No More Eating Sounds (Remastered)」就是一個取代用的 soundspc.cache）
-- REDkit 開的遊戲載入 738 個 bank、320 個常駐（`editor.log` 的 `SoundFileLoader`；例 `combat.bnk`）；從哪個檔讀還沒查到；`editor.exe` 有串流的路徑樣式 `media\` ＋ `%s%u.wem`
-- 打算（不用 Wwise）：
-  1. 解析 CS3W，列出、取出檔案（新工具）
-  2. 找十字弩射擊的事件 → bank 的 HIRC：事件 → 動作 → Sound 物件 → 媒體 ID（媒體在 bank 的 DATA 裡，或是串流的 `.wem`）
-  3. CS2 的 WAV → PCM 格式的 `.wem`（Wwise 的 RIFF：fmt 0xFFFE、cbSize 6、channel mask；格式要再查證，例 vgmstream 的說明）
-  4. 換媒體＋改 Sound 物件的 codec plugin ID（PCM）、大小 → 包成 mod 的 `soundspc.cache`（同名檔蓋過原版）
-  5. 先查 REDkit 開的遊戲怎麼讀聲音（才能測）；`desk.ps1` 不能聽聲音 → 驗證要靠紀錄（例：Wwise 的錯誤訊息）或錄音（查 Windows 能不能錄系統輸出）
-  - 顧慮：換掉十字弩射擊的聲音會影響原版十字弩（AK 取代了十字弩，影響小；要寫進決定）；或找一個只有 AK 會觸發的事件
-
-**#22 用的素材**（10-18 01:3x）
-- Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`）：`tools\_vendor\s2v_cli\Source2Viewer-CLI.exe`（不進 git）；`-i <資料夾> --recursive -o <輸出> -d` 把 `.vsnd_c` 轉 WAV
-- 取出、轉好的在 session 暫存 `s21\cs2dec\`（session 結束會不見；用 `tools\vpk_extract.py` 'sounds/weapons/ak47/*' 重取）：
-  - 聲音（44.1 kHz 16 位元）：`sounds\weapons\ak47\ak47_01～04.wav`（立體聲 1.9～2.5 秒，連發的單發槍聲＋尾音）、`ak47-1.wav`、`ak47_distant.wav`（單聲道 4 秒）、`ak47_clipout_01`、`ak47_boltpull*`、`ak47_addammo_02`、`ak47_draw`；聲音事件定義 `soundevents\game_sounds_weapons.vsndevts`
-
-**接續的步驟**
-1. #22 槍聲：照上面「#22 查到的」做；CS3W、十字弩射擊的事件已查到 → 下一步取出 combat.bnk、寫 bnk 解析找 5 個 Sound 的媒體
-2. 全部做完：照 `CLAUDE.md` §14「結束」收尾
-
-**現在的狀態**
-- REDkit 10-18 02:2x 重開過（主視窗看 `desk\g.sh` 的 `restart_all`）；世界 White Orchard（`levels\prolog_village\prolog_village.w2w`）；遊戲開著
-- 測試函式 `desk\f.sh`：`game_start_noak`、`mv`、`dirs8`、`redkit_start`（重開 REDkit；10-18 02:2x 加了「看紀錄確認世界載入、沒有就再點」）
-
-## 使用者回來時先看這裡（2026-10-17 05:5x）
-
-自主模式（10-17 02:1x 恢復）做完、結束了。背景程序都停了：保持清醒、看門狗、每小時續做排程。
+自主模式（10-18 00:4x 開始）四項都做完、結束了。背景程序都停了：保持清醒、看門狗、每小時續做排程。
 
 **做完的**（都在 REDkit 裡的遊戲驗證過）
 
-- 兩批問題（第 1～19 項）都處理完：狀態見下面兩張表
-- 這一輪做的：
-  - 第 19 項：AK 是選用物品（或拿在手上）時不拿劍；進戰鬥、被打、敵人靠近、騎馬戰鬥 → 自動舉 AK；1／2 鍵不拔劍；手上有劍時先收劍再舉 AK（`CLAUDE.md` §7、`docs\findings.md` §29）
-  - 第 8 項 B：換彈時彈匣真的拿下來：左手握著彈匣拉下、到左腰換新的、裝回去；地面、騎馬都有（`docs\m3.md`「換彈動畫：彈匣拿下來」）
-  - 開槍中按 A／D 側移：扭轉分給三節脊椎，每節最大扭轉減半以上（`docs\m3.md`「雙手持槍：開槍中側移」）
-  - 清理：測試用的主控台指令、查問題用的紀錄都拿掉了；腳本只留兩個「找不到模板」的錯誤紀錄
-  - 重新打包（05:46，版本 0.2）：輸出在 `packed\`（見下面「裝進遊戲」）；包進去的 14 個檔都核對過；打包後重開 REDkit，開遊戲、連射、換彈都正常（`docs\findings.md` §27）
+| # | 任務 | 結果 |
+|---|---|---|
+| 20 | 持槍的面向方向參考持劍 | 戰鬥中、附近有敵人、沒衝刺 → 一直朝著目標，用側移、後退的腳步（同持劍：戰鬥中只能走）；衝刺、野外照舊朝移動方向（`docs\findings.md` §30；commit `2aa9cdc`） |
+| 21 | 物品欄、輪盤的圖示換成 AK-47 | CS2 物品欄的 AK 圖：物品欄直的、輪盤水平（§31；commit `97a3981`） |
+| 22 | AK 槍聲，不走 Wwise 授權 | 自己做 SoundBank：CS2 的 3 個槍聲、每開一槍播一次、同時 1 個（同 CS2）；Claude 聽不到 → 錄電腦播的聲音驗證（§33） |
+| 23 | AK 的材質顏色不明顯 | 高光太強（用了十字弩金屬部分的數值）→ 改成一般非金屬的 0.04；白天看得到木頭、機匣的顏色（§32；commit `511eaec`） |
+
+**自己做的決定**（理由在各 findings 章節）
+
+- #20：戰鬥中的速度從跑變側移（約 2 公尺／秒；持劍在同樣情況也只能走）；站著不動照舊（準心偏 60° 以上才轉身）：使用者只說了移動
+- #21：輪盤圖的角度 −8.4°（槍管水平）；其他地方（左下角道具格等）照物品欄，直的：使用者只說輪盤
+- #22：
+  - 用 AK 自己的事件 `gfg_ak47_shot`，原版十字弩的聲音不動（AK 開火本來就不播十字弩的射擊動畫，所以也沒有十字弩的射擊聲）
+  - 照 CS2 的 `Weapon_AK47.Single`：只用 `ak47_01`、`02`、`04`，同時只播 1 個（下一發切掉上一發的尾音）
+  - 音量 −3 dB：0 dB 時峰值頂到上限（快破音）；−3 dB 比原版十字弩射擊大聲約 3 dB
+- #23：用 CS2 貼圖的定義（幾乎全是非金屬）→ 整把固定 0.04；不另外做金屬零件的高光貼圖
+  - 要還原舊的：`tools\mesh_material_patch.py <三個模型檔> --material weapon_rif_ak47 --set SpecularColor=130,130,130 --set RSpecScale=1.5 --set RSpecBase=-0.4`
+
+**要使用者決定或操作的**
+
+1. **聽一下 AK 的槍聲、音量合不合適**：Claude 只用錄音量過（頻率分布和 CS2 原檔一致、連發間隔 0.1 秒、沒破音）
+   - 改音量：`tools\ak_soundbank.py … --volume <dB>` 重做 bank（`CLAUDE.md` §6 第 20 項），重開 REDkit
+2. **wcc_lite 的 EULA 又跳出來了**：10-18 03:34 Claude 直接跑 `wcc_lite.exe cooksounds`（想看用法）之後
+   - 沒有替你按 Agree；下次 `tools\wcc_compile.py` 會跳出 EULA 視窗 → 要你本人按
+   - 這段時間 Claude 用 REDkit 的 Reload scripts 確認編譯（`Scriptables reloaded.`）
+3. 裝進 Steam 版遊戲（使用者 10-17：「先不要裝進遊戲，開發完整再來裝」）→ 沒裝
+   - `packed\` 是 10-17 05:46 打包的（版本 0.2）；之後改過腳本、圖示、材質 → **裝之前要重新 Publish**
+   - 要裝時：`packed\mods\modgunforgeralt` 複製到 `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` 複製到 `<W3_GAME_DIR>\dlc\`（推論，沒驗證）
+   - **槍聲另外打包**：Publish 不會包 bank → `python -X utf8 tools/sound_cache.py packed/mods/modgunforgeralt/content/soundspc.cache --pack workspace/soundbanks/pc/gfg_ak47.bnk`（格式、校驗碼照原版的檔驗證過；沒在 Steam 版測過）
+   - 會寫遊戲資料夾（唯讀，`CLAUDE.md` §11）→ 使用者同意後 Claude 複製，或使用者自己複製
+   - 裝之前備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`
+   - 裝了之後要驗證：拿 AK、開槍（含槍聲）、換彈、騎馬（Steam 版從沒跑過我們的 mod）
+4. 下面「沒做完的」哪些要做、先做哪個
 
 **沒做完的**（已知的小問題；要做的話跟 Claude 說）
 
@@ -101,30 +54,19 @@
   - 要降得換一套側移的腳步動畫（NPC 的；速度、步伐要另外對上）→ 成本高，先不做
 - 換彈結束、切回瞄準的約 0.2 秒，右手會離開握把一下（騎馬量到 4～21 公分）
 - 狼：正面瞄口鼻不算爆頭（口鼻離頭部骨頭 0.35 公尺）
-- 曳光：沒做
-  - 原版能從槍口連到目標的特效都是魔法光束；箭的軌跡在子彈速度下看不到
-  - 想法：另外生成一個慢速、發光的曳光
-- M4 聲音（CS2 槍聲）：要用 Wwise 做 SoundBank → 要使用者用自己的帳號申請 Wwise 授權、安裝
-  - 打包紀錄也寫 `Wwise installation not found`
-  - 要裝的版本先確認（`CLAUDE.md` §3）
-
-**要使用者決定或操作的**
-
-1. 裝進 Steam 版遊戲：使用者 02:1x 說「先不要裝進遊戲，開發完整再來裝」→ 沒裝
-   - 要裝時：`packed\mods\modgunforgeralt` 複製到 `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` 複製到 `<W3_GAME_DIR>\dlc\`（推論，沒驗證過）
-   - 會寫遊戲資料夾（唯讀，`CLAUDE.md` §11）→ 使用者同意後 Claude 複製，或使用者自己複製
-   - 裝之前備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`
-   - 裝了之後要驗證：拿 AK、開槍、換彈、騎馬（Steam 版從沒跑過我們的 mod）
-2. 上面「沒做完的」哪些要做、先做哪個
-3. M4 的 Wwise 授權
+- 曳光：沒做（原版能從槍口連到目標的特效都是魔法光束；箭的軌跡在子彈速度下看不到；想法：另外生成一個慢速、發光的曳光）
+- AK 其他的聲音（換彈、拿出、遠處聽到的槍聲）：沒做，這次只要求槍聲；CS2 的檔都有（`ak47_clipout_01`、`ak47_boltpull*`、`ak47_draw`、`ak47_distant`），做法同槍聲（`CLAUDE.md` §6 第 20 項）
 
 **現在的狀態**
 
-- REDkit 05:49 重開過：開著 `reference_level` 世界、Asset Browser；遊戲已用 F10 結束
-- `gunforgeralt.w3edit` 是 REDkit 自己改的（開過測試關卡）→ 照舊不 commit
-- 腳本沒有測試用的主控台指令、沒有 `[GFG]` 紀錄了 → 之後測試用截圖判斷；要量東西時再暫時加紀錄
+- REDkit 10-18 03:05 重開過；世界 White Orchard（`levels\prolog_village\prolog_village.w2w`）；遊戲已用 F10 結束
+- `gunforgeralt.w3edit` 是 REDkit 自己改的 → 照舊不 commit
+- 腳本沒有測試用的主控台指令；`[GFG]` 紀錄只有兩個「找不到模板」和 `shot bank loaded`（第一次載入槍聲 bank 時）
+  - 測試用的指令要再用：`gfgwolf` 照 commit e0bfb09、`gfgfree` 照 commit 33a6a45；換 bank 內容後重新載入（`SoundUnloadBank`＋`SoundLoadBank`）要另外加
+- 第三方工具（都在 `tools\_vendor\`，不進 git）：`wwiser\`（bank 解析）、`pylib314\`（soundcard、numpy：錄音）、`s2v_cli\`（Source 2 Viewer 命令列版：CS2 的聲音、圖轉檔）
+- `assets\ak47\sound\` 的 WAV 不進 git：重取照 `CLAUDE.md` §4
 
-### 這一輪自己做的決定（自主模式 10-17 02:1x～05:5x）
+## 10-17 自主模式自己做的決定（參考）
 
 - 第 19 項的條件：「AK 是選用物品，或 AK 拿在手上」（`GfgNoSwordMode`）；選用物品換成別的（炸彈等）照原版
   - 1／2 鍵只擋掉、沒反應：不另外改成舉 AK（使用者沒要求）

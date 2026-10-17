@@ -50,7 +50,7 @@
 | Python | **3.14.7** | 工具腳本（後座力模擬、資料解析、繪圖） |
 | Blender | **5.2** | 模型處理（內建 glTF 匯入、FBX 匯出） |
 | REDkit Blender 外掛 | `<REDKIT_DIR>\bin\tools\BlenderPlugin\blender_re_animations_plugin.zip` | 2026-10-15 備好：複本在 `tools\_vendor\`、h5py 3.16.0 在 `tools\_vendor\pylib\`（都不進 git；不裝進 Blender）；Blender 5.2 背景模式能匯入（範例檔實測）；用法和注意事項見 `docs\m3.md`「Blender 外掛」 |
-| Wwise | ⚠️ **待重新確認**：原本寫 2021.1.7.7796，但 REDkit 5.0 Changelog 寫「requires Wwise 2023 with the Mastering Suite and Motion plugins」 | 聲音階段；授權每 3 個月重新申請；M4 前查清確切版號 |
+| Wwise | ⚠️ **待重新確認**：原本寫 2021.1.7.7796，但 REDkit 5.0 Changelog 寫「requires Wwise 2023 with the Mastering Suite and Motion plugins」 | 聲音階段；授權每 3 個月重新申請；REDkit 要 2023.1（`wcc_lite.exe` 的字串「The version must be 2023.1」）；**AK 槍聲沒用到**（第 22 項自己做 bank：§6 第 20 項） |
 | ffmpeg | 聲音階段 | 把 REDkit 原版音效 `.opus` 轉 `.wav` |
 | Source 2 Viewer | GUI + CLI | 從 CS2 的 VPK 匯出模型、貼圖、聲音 |
 | Git | 已裝 | 版本控制 |
@@ -97,7 +97,9 @@
       data\items\weapons\gfg_ak47\  ← AK 的實體模板（納入 git）、模型、貼圖（REDkit 匯入的產物，不納入 git）
     scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
     gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh、pc_gameplay.w2beh  ← 改過的原版動畫圖（tools\overlay_patch.py、gameplay_patch.py 產生，不納入 git；§6.16）
+    soundbanks\pc\gfg_ak47.bnk    ← AK 槍聲的 SoundBank（tools\ak_soundbank.py 產生，不納入 git；§6 第 20 項）
   assets\ak47\                    ← M3 腳本的輸出（.blend、.fbx、.png 不納入 git）、匯入模型用的材質 XML（納入 git）
+    sound\                        ← CS2 的槍聲 ak47_01、02、04.wav（tools\vpk_extract.py 取出 'sounds/weapons/ak47/*'＋Source 2 Viewer 命令列版轉 WAV；不納入 git）
   thumbnails\                     ← REDkit Asset Browser 的縮圖（自動產生，不納入 git）
   packed\、publish\               ← REDkit 打包輸出（不納入 git）
 
@@ -226,6 +228,14 @@
     - **加了掛載器、新建圖檔，都要重開 REDkit 才生效**
     - `editor.log` 的 `Failed to convert path` 只列找不到的路徑；找到的不寫
     - 本專案：`icons\inventory\weapons\gfg_ak47_64x128.png`（物品欄，直的）、`gfg_ak47_128x64.png`（輪盤，水平：腳本換掉輪盤資料裡的路徑）
+20. **聲音：不用 Wwise 也能加——自己做 SoundBank（`.bnk`）**（2026-10-18 第 22 項遊戲實測，`docs\findings.md` §33）
+    - **REDkit 開的遊戲讀 depot 的散檔 `soundbanks\pc\*.bnk`，workspace 的同路徑也算**；新的 bank 要重開 REDkit 才會列進去（`editor.log`：`Started processing bank names - count [N]` 加 1）
+    - 不在自動載入清單（`gameplay\globals\soundbanks_always_load.csv`）的 bank：腳本 `theSound.SoundLoadBank( "檔名.bnk", false )` 載入（`sound.ws:88`）、`實體.SoundEvent( "事件名稱" )` 播放（`entity.ws:302`）
+    - 做 bank：`tools\ak_soundbank.py`（WAV → PCM 的 WEM → bank 第 150 版；物件從原版 `combat.bnk` 複製再改）；解析、檢查 bank：wwiser（`tools\_vendor\wwiser\wwiser.pyz`）
+    - Wwise 的 ID = FNV-1 32 位元（小寫名稱）；bank 名稱、事件名稱一定要用這個算，其他物件的 ID 只要不撞到
+    - 本專案：`workspace\soundbanks\pc\gfg_ak47.bnk`，事件 `gfg_ak47_shot`（CS2 的 `ak47_01`、`02`、`04`；同時 1 個；−3 dB），掛在原版十字弩的 actor-mixer 底下
+    - **裝進遊戲時**：Publish 不會包聲音 → `tools\sound_cache.py <mod 的 content>\soundspc.cache --pack <bank>`（CS3W；校驗碼 FNV-1a 64，用原版的檔驗證過）；還沒在 Steam 版測過
+    - 驗證：Claude 聽不到 → `tools\audio_rec.py` 錄電腦播的聲音（§12）
 
 ---
 
@@ -349,7 +359,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 | **M1 佔位 AK** | 複製十字弩的物品定義，做成新物品並改成 AK 數值，不換模型 | 主控台可取得、可裝備、可射擊，數值有變 |
 | **M2 射擊機制** | 全自動 600 RPM、彈匣 30、換彈；鏡頭後座力（CS2 彈道）、散布狀態、停火回復 | 遊戲內手感接近 CS2，壓槍有效 |
 | **M3 模型** | CS2 AK-47 → Blender → FBX → REDkit，掛到 Geralt 手上 | 外觀為 AK-47，握持位置正確 |
-| **M4 聲音** | Wwise SoundBank 加入 AK-47 槍聲 | 射擊時播放 CS2 槍聲 |
+| **M4 聲音** | Wwise SoundBank 加入 AK-47 槍聲 | 射擊時播放 CS2 槍聲（2026-10-18 槍聲做好：不用 Wwise，§6 第 20 項） |
 | **M5 打磨** | 槍口火光、曳光、命中回饋、準心 | 整體手感完成 |
 
 每個里程碑內：**小步修改 → 提供測試步驟 → 使用者回報 → git commit**
@@ -422,6 +432,10 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
 - **讀動畫圖等 CR2W 二進位檔**：`python -X utf8 tools/cr2w_dump.py <檔案> --out <輸出.txt>`（`--tree N`、`--find 值` 可縮小範圍；`docs\findings.md` §17.9）
+- **聽不到聲音 → 錄電腦播的聲音**（2026-10-18；`docs\findings.md` §33.5）：`python -X utf8 tools/audio_rec.py rec 秒數 輸出.wav 準備好的旗標檔`
+  - 背景跑，等旗標檔出現再操作遊戲（Python 載入要 1 秒左右）
+  - `tones`：測試音的頻率（確認媒體有播、音高對）；`onsets 錄音 原始檔…`：每一發的起點、間隔、音量
+  - 遊戲暫停（拍照模式等）時錄到全 0；主控台的 `SoundEvent(…)` 有時錄不到 → 測試時掛在玩家身上播
 - **REDkit 的紀錄 `<REDKIT_DIR>\bin\editor.log` 在 REDkit 重開時會被整個重寫**（2026-10-15）→ 遊戲測完、重開 REDkit 之前，先讓 Claude 讀紀錄
 - **DLC 掛載器有沒有生效**：從 REDkit 開遊戲時會重讀 `.reddlc`，`editor.log` 寫 `[DLC] Mounted N DLC mounter(s).`（2026-10-15 是 165，含我們的 2 個）；加了掛載器，數字會跟著變（2026-10-15 加 1 個變成 166）
 - **寫完腳本先編譯檢查**（Claude 自己做，約 20 秒）：`python -X utf8 tools/wcc_compile.py`

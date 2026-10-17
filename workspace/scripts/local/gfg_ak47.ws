@@ -803,6 +803,30 @@ function GfgClearDeadSlideTarget()
 		SetSlideTarget( NULL );
 }
 
+// ===== 槍聲（第 22 項；2026-10-18）=====
+// AK 自己的 SoundBank：tools/ak_soundbank.py 用 CS2 的槍聲（ak47_01、02、04）做的 gfg_ak47.bnk，事件 gfg_ak47_shot
+// （同一時間只播一發，新的蓋掉舊的：同 CS2 的 Weapon_AK47.Single 的 instance_limit 1）
+// - 載入：腳本載入 bank 照原版（突變的音效 PlayerAbilityManager.ws:4663-4666、套裝 playerWitcher.ws:11396-11401）；
+//   還沒載入就同步載入（第二個參數 false），第一發就有聲音
+// - 播放：玩家身上（CEntity.SoundEvent：entity.ws:302）
+@addField(Crossbow)
+var gfgShotBankLogged : bool;
+
+@addMethod(Crossbow)
+function GfgShotSound()
+{
+	if ( !theSound.SoundIsBankLoaded( "gfg_ak47.bnk" ) )
+	{
+		theSound.SoundLoadBank( "gfg_ak47.bnk", false );
+		if ( !gfgShotBankLogged )
+		{
+			gfgShotBankLogged = true;
+			LogChannel( 'GFG', "shot bank loaded: " + theSound.SoundIsBankLoaded( "gfg_ak47.bnk" ) );
+		}
+	}
+	ownerPlayer.SoundEvent( "gfg_ak47_shot" );
+}
+
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
 // 直接觸發射擊，不等動畫事件（CCO 的作法，docs/findings.md §8.1）
 @addMethod(Crossbow)
@@ -861,6 +885,9 @@ function GfgTryFire()
 
 	// 槍口火光（第 10 項）
 	thePlayer.GfgMuzzleFlash();
+
+	// 槍聲（第 22 項）
+	GfgShotSound();
 
 	// 後座力：這一發開完，鏡頭開始轉向下一發的位置（之後每格轉一部分：GfgUpdateRecoil）
 	GfgAddRecoil( now );
