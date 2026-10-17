@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 02:4x（**自主模式中**：先看下一節）
+最後更新：2026-10-18 02:5x（**自主模式中**：先看下一節）
 
 ---
 
@@ -49,6 +49,20 @@
 - 改之前的模型檔備份在 session 暫存 `s23\mesh_backup\`（要還原：`tools\mesh_material_patch.py … --set SpecularColor=130,130,130 --set RSpecScale=1.5 --set RSpecBase=-0.4`）
 - 看材質用的暫時指令 `gfgfree`（另一個暫存檔）已刪掉、沒進 git；要再用照 commit 33a6a45
 - 現在 REDkit 開的世界是 White Orchard（`prolog_village`）：看顏色用它；測其他東西的話 `reference_level` 比較快
+**#22 查到的**（10-18 02:5x；還沒寫進 findings）
+- 官方路線一定要 Wwise＋授權：REDkit 的 **Publish → Cook Mod Sounds** 會叫 `WwiseConsole.exe`（`-GenerateSoundBanks`、`convert-external-source`；找 PATH、`tools\wwise\x64\Release\bin\`、設定的位置），Wwise 專案沒授權碼時寫「license key not found in the Wwise audio project …, sound cooking will probably fail」（`editor.exe` 的字串）
+  - REDkit 附了官方的 Wwise 專案：`<REDKIT_DIR>\assets\w3_audio\w3_audio.wproj`（Originals、Events、SoundBanks 的 .wwu 等）
+  - Steam 的 REDkit 討論（開發者 Vattier 2024-12-20「Known issue workaround - sound cooking」）：Save and Publish 之後再按 Cook Mod Sounds，把 `packed\soundspc.cache` 複製到 `<遊戲>\mods\<mod>\content\`
+- 遊戲的聲音：`<W3_GAME_DIR>\content\content0\soundspc.cache`（4.6 GB；開頭 `CS3W`、版本 2；欄位還沒解出來：第 24 byte 的 u64 = 2174 可能是檔案數）
+  - mod 可以自己帶 `soundspc.cache`（Nexus「No More Eating Sounds (Remastered)」就是一個取代用的 soundspc.cache）
+- REDkit 開的遊戲載入 738 個 bank、320 個常駐（`editor.log` 的 `SoundFileLoader`；例 `combat.bnk`）；從哪個檔讀還沒查到；`editor.exe` 有串流的路徑樣式 `media\` ＋ `%s%u.wem`
+- 打算（不用 Wwise）：
+  1. 解析 CS3W，列出、取出檔案（新工具）
+  2. 找十字弩射擊的事件 → bank 的 HIRC：事件 → 動作 → Sound 物件 → 媒體 ID（媒體在 bank 的 DATA 裡，或是串流的 `.wem`）
+  3. CS2 的 WAV → PCM 格式的 `.wem`（Wwise 的 RIFF：fmt 0xFFFE、cbSize 6、channel mask；格式要再查證，例 vgmstream 的說明）
+  4. 換媒體＋改 Sound 物件的 codec plugin ID（PCM）、大小 → 包成 mod 的 `soundspc.cache`（同名檔蓋過原版）
+  5. 先查 REDkit 開的遊戲怎麼讀聲音（才能測）；`desk.ps1` 不能聽聲音 → 驗證要靠紀錄（例：Wwise 的錯誤訊息）或錄音（查 Windows 能不能錄系統輸出）
+  - 顧慮：換掉十字弩射擊的聲音會影響原版十字弩（AK 取代了十字弩，影響小；要寫進決定）；或找一個只有 AK 會觸發的事件
 
 **#22 用的素材**（10-18 01:3x）
 - Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`）：`tools\_vendor\s2v_cli\Source2Viewer-CLI.exe`（不進 git）；`-i <資料夾> --recursive -o <輸出> -d` 把 `.vsnd_c` 轉 WAV
@@ -56,7 +70,7 @@
   - 聲音（44.1 kHz 16 位元）：`sounds\weapons\ak47\ak47_01～04.wav`（立體聲 1.9～2.5 秒，連發的單發槍聲＋尾音）、`ak47-1.wav`、`ak47_distant.wav`（單聲道 4 秒）、`ak47_clipout_01`、`ak47_boltpull*`、`ak47_addammo_02`、`ak47_draw`；聲音事件定義 `soundevents\game_sounds_weapons.vsndevts`
 
 **接續的步驟**
-1. #22 槍聲：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線（社群工具、原版腳本 API）；查到再決定
+1. #22 槍聲：照上面「#22 查到的」的打算做（先解析 CS3W、找十字弩射擊的事件和媒體）
 2. 全部做完：照 `CLAUDE.md` §14「結束」收尾
 
 **現在的狀態**
