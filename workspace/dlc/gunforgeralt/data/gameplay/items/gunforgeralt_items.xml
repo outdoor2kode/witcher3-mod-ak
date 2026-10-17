@@ -29,7 +29,7 @@
 				equip_slot						="gfg_ak47_back_slot"
 				localisation_key_name			="gfg_item_name_ak47"
 				localisation_key_description	="item_desc_crossbow_1"
-				icon_path						="icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png"
+				icon_path						="icons/inventory/weapons/gfg_ak47_64x128.png"
 			>
 				<!-- gfg_ak47 tag: scripts use it to recognise the AK (workspace/scripts/local/gfg_ak47.ws) -->
 				<tags>							Weapon, crossbow, mod_weapon, gfg_ak47
