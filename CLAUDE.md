@@ -216,6 +216,7 @@
     - 本專案改過的：`pc_overlay.w2beh` 的曲線 #18561（站著瞄準時右手臂不再被換成 `man_ger_sword_axii_arm_override`）；`pc_gameplay.w2beh` 3 個直線走跑節點的骨頭表（`tools\gameplay_patch.py`：拿十字弩直線走跑時兩隻手臂都用十字弩動畫；`docs\m3.md`「直線走路、跑步的右手」）
     - 物件變大小也可以改：物件資料連續排列、沒有 buffer 的檔，後面的物件位移往後挪、更新物件表和檔頭的檔案大小（第 6、7 個 u32）（`tools\gameplay_patch.py`）
     - **REDkit 開著時新建的 workspace 檔，遊戲讀不到 → 重開 REDkit 才生效**（2026-10-16 `pc_gameplay.w2beh` 實測）；改既有的檔不用重開
+    - 模型的材質數值參數（`SpecularColor`、`RSpecScale` 等）：`tools\mesh_material_patch.py` 原地改（2026-10-18；改完重開 REDkit 後生效；`docs\findings.md` §32）
 17. 詳細出處（檔案路徑、行號、Wiki 頁面 ID）見 `docs\findings.md`
 18. **拿在手上的物品：畫面上的模型跟著物品系統掛在 slot 的動畫元件，不跟物品實體**（2026-10-16 遊戲實測，`docs\findings.md` §26）
     - 對物品實體 `CreateAttachment`（帶偏移）只移動實體矩陣；物品骨架（例：AK 的 `handle`）、蒙皮的模型照原版跟著 slot 骨頭

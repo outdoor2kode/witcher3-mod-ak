@@ -10,9 +10,9 @@
         <material name="weapon_rif_ak47" local="true" base="engine\materials\graphs\pbr_std.w2mg">
             <param name="Diffuse" type="handle:ITexture" value="dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_d01.xbm" />
             <param name="Normal" type="handle:ITexture" value="dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_n01.xbm" />
-            <param name="SpecularColor" type="Color" value="130; 130; 130; 255" />
-            <param name="RSpecScale" type="Float" value="1.5" />
-            <param name="RSpecBase" type="Float" value="-0.4" />
+            <param name="SpecularColor" type="Color" value="59; 59; 59; 255" />
+            <param name="RSpecScale" type="Float" value="0" />
+            <param name="RSpecBase" type="Float" value="1" />
         </material>
         <material name="sticker_gaps" local="true" base="engine\materials\graphs\pbr_std.w2mg">
         </material>

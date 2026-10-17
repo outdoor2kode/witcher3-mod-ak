@@ -2342,3 +2342,39 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 按 I 沒反應；按 Enter 開的面板裡，物品欄分頁是暗的
   - 主控台 `r4inventory()`（`temp.ws:889-892`）：面板開了馬上關（原因沒查）
 - 先按 C 收槍，再按 I：物品欄打開
+
+## 32. AK 的材質：高光太強，看不出顏色（2026-10-18 第 23 項；遊戲實測）
+
+**現象**（改之前；`reference_level` 中午晴天，暫時的自由鏡頭指令近拍）
+- 從右邊看：整把像鍍鉻的銀白色，木頭的棕色完全看不到
+- 從左邊看：整把映出地面的藍綠色
+
+**原因**
+- AK 的材質（`pbr_std.w2mg`）用的是十字弩**金屬部分**（`Material3`）的數值：`SpecularColor` 130、`RSpecScale` 1.5、`RSpecBase` -0.4（`docs\m3.md`「`assets\ak47\gfg_ak47.xml`」）；十字弩的木頭部分（`Material0`）是 `RSpecScale` 0.2、`RSpecBase` -0.05，幾乎沒有高光
+- `pbr_std` 的高光（`tools\cr2w_dump.py` 讀材質圖、整理連線）：
+  - `SpecularColor` → 轉線性 → ×（(1 − `Normal`.a) × `RSpecScale` + `RSpecBase`）→ saturate → 轉回 gamma → 濕度 → 輸出 `Specularity`
+  - `Normal`.a 是粗糙度
+- CS2 貼圖的數據（Blender 讀 4096 的顏色圖、ORM 圖，縮成 1024 統計）：
+
+| 區域（照顏色分） | 佔比 | 顏色（sRGB） | 粗糙度平均 | 金屬度平均 |
+|---|---|---|---|---|
+| 木頭（飽和、偏橘） | 14.7% | 0.41, 0.32, 0.26 | **0.31**（整把最光滑） | 0.03 |
+| 灰（不飽和） | 79.0% | 0.33, 0.33, 0.32 | 0.44 | 0.085 |
+| 金屬度 > 0.5 | 6.2% | 0.51, 0.51, 0.49 | 0.47 | 0.78 |
+
+- → 舊數值下木頭的 F0（線性）≈ 0.22 ×（0.69 × 1.5 − 0.4）≈ **0.14**、灰色部分 ≈ 0.10；一般非金屬是 0.04 → 木頭反而最亮，整把像金屬
+- CS2 把整把幾乎都當非金屬（金屬度 ≈ 0）→ F0 應該是 0.04
+
+**改法**
+- `SpecularColor` 59、`RSpecScale` 0、`RSpecBase` 1 → 高光固定 0.04（59／255 轉線性：sRGB 曲線 0.044、2.2 次方 0.040）
+- 三個模型檔（`gfg_ak47`、`gfg_ak47_nomag`、`gfg_ak47_mag`.w2mesh）用新工具 `tools\mesh_material_patch.py` 原地改：
+  - 材質參數在 `CMaterialInstance` 物件屬性串列之後的自訂資料：u32 數量；每筆 u32 大小（含自己）、u16 名稱、u16 型別、值；`Color` 的值是結構（1 個 0、Red／Green／Blue／Alpha 各一筆 Uint8 屬性、結束的 u16 0）
+  - 每個檔只變 21 bytes（3 個顏色、2 個 float、3 層校驗碼）
+  - 改完重開 REDkit 後，遊戲裡生效（沒試過不重開）
+- 匯入用的材質 XML（`assets\ak47\gfg_ak47*.xml`）改成同樣的數值（以後重新匯入時一致）
+- 沒做：金屬度高的 6.2%（亮灰色的小零件）現在也是非金屬的 0.04；要更像金屬得換成有高光貼圖的 `pbr_spec.w2mg`（`SpecularTexture` 直接當高光；說明方塊寫「Use it only if you need specular control over parts of the material」）＋重做顏色圖、匯入兩張新貼圖
+
+**結果**（改之後）
+- `reference_level`（同一個角度比較）：從右邊看，下護木是棕色，不再是整把銀白
+- White Orchard（`levels\prolog_village\prolog_village.w2w`）下午 1 點晴天：上下護木橘棕色、機匣有光澤的灰色鋼、彈匣深色；左、右、前左三個角度都看得到顏色
+- `reference_level` 的地板、反射都是藍綠色，看顏色要用正式的世界（Asset Browser 搜尋 `prolog_village.w2w`，雙擊開；`play game`）

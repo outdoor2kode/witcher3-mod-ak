@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 02:1x（**自主模式中**：先看下一節）
+最後更新：2026-10-18 02:4x（**自主模式中**：先看下一節）
 
 ---
 
@@ -18,8 +18,8 @@
 |---|---|---|
 | 20 | 持槍的**面向方向**參考持劍：「持劍走入怪物群，即便按下 S 後退時，不會整個人往後走，而是一直面對怪物」；去看持劍時在戰鬥中、不在戰鬥中，走、跑、衝刺各方向的姿態，照著改善持槍的（「我單純指面向方向，其他不變，或者合理有根據地變化」） | **做好**（01:3x，commit `2aa9cdc`）：見下面 |
 | 21 | 物品欄、輪盤的 AK 圖示（原本是十字弩的）換成 AK-47 的圖（「你去找適合的圖來放。不管版權什麼的，我自己玩而已」）；補充（02:0x）：「輪盤的圖示不要是垂直，要是水平。物品則欄維持垂直」 | **做好**（02:1x）：見下面 |
-| 22 | AK 槍聲：「應該有不走這種要申請授權這麼麻煩的方式就可以拿到。你去取得並且實作。一定有」 | 聲音檔已取得（見下面），實作未開始 |
-| 23 | AK 材質顏色在遊戲裡很不明顯（反光；白天也常看不出有顏色）→ 找合理方法解決 | 下一個做 |
+| 22 | AK 槍聲：「應該有不走這種要申請授權這麼麻煩的方式就可以拿到。你去取得並且實作。一定有」 | 聲音檔已取得（見下面），**下一個做** |
+| 23 | AK 材質顏色在遊戲裡很不明顯（反光；白天也常看不出有顏色）→ 找合理方法解決 | **做好**（02:4x）：見下面 |
 
 - 使用者另外說：「如果有必要的資料夾或工具存取權限，必要的話你就自己開」→ 10-18 01:3x 下載了 Source 2 Viewer 的命令列版（見下面）
 
@@ -41,18 +41,27 @@
 - 自己做的決定：輪盤圖的角度選 −8.4°（3 個候選 0°、−8.4°、−13.8° 渲染比較，槍管水平的那個）；左下角道具格、其他地方照物品欄（直的）：使用者只說輪盤
 - 物品欄：拿著 AK 時打不開（十字弩的 `Lock()`，原版行為）→ 先按 C 收槍再按 I
 
+**#23 的結果**（細節 `docs\findings.md` §32、`CLAUDE.md` §6 第 16 項）
+- 原因：AK 的材質用了十字弩「金屬部分」的高光數值（`SpecularColor` 130、`RSpecScale` 1.5、`RSpecBase` -0.4）；CS2 的木頭是整把最光滑的 → 木頭 F0 約 0.14、灰色部分約 0.10（一般非金屬 0.04）→ 整把像鍍鉻
+- 改成 `SpecularColor` 59、`RSpecScale` 0、`RSpecBase` 1（固定 0.04）：新工具 `tools\mesh_material_patch.py` 原地改三個模型檔；匯入用的材質 XML 一起改
+- 遊戲裡確認：`reference_level` 同角度比較（銀白 → 棕色護木）；White Orchard 白天三個角度都看得到木頭的橘棕色、機匣的灰色鋼
+- 自己做的決定：用 CS2 貼圖的定義（幾乎全是非金屬 → 0.04），不做 `pbr_spec`＋高光貼圖（金屬度高的只有 6.2% 的小零件；要多匯入兩張貼圖、換材質圖）
+- 改之前的模型檔備份在 session 暫存 `s23\mesh_backup\`（要還原：`tools\mesh_material_patch.py … --set SpecularColor=130,130,130 --set RSpecScale=1.5 --set RSpecBase=-0.4`）
+- 看材質用的暫時指令 `gfgfree`（另一個暫存檔）已刪掉、沒進 git；要再用照 commit 33a6a45
+- 現在 REDkit 開的世界是 White Orchard（`prolog_village`）：看顏色用它；測其他東西的話 `reference_level` 比較快
+
 **#22 用的素材**（10-18 01:3x）
 - Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`）：`tools\_vendor\s2v_cli\Source2Viewer-CLI.exe`（不進 git）；`-i <資料夾> --recursive -o <輸出> -d` 把 `.vsnd_c` 轉 WAV
 - 取出、轉好的在 session 暫存 `s21\cs2dec\`（session 結束會不見；用 `tools\vpk_extract.py` 'sounds/weapons/ak47/*' 重取）：
   - 聲音（44.1 kHz 16 位元）：`sounds\weapons\ak47\ak47_01～04.wav`（立體聲 1.9～2.5 秒，連發的單發槍聲＋尾音）、`ak47-1.wav`、`ak47_distant.wav`（單聲道 4 秒）、`ak47_clipout_01`、`ak47_boltpull*`、`ak47_addammo_02`、`ak47_draw`；聲音事件定義 `soundevents\game_sounds_weapons.vsndevts`
 
 **接續的步驟**
-1. #23 材質顏色：先查 M3 的材質設定（`docs\m3.md`「W3 的材質：用 pbr_std」、`tools\m3_textures.py`、`assets\ak47\` 的材質 XML）、遊戲裡白天截圖看問題；找原因（貼圖的顏色空間、粗糙度／金屬度、法線、材質參數）→ 改 → 遊戲裡白天、晚上截圖比較
-2. #22 槍聲：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線；查到再決定
+1. #22 槍聲：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線（社群工具、原版腳本 API）；查到再決定
+2. 全部做完：照 `CLAUDE.md` §14「結束」收尾
 
 **現在的狀態**
-- REDkit 10-18 02:0x 重開過（主視窗 `0x616BA`；g.sh 已換）；世界 `reference_level`；遊戲開著（AK 收在背上）
-- 測試函式 `desk\f.sh`：`game_start_noak`、`mv`、`dirs8`、`redkit_start`（重開 REDkit；10-18 02:0x 實測兩次可用；開完世界沒載入時再點一次 File → 最近的世界 (180,246)）
+- REDkit 10-18 02:2x 重開過（主視窗看 `desk\g.sh` 的 `restart_all`）；世界 White Orchard（`levels\prolog_village\prolog_village.w2w`）；遊戲開著
+- 測試函式 `desk\f.sh`：`game_start_noak`、`mv`、`dirs8`、`redkit_start`（重開 REDkit；10-18 02:2x 加了「看紀錄確認世界載入、沒有就再點」）
 
 ## 使用者回來時先看這裡（2026-10-17 05:5x）
 
