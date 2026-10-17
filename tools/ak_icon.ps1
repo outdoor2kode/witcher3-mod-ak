@@ -1,16 +1,19 @@
 ﻿<#
 做 AK 的物品圖示（第 21 項，2026-10-18）：CS2 物品欄的 AK 圖（512×384，透明背景）→ 巫師3 的直式圖示 64×128
-用法：powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/ak_icon.ps1 <CS2 的 PNG> <輸出 PNG> [角度=88.2] [陰影=1]
+用法：powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/ak_icon.ps1 <CS2 的 PNG> <輸出 PNG> [角度=88.2] [陰影=1] [寬=64] [高=128]
 - 來源：CS2 VPK 的 panorama/images/econ/weapons/base_weapons/weapon_ak47_png.vtex_c（tools/vpk_extract.py 取出、Source2Viewer-CLI 轉 PNG）
 - 擺法照原版十字弩圖示（gameplay/gui_new/icons/inventory/weapons/crossbow/witcher_crossbow_lvl1_64x128.png）：直放、上端偏右、下端偏左、右下有淡陰影
   - 角度：來源圖裡槍托 (497,235) → 槍口 (10,115) 的方向 −166.2°；轉成往上偏右 12°（−78°）→ 順時針 88.2°
+- 輪盤用的水平圖示（使用者 10-18：輪盤要水平、物品欄維持垂直）：寬 128、高 64、角度見 docs\findings.md §31
 - 只用 Windows 內建的 System.Drawing（GDI+）
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Src,
     [Parameter(Mandatory = $true)][string]$Out,
     [double]$Angle = 88.2,
-    [int]$Shadow = 1
+    [int]$Shadow = 1,
+    [int]$Width = 64,
+    [int]$Height = 128
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -49,9 +52,9 @@ $g.RotateTransform($Angle)
 $g.DrawImage($srcBmp, - $srcBmp.Width / 2, - $srcBmp.Height / 2, $srcBmp.Width, $srcBmp.Height)
 $g.Dispose()
 
-# 2. 裁到不透明的範圍，等比例縮進 64×128（留 3 像素邊；陰影往右下 2 像素）
+# 2. 裁到不透明的範圍，等比例縮進 寬×高（留 3 像素邊；陰影往右下 2 像素）
 $box = Get-AlphaBox $rot
-$W = 64; $H = 128; $margin = 3
+$W = $Width; $H = $Height; $margin = 3
 $scale = [Math]::Min(($W - 2 * $margin - 2) / $box.Width, ($H - 2 * $margin - 2) / $box.Height)
 $dw = $box.Width * $scale; $dh = $box.Height * $scale
 $dx = ($W - 2 - $dw) / 2; $dy = ($H - 2 - $dh) / 2

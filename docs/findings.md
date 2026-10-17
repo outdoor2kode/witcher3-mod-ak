@@ -2299,3 +2299,46 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 8 方向都朝著狼（差 5° 內），1.75～2.1 公尺／秒（持劍的戰鬥走路 2.3～2.6）；連拍 `ak_cs`（S）、`ak_ca`（A）：兩手持槍朝狼，腳往後、往左踏
 - 衝刺：朝移動方向；開槍中移動（鏡頭轉開狼 50～70°）：朝準心（差 1° 內）；停火 3 秒後再移動：朝狼（差 3° 內）
 - 離狼 18 公尺以上（AlertFar）：轉身跑（同持劍）
+
+## 31. 物品圖示：物品欄、輪盤（2026-10-18 第 21 項；遊戲實測）
+
+**圖從哪裡來**
+- CS2 的 VPK：`panorama/images/econ/weapons/base_weapons/weapon_ak47_png.vtex_c`（CS2 物品欄的 AK 圖，512×384、透明背景）
+  - `tools\vpk_extract.py` 取出（只讀 VPK）→ Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`；放 `tools\_vendor\s2v_cli\`，不進 git）：`-i <資料夾> --recursive -o <輸出> -d` 轉成 PNG
+- `tools\ak_icon.ps1`：轉、裁、縮、加淡陰影
+  - 物品欄：64×128 直的（順時針 88.2°；擺法照原版十字弩圖示）
+  - 輪盤：128×64 水平（`-Angle:-8.4 -Width 128 -Height 64`：槍管水平）；負的角度要寫成 `-Angle:值`，不然被當成參數名稱
+- 輸出：`workspace\dlc\gunforgeralt\data\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_64x128.png`、`gfg_ak47_128x64.png`（.png 不進 git；用上面兩支工具重做）
+
+**介面怎麼找圖**
+- 物品 XML 的 `icon_path`（相對於 `gameplay\gui_new\`）；介面用 `img://` 加上這個路徑載入
+- 找的順序：`gameplay\gui_new\` → 有 `CR4ScaleformContentDLCMounter`、而且啟用的 DLC 的 `scaleformDirectoryPath`（原版：bob、dlc1、dlc5、dlc10、dlc12～15、dlc18、ep1；dlc8 也有這個掛載器，但 `initiallyEnabled = False`，不在裡面）
+  - `editor.log` 的 `Failed to convert path '…' to a depot path.` 只列**找不到**的路徑；找到的那個不寫 → 只看這幾行會以為沒去找我們的 DLC
+  - 同一張圖第二次以後只寫第一個路徑（推論：有快取）
+- **`.reddlc` 加了 `CR4ScaleformContentDLCMounter` 後，要重開 REDkit 才生效**
+  - 同一次開著的 REDkit：掛載器的數字有增加（167 → 168），但輪盤還是載入失敗、顯示備用圖（一隻橘色蜘蛛：`RadialMenuItemEquipped.as:733`）
+  - 重開 REDkit 後：輪盤、物品欄都顯示我們的圖（紀錄寫 `gameplay\gui_new\` 和原版 DLC 都找不到 → 圖是從我們的 DLC 來的）
+  - REDkit 開著時在 `workspace` 新建的圖檔，也要重開才讀得到（同 `CLAUDE.md` §6 第 16 項）
+
+**輪盤的十字弩格子**（`RadialMenuItemEquipped.as`）
+- 格子的圖示框：類別 `crossbow` 固定 64×128（直的：`:764-770`）；其他類別 60×60（`:771-777`）
+- 資料有 `multiplyX`、`multiplyY` 時，框的寬、高、位置各乘上它（`:626-633`、`:779-782`；原版腳本沒用到）
+- 選到這格時，中間的大圖照圖的原尺寸顯示（`RadialMenuSubItemView.as:110-118`）
+- 資料來自 `hudModuleRadialMenu.ws:998-1194` 的 `UpdateCrossbowItemData`，放在 `dataList` 的最後一筆：
+  - 格子本身的 `itemIconPath`（沒有 `img://`）
+  - `itemsList`：中間的大圖用；裝備中的那把沒有 `img://`、弩箭有
+  - `itemsRangedList`：換遠程武器用；有 `img://`
+
+**做法**（`gfg_ak47.ws`「輪盤的 AK 圖示：水平」）
+- 包 `UpdateCrossbowItemData`：原版做完後，圖示路徑含 `gfg_ak47_64x128.png` 的換成 `gfg_ak47_128x64.png`；格子本身再加 `multiplyX` = 2、`multiplyY` = 0.5 → 框變成 128×64
+- 物品欄、其他地方照物品 XML（直的）
+
+**結果**（重開 REDkit 後）
+- 輪盤：AK 水平、在圓框內
+- 物品欄的 Ranged weapon 格：AK 直的、槍口朝上偏右
+
+**開物品欄**
+- **拿著 AK 時開不了**：十字弩的 `Lock()` 擋住所有動作，只留例外清單；物品欄只有在船上才是例外（`rangedWeapon.ws:374-395`）
+  - 按 I 沒反應；按 Enter 開的面板裡，物品欄分頁是暗的
+  - 主控台 `r4inventory()`（`temp.ws:889-892`）：面板開了馬上關（原因沒查）
+- 先按 C 收槍，再按 I：物品欄打開

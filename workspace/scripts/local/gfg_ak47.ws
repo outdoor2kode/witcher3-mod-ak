@@ -2301,6 +2301,57 @@ function ShowRadialMenu()
 	wrappedMethod();
 }
 
+// ===== 輪盤的 AK 圖示：水平（第 21 項；使用者 2026-10-18「輪盤的圖示不要是垂直，要是水平。物品欄維持垂直」）=====
+// 物品欄、左下角道具格照物品 XML 的 icon_path（直的 gfg_ak47_64x128.png）；只有輪盤換成水平的 gfg_ak47_128x64.png（tools/ak_icon.ps1 產生）
+// 輪盤的十字弩格子：圖示框固定 64×128，資料有 multiplyX、multiplyY 時寬高各乘上它（RadialMenuItemEquipped.as:626-633、:764-782）→ 128×64
+// 選到這格時中間的大圖照圖的原尺寸顯示（RadialMenuSubItemView.as:110-118）
+// 資料在 dataList 的最後一筆（hudModuleRadialMenu.ws:1045-1193）：格子本身、itemsList（中間的大圖）、itemsRangedList（換遠程武器）各有圖示路徑
+@wrapMethod(CR4HudModuleRadialMenu)
+function UpdateCrossbowItemData( radialSlotId : int, out dataList : CScriptedFlashArray ) : void
+{
+	var slot : CScriptedFlashObject;
+
+	wrappedMethod( radialSlotId, dataList );
+	if ( dataList.GetLength() < 1 )
+		return;
+	slot = dataList.GetElementFlashObject( dataList.GetLength() - 1 );
+	if ( !slot )
+		return;
+	if ( GfgRadialAkIcon( slot ) )
+	{
+		slot.SetMemberFlashNumber( "multiplyX", 2.f );
+		slot.SetMemberFlashNumber( "multiplyY", 0.5f );
+	}
+	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsList" ) );
+	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsRangedList" ) );
+}
+
+// 圖示路徑是 AK 的直式圖示（有沒有 img:// 都算）就換成水平的；有換回傳 true
+@addMethod(CR4HudModuleRadialMenu)
+function GfgRadialAkIcon( obj : CScriptedFlashObject ) : bool
+{
+	var path : string;
+
+	if ( !obj )
+		return false;
+	path = obj.GetMemberFlashString( "itemIconPath" );
+	if ( !StrContains( path, "gfg_ak47_64x128.png" ) )
+		return false;
+	obj.SetMemberFlashString( "itemIconPath", StrReplace( path, "gfg_ak47_64x128.png", "gfg_ak47_128x64.png" ) );
+	return true;
+}
+
+@addMethod(CR4HudModuleRadialMenu)
+function GfgRadialAkIcons( list : CScriptedFlashArray )
+{
+	var i : int;
+
+	if ( !list )
+		return;
+	for ( i = 0; i < list.GetLength(); i += 1 )
+		GfgRadialAkIcon( list.GetElementFlashObject( i ) );
+}
+
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
 @wrapMethod(W3BoltProjectile)
 function ThrowProjectile( targetPosIn : Vector )

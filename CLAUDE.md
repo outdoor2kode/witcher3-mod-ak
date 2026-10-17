@@ -221,6 +221,10 @@
     - 對物品實體 `CreateAttachment`（帶偏移）只移動實體矩陣；物品骨架（例：AK 的 `handle`）、蒙皮的模型照原版跟著 slot 骨頭
     - 量畫面上的擺法要看物品骨架的骨頭，不要看實體矩陣
     - 要改畫面上的擺法：自己生成同模板的替身（骨架跟著實體走），藏起真的那把（第 5 項的提槍就是這樣做）
+19. **物品圖示（PNG）放在 DLC 的 `data\gameplay\gui_new\` 下**（物品 XML 的 `icon_path` 相對於這裡），`.reddlc` 要有 `CR4ScaleformContentDLCMounter`（2026-10-18 遊戲實測，`docs\findings.md` §31）
+    - **加了掛載器、新建圖檔，都要重開 REDkit 才生效**
+    - `editor.log` 的 `Failed to convert path` 只列找不到的路徑；找到的不寫
+    - 本專案：`icons\inventory\weapons\gfg_ak47_64x128.png`（物品欄，直的）、`gfg_ak47_128x64.png`（輪盤，水平：腳本換掉輪盤資料裡的路徑）
 
 ---
 
@@ -256,6 +260,7 @@
 
 - 只用 CS2 的 **worldmodel**（第三人稱），不用 viewmodel
 - CS2 的粒子特效無法移植，槍口火光、曳光用巫師3 原有特效
+- **物品圖示**：CS2 物品欄的 AK 圖；物品欄用直的（64×128）、輪盤用水平的（128×64）（使用者 2026-10-18；`docs\findings.md` §31）
 
 **手感參考**（只看影片，不需要檔案）
 
@@ -392,6 +397,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 螢幕鎖定、睡眠時截圖和輸入都會失效 → 長時間自己跑時用 `awake`
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
+- **開物品欄**：拿著 AK 時打不開（十字弩的 `Lock()`，`docs\findings.md` §31）→ 先按 C 收槍再按 I；Enter 開面板（2026-10-18 實測）
 - **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）
   - 開著世界、在 Scene 面板雙擊圖層使它變粗體（啟用）→ Asset Browser（Ctrl+A）選模型或實體 → 點一下畫面 → 按 **C** 放在滑鼠位置；也可以直接拖進畫面
   - 放模型時選 Static Mesh 才有碰撞（搜尋結果引用的同一頁內容）

@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 01:4x（**自主模式中**：先看下一節）
+最後更新：2026-10-18 02:1x（**自主模式中**：先看下一節）
 
 ---
 
@@ -12,14 +12,14 @@
 
 背景程序：保持清醒（背景工作 `b93wuwqj3`）、看門狗（`bwrbdks2f`）、每小時續做排程（CronCreate `64531706`，第 13 分）
 
-**任務清單**（使用者 10-18 00:4x、01:0x）
+**任務清單**（使用者 10-18 00:4x、01:0x、02:0x）
 
 | # | 任務 | 狀態 |
 |---|---|---|
 | 20 | 持槍的**面向方向**參考持劍：「持劍走入怪物群，即便按下 S 後退時，不會整個人往後走，而是一直面對怪物」；去看持劍時在戰鬥中、不在戰鬥中，走、跑、衝刺各方向的姿態，照著改善持槍的（「我單純指面向方向，其他不變，或者合理有根據地變化」） | **做好**（01:3x，commit `2aa9cdc`）：見下面 |
-| 21 | 物品欄、輪盤的 AK 圖示（現在是十字弩的）換成 AK-47 的圖（「你去找適合的圖來放。不管版權什麼的，我自己玩而已」） | **做到一半**：見「接續的步驟」 |
+| 21 | 物品欄、輪盤的 AK 圖示（原本是十字弩的）換成 AK-47 的圖（「你去找適合的圖來放。不管版權什麼的，我自己玩而已」）；補充（02:0x）：「輪盤的圖示不要是垂直，要是水平。物品則欄維持垂直」 | **做好**（02:1x）：見下面 |
 | 22 | AK 槍聲：「應該有不走這種要申請授權這麼麻煩的方式就可以拿到。你去取得並且實作。一定有」 | 聲音檔已取得（見下面），實作未開始 |
-| 23 | AK 材質顏色在遊戲裡很不明顯（反光；白天也常看不出有顏色）→ 找合理方法解決 | 未開始 |
+| 23 | AK 材質顏色在遊戲裡很不明顯（反光；白天也常看不出有顏色）→ 找合理方法解決 | 下一個做 |
 
 - 使用者另外說：「如果有必要的資料夾或工具存取權限，必要的話你就自己開」→ 10-18 01:3x 下載了 Source 2 Viewer 的命令列版（見下面）
 
@@ -32,31 +32,27 @@
   - 站著不動照舊（準心偏 60° 以上才轉身）：使用者只說了移動
 - 量的時候用的暫時紀錄 `[GFG] face`、指令 `gfgwolf` 已拿掉（沒進 git）；`gfgwolf` 要再用照 commit e0bfb09
 
-**#21、#22 用的素材**（10-18 01:3x）
-- `tools\vpk_extract.py`（新）：從 CS2 的 VPK 取檔（只讀）；`--list 萬用字元` 列出
-- Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`）：`tools\_vendor\s2v_cli\Source2Viewer-CLI.exe`（不進 git）；`-i <資料夾> --recursive -o <輸出> -d` 把 `.vtex_c` 轉 PNG、`.vsnd_c` 轉 WAV
-- 取出、轉好的在 session 暫存 `s21\cs2dec\`：
-  - 圖：`panorama\images\econ\weapons\base_weapons\weapon_ak47_png.png`（CS2 物品欄的 AK，512×384 透明背景）→ 複本 `assets\ak47\icon\weapon_ak47_png.png`（.png 不進 git）
+**#21 的結果**（細節 `docs\findings.md` §31、`CLAUDE.md` §6 第 19 項、§7、§12）
+- 圖：CS2 物品欄的 AK（`tools\vpk_extract.py` 取出、Source 2 Viewer 命令列版轉 PNG、`tools\ak_icon.ps1` 做成圖示）
+  - 物品欄：`gfg_ak47_64x128.png`（直的；物品 XML 的 `icon_path`）
+  - 輪盤：`gfg_ak47_128x64.png`（水平，−8.4° 槍管水平）；`gfg_ak47.ws` 包 `CR4HudModuleRadialMenu.UpdateCrossbowItemData` 換路徑、框改 128×64（`multiplyX` 2、`multiplyY` 0.5）
+- `test.reddlc` 加了 `CR4ScaleformContentDLCMounter`；要重開 REDkit 才生效
+- 遊戲裡確認：輪盤水平、物品欄的 Ranged weapon 格直的
+- 自己做的決定：輪盤圖的角度選 −8.4°（3 個候選 0°、−8.4°、−13.8° 渲染比較，槍管水平的那個）；左下角道具格、其他地方照物品欄（直的）：使用者只說輪盤
+- 物品欄：拿著 AK 時打不開（十字弩的 `Lock()`，原版行為）→ 先按 C 收槍再按 I
+
+**#22 用的素材**（10-18 01:3x）
+- Source 2 Viewer 命令列版 20.1（GitHub 官方 release `cli-windows-x64.zip`）：`tools\_vendor\s2v_cli\Source2Viewer-CLI.exe`（不進 git）；`-i <資料夾> --recursive -o <輸出> -d` 把 `.vsnd_c` 轉 WAV
+- 取出、轉好的在 session 暫存 `s21\cs2dec\`（session 結束會不見；用 `tools\vpk_extract.py` 'sounds/weapons/ak47/*' 重取）：
   - 聲音（44.1 kHz 16 位元）：`sounds\weapons\ak47\ak47_01～04.wav`（立體聲 1.9～2.5 秒，連發的單發槍聲＋尾音）、`ak47-1.wav`、`ak47_distant.wav`（單聲道 4 秒）、`ak47_clipout_01`、`ak47_boltpull*`、`ak47_addammo_02`、`ak47_draw`；聲音事件定義 `soundevents\game_sounds_weapons.vsndevts`
-- `tools\ak_icon.ps1`（新）：CS2 的圖 → 64×128 直式圖示（順時針 88.2°、槍口朝右上，同原版十字弩圖示的擺法、淡陰影）→ `workspace\dlc\gunforgeralt\data\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_64x128.png`（.png 不進 git；用這兩支工具重做）
-- 物品 XML `icon_path` 改成 `icons/inventory/weapons/gfg_ak47_64x128.png`
 
-**#21 查到的**
-- 原版 DLC 的圖示是 PNG 原檔，放在 `dlc\<名稱>\data\gameplay\gui_new\icons\...`（例 dlc13 的 `elven_crossbow_64x128.png`：64×128 RGBA）
-- 輪盤載入 `img://` + 物品的 `icon_path`，失敗時用備用圖（`RadialMenuItemEquipped.as:716-776`）；我們的圖示載入失敗 → 輪盤顯示一隻橘色蜘蛛
-- `editor.log`：介面只在 `gameplay\gui_new\` 和 10 個原版 DLC 的 `dlc\<名稱>\data\gameplay\gui_new\` 找（`Failed to convert path … to a depot path`），沒有找我們的 DLC
-- 原版 DLC 用 `.reddlc` 的掛載器 **`CR4ScaleformContentDLCMounter`**（欄位 `scaleformDirectoryPath` = `dlc\dlc13\data\gameplay\gui_new\`）登記；`tools\cr2w_dump.py` 讀 `dlc13.reddlc`
-
-**接續的步驟**（10-18 01:4x 壓縮前）
-1. #21：`test.reddlc` 已加第 5 個掛載器 `CR4ScaleformContentDLCMounter`（`scaleformDirectoryPath` = `dlc\gunforgeralt\data\gameplay\gui_new\`；REDkit 裡加、關視窗按 Yes 存；`cr2w_dump.py` 讀回確認），遊戲紀錄 `Mounted 168 DLC mounter(s)`（之前 167）
-   - 但同一次開著的 REDkit 裡，介面找圖示的路徑還是只有原版那 11 個（`editor.log`：`Failed to convert path …`）→ 推論：介面的搜尋路徑在 REDkit 啟動時定好 → **重開 REDkit**（`f.sh` 的 `redkit_start`）再開遊戲看輪盤（Tab）、紀錄有沒有 `dlc\gunforgeralt\data\gameplay\gui_new\…`
-   - 重開後還是不行：改放 `workspace\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_64x128.png`（介面第一個找的路徑 `gameplay\gui_new\`；是新檔名，不蓋原版）
-   - 好了以後：物品欄（10-18 01:4x 按 I 沒開起來，改用 Esc 選單）、左下角道具格也看一下；寫進 `docs\findings.md`（新的一節）、commit
-2. #23 材質、#22 槍聲（想法：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線；查到再決定）
+**接續的步驟**
+1. #23 材質顏色：先查 M3 的材質設定（`docs\m3.md`「W3 的材質：用 pbr_std」、`tools\m3_textures.py`、`assets\ak47\` 的材質 XML）、遊戲裡白天截圖看問題；找原因（貼圖的顏色空間、粗糙度／金屬度、法線、材質參數）→ 改 → 遊戲裡白天、晚上截圖比較
+2. #22 槍聲：不走 Wwise 授權。先查遊戲 5.x 的聲音檔格式（`soundspc.cache`、`.bnk`、`.wem`／Opus）、有沒有不經 Wwise 編譯就能播 WAV／Opus 的路線；查到再決定
 
 **現在的狀態**
-- REDkit 10-18 01:3x 重開過（主視窗 `0x41A8A`；g.sh 已換）；世界 `reference_level`；遊戲開著
-- 測試函式 `desk\f.sh`：`game_start_noak`、`mv`、`dirs8`、`redkit_start`（重開 REDkit；10-18 改好 handle 的抓法，沒再實測一次）
+- REDkit 10-18 02:0x 重開過（主視窗 `0x616BA`；g.sh 已換）；世界 `reference_level`；遊戲開著（AK 收在背上）
+- 測試函式 `desk\f.sh`：`game_start_noak`、`mv`、`dirs8`、`redkit_start`（重開 REDkit；10-18 02:0x 實測兩次可用；開完世界沒載入時再點一次 File → 最近的世界 (180,246)）
 
 ## 使用者回來時先看這裡（2026-10-17 05:5x）
 
