@@ -2911,6 +2911,25 @@ function RegisterNewItem( item : SItemUniqueId )
 	wrappedMethod( item );
 }
 
+// 物品的提示框：類別原本照物品類別寫「Crossbow bolt」（item_category_bolt：guiTooltipComponent.ws:434）→ 子彈改成自己的字串（彈藥）
+// 物品欄的提示框顯示的是 ItemType（不是護甲時＝類別：guiTooltipComponent.ws:502、:641；TooltipInventory.as:282）；ItemCategory（:646）一起改
+// 數值照原版（Bodkin Bolt 的穿刺傷害）：AK 的傷害由腳本算（GfgSetAkDamage），和子彈物品無關
+@wrapMethod(W3TooltipComponent)
+function GetBaseItemData( item : SItemUniqueId, itemInvComponent : CInventoryComponent, optional isShopItem : bool, optional compareWithItem : SItemUniqueId, optional compareItemInv : CInventoryComponent ) : CScriptedFlashObject
+{
+	var data : CScriptedFlashObject;
+	var label : string;
+
+	data = wrappedMethod( item, itemInvComponent, isShopItem, compareWithItem, compareItemInv );
+	if ( data && itemInvComponent && itemInvComponent.IsIdValid( item ) && itemInvComponent.ItemHasTag( item, 'gfg_ak47_ammo' ) )
+	{
+		label = GetLocStringByKeyExt( "gfg_item_category_ammo" );
+		data.SetMemberFlashString( "ItemType", label );
+		data.SetMemberFlashString( "ItemCategory", label );
+	}
+	return data;
+}
+
 // ===== 傷害（第 10 項：使用者 2026-10-16「傷害由 Claude 設計一個符合這遊戲的」）=====
 // 原版的箭：箭（Bodkin Bolt：穿刺 5、銀 4：def_item_bolts.xml）＋十字弩的屬性，經過攻擊力、抗性（playerBoltProjectile.ws:57-77、damageManagerProcessor.ws:2692）
 // 原版武器的傷害只看裝備、不隨等級變（2026-10-16 實測：AK 打 5 級的狼，Geralt 10 級、31 級都是 73.1）

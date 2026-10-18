@@ -2498,3 +2498,45 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - F10 是結束遊戲（不是暫停切換）
 - 村子裡太擠（衝刺、叫馬會卡）：`xy(100, -40)`（`playerCheats.ws:325`，傳送到地面）→ White Orchard 村外的空地
 - `spawn('wolf', …)` 生在鏡頭方向；被房子擋住時看不到
+
+---
+
+## 35. AK 的子彈（2026-10-18 第 27 項；遊戲實測）
+
+### 35.1 原版的無限箭 → AK 換成自己的子彈
+
+- 原版：裝上十字弩類、子彈格空著時自動加一種無限的箭（`AddAndEquipInfiniteBolt`：`playerWitcher.ws:5679-5717`；`:6386-6406`）
+  - 地面 `Bodkin Bolt`、游泳或潛水 `Harpoon Bolt`（`GetCurrentInfiniteBoltName`：`:5663-5676`）；入水、出水時換（`swimming.ws:137`、`:267`）
+  - 卸下十字弩類時刪掉格子裡的無限箭（`:6720-6727`）
+- AK：物品 `gfg_ak47_ammo`（照 Bodkin）、`gfg_ak47_ammo_water`（照 Harpoon），`hold_template` = `gfg_ak47_bullet.w2ent`（裝在槍上的那顆、射出去的都是它）；腳本見 `gfg_ak47.ws`「AK 的子彈」
+- 遊戲實測（`gfg_debug.ws` 的暫時指令 `gfgammo()`）：
+  - 拿 AK：`bolt=gfg_ak47_ammo`、裝好的是 `gfg_ak47_bullet…`
+  - 物品欄裡把 AK 換成原版十字弩（選取格子 → Space）：`bolt=Bodkin Bolt`、裝好的是 `bodkin_bolt…`、子彈從物品欄消失；換回 AK：子彈格又是子彈（圖示 3 顆子彈）；主控台 `equipitem('gfg_ak47')` 也一樣
+  - 裝著 AK 時把爆炸箭裝到子彈格：擋下、左下角「You cannot do that now.」；子彈格選取時下方按鍵提示沒有「卸下」
+  - 輪盤：物品欄有鈍頭箭、爆炸箭時，AK 那格沒有「Change Bolt」（滾輪）提示；原版十字弩那格有
+  - 游泳：`bolt=gfg_ak47_ammo_water`、裝好的還是 `gfg_ak47_bullet…`；上岸：`gfg_ak47_ammo`
+- 輪盤下方沒有文字的「W」：原版 `hud_radial_change_ranged`（物品欄有兩把以上遠程武器時出現：`HudModuleRadialMenu.as:1086-1100`）；REDkit 裡這個字串是空的（原版的事）
+
+### 35.2 射出去的子彈
+
+- 彈頭模型 直徑 0.67 公分、長 1.85 公分（`tools\ammo_build.py`）；1 公尺外約 12 像素長（1920 寬的畫面）；715 公尺／秒時一格飛 12 公尺 → 正常速度看不到（真的子彈也看不到）
+  - 先前「放慢到 3 公尺／秒、瞄天空連拍沒看到」：太小，截圖又是半解析度
+- 證據（暫時指令：每格記下所有標籤 `bodkinbolt` 的實體、飛行中把子彈放大）：
+  - 飛行中模型元件 `IsVisible()` = true；碰到樹後 false、停在原地（碰撞包裝藏起來）
+  - 放大 10 倍、3 公尺／秒：槍口到準心一排黃銅色的彈頭
+  - 原尺寸生成在鏡頭前 1 公尺：銅色尖頭的彈頭
+- 水中：潛水時左鍵是 `Finish`／`Finisher`，中鍵是 `ThrowItem`（使用者的 `input.settings` 的 `[Diving]`）→ 按住中鍵、放開：AK 照原版十字弩射一發，射出去的是 `gfg_ak47_bullet…`（射程、速度照原版的水中）
+- 中鍵（原版十字弩的瞄準）放開時照原版射一發（§17.7 也看過）；按住中鍵時短按左鍵（0.06、0.12 秒）沒有開火：沒有再查
+
+### 35.3 提示框
+
+- 物品欄的提示框顯示的是 `ItemType`（`TooltipInventory.as:269-290`）；不是護甲時 `ItemType` = 類別（`guiTooltipComponent.ws:502`、`:641`）；`ItemCategory`（`:646`）這裡沒顯示
+- 子彈改成自己的字串 `gfg_item_category_ammo`（10000010：EN Ammunition、ZH 彈藥）→ 提示框「7.62X39MM／AMMUNITION／4-6 PIERCING DAMAGE」（EN 實測；ZH 沒切語言看）
+- 數值照原版 Bodkin（穿刺 4-6、銀 +4）：AK 的傷害由腳本算，和子彈物品無關
+
+### 35.4 學到的
+
+- **`GetComponentsByClassName` 的結果指定給迴圈裡同一個陣列變數時，會接在舊的後面**：第 2 個實體拿到 [第 1 個的元件, 自己的]（`comps[j].GetEntity() == ents[i]` 只有最後一個是 true）→ 迴圈裡每次用新的變數或先 `Clear()`（`gfg_ak47.ws` 的用法是每次呼叫的區域變數，沒問題）
+- 物品欄：Space 作用在「選取中」的格子；遊戲游標移過去（`desk.ps1 rmove`）只顯示提示框、不會選取 → 先點一下再按 Space（10-18 第一次在格子上按 Space 換成了第一格的十字弩）
+- 鏡頭前生成實體：`theCamera.GetCameraPosition() + theCamera.GetCameraDirection() * 距離`；畫面位置：`theCamera.WorldVectorToViewRatio( 位置, x, y )`，(x+1)/2、(y+1)/2 = 遊戲畫面的 0～1（`hud.ws:1864-1874`）
+- 元件放大：`CComponent.SetScale( Vector )`（`components.ws:28`）

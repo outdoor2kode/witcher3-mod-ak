@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 17:1x（自主模式中；context 42% 壓縮前）
+最後更新：2026-10-18 17:5x（自主模式中；#27 完成，接著 #24）
 
 ---
 
@@ -17,34 +17,20 @@
 | 24 | 物品欄打開時，預覽人物握槍的方式有誤（截圖 2：AK 掛在左手、槍口朝下） | 未開始（查到的在下面） |
 | 25 | 原版十字弩的所有姿態要維持原樣，AK 的改動不能影響十字弩（截圖 3、4：十字弩變成雙手拿，原本單手；截圖 5：拿十字弩時腰扭得很怪） | **完成**（遊戲驗證；`docs\findings.md` §34.1、34.2） |
 | 26 | 按左鍵時槍還在背上（還沒拿好）就擊發 → 槍到手上才可以開槍 | **完成**（遊戲驗證；§34.3） |
-| 27 | 子彈還是箭（物品欄看到的）→ 改成子彈：物品欄、射出去的樣子；原版的箭不受影響；其他會用到這子彈的地方也要做 | **進行中**（大部分做好、遊戲驗證中：下面「#27 做到哪」） |
+| 27 | 子彈還是箭（物品欄看到的）→ 改成子彈：物品欄、射出去的樣子；原版的箭不受影響；其他會用到這子彈的地方也要做 | **完成**（遊戲驗證；`docs\findings.md` §35） |
 
 **背景程序**：保持清醒（`desk.ps1 awake`，背景工作 bti6jlddx）、看門狗（`claude_compact.ps1 … watch`，bfqd3uv04）、每小時第 13 分的續做排程（CronCreate a5f72a93）
 
-**現在在做**：#27 的驗證和剩下的小地方（下面「#27 接續的步驟」）→ 再做 #24（物品欄預覽）
+**現在在做**：#24（物品欄預覽的握槍）：下面「#24 查到的」；#27 做完了
 
-**#27 做到哪**（17:1x；commit 時 `gfg_ak47.ws` 不含暫時的測試行）
-- 做好的檔案：
-  - `tools\ammo_build.py`（Blender 背景模式；用法在檔頭）：CS2 的 `ak47_bullet.gltf` → 圖示 `gfg_ak47_ammo_64x128.png`（3 顆子彈直立；彈殼重疊的那份要拿掉，不然有黑條紋）、彈頭 FBX `assets\ak47\gfg_ak47_bullet.fbx`（彈頭單獨一塊、接縫頂點合併、底部補面；REDkit 座標：Y 0～0.0185 尖朝 +Y）、貼圖 `gfg_ak47_bullet_d01.png`（RGB）
-  - `assets\ak47\gfg_ak47_bullet.xml`（材質 XML，進 git）
-  - REDkit 裡做的（不進 git 的二進位）：`gfg_ak47_bullet_d01.xbm`（WorldDiffuse）、`gfg_ak47_bullet.w2mesh`（不蒙皮、材質 pbr_std）；`gfg_ak47_bullet.w2ent`（**進 git**：`bodkin_bolt.w2ent` Save as，`bolt` 元件的 mesh 換成彈頭；保留 include `bolt_base.w2ent` 和標籤 `bodkinbolt`）
-  - 物品 XML：`gfg_ak47_ammo`（照 Bodkin Bolt）、`gfg_ak47_ammo_water`（照 Harpoon Bolt；游泳、潛水用）；都有標籤 `gfg_ak47_ammo`、`hold_template="gfg_ak47_bullet"`
-  - 字串（直接寫進 `LocalEditorStringDataBaseW3_UTF8_mod.db`，REDkit 關著時；CSV 手動同步）：10000008 `gfg_item_name_ak47_ammo`（EN 7.62x39mm、ZH 7.62x39mm 子彈）、10000009 `gfg_item_desc_ak47_ammo`；**同一個字串的各語言 VERSION 要不同**（唯一索引 STRING_ID＋VERSION）；10000007 是 REDkit 存模板時自己建的
-  - 腳本 `gfg_ak47.ws`「AK 的子彈」一節：包 `GetCurrentInfiniteBoltName`、`AddAndEquipInfiniteBolt`、`EquipItemInGivenSlot`（`GfgFixAmmo`）、物品欄 `OnEquipItem`（AK 時擋箭）、子彈格 `updateInputFeedback`（拿掉卸下）、`CR4GuiManager.RegisterNewItem`（跳過）；輪盤拿掉箭（`GfgRadialRemoveBolts`）；換彈判斷加子彈名稱（不然每發都換彈）；飛行中顯示、碰到東西藏起來（`GfgSetBulletMeshVisible`）
-- 遊戲驗證過的（17:0x～17:1x，REDkit 17:07 重開後）：
-  - 編譯通過（重開時 `Parsed scripts unit compiled`）
-  - `gfgammo()`：拿 AK 後子彈格 `gfg_ak47_ammo`、裝好的是 `gfg_ak47_bullet…`（新模板）；物品欄只有一個子彈
-  - 物品欄子彈格的圖示 = 3 顆子彈（截圖 `scratchpad\s27\inv2.png`）；提示框名稱「7.62X39MM」（`inv4.png`）
-  - 開火時左下角道具格顯示「7.62x39mm」（`fly5.png`）；連射照常（沒有每發換彈）
-- 還沒確認：**飛行中的子彈看不到**（`gfgbulletspeed(3)` 放慢、瞄天空連拍 `fs1`～`fs5`：槍口附近沒看到）→ 接續步驟 1
-
-**#27 接續的步驟**
-1. （17:14 試過：主控台 `spawnPath("…gfg_ak47_bullet.w2ent")` → 警告 `temp.ws(6811) Accessing invalid handle` 只是把實體轉成 CActor 失敗（子彈不是角色），實體應該有生成；在玩家前方 3 公尺、太小，截圖 `sp2.png` 看不出來 → 鏡頭靠近地面看，或寫暫時指令把它生成在鏡頭前 0.3 公尺）查飛行中的子彈為什麼看不到：`spawnPath('dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet.w2ent')` 生成在面前看模型本身；看 `deployedEnt` 的可見狀態（`SetVisibility`）、模型 autohide；必要時暫時放大模型確認
-2. 提示框的類別「CROSSBOW BOLT」→ 改成子彈：包 `W3TooltipComponent.GetBaseItemData`（`_old\components\guiTooltipComponent.ws:85`；`ItemCategory` 在 :646），子彈改用新字串（例：EN Ammunition／ZH 子彈；要加 DB 字串 → 關 REDkit 時加、重開）；傷害數字（Bodkin 的 4-6）先不動（AK 的傷害是腳本算的）
-3. 輪盤（Tab）截圖：十字弩格沒有箭的清單；換回原版十字弩：`additem('Crossbow 1', 1, true)` → `gfgammo()` 要是 `Bodkin Bolt`、物品欄是原版圖示；再換回 AK → 子彈
-4. （有空）水中：游泳時 `gfg_ak47_ammo_water`
-5. 拿掉暫時的測試行：`gfg_ak47.ws` 的 `GfgBulletSpeed` 裡 `// TEMP 第 27 項驗證` 那一行（讀 `gfg_debug.ws` 的欄位）；`gfg_debug.ws` 的 `gfgbulletspeed`、`gfgammo` 收尾時跟著刪
-6. 測試時注意：準心射線經過角色會立刻觸發命中、子彈馬上藏起來（打到村裡的狗）；REDkit 主視窗現在是 `0xF03EA`（`g.sh` 已改）
+**#27 做完的重點**（17:5x；細節 `docs\findings.md` §35）
+- 物品欄：子彈格圖示 3 顆子彈、提示框「7.62X39MM／AMMUNITION」（新字串 10000010 `gfg_item_category_ammo`：EN Ammunition、ZH 彈藥）、選取子彈格沒有「卸下」
+- 開火時左下角道具格「7.62x39mm」；連射照常
+- 射出去的：模型是彈頭（飛行中顯示、碰到東西藏起來）；原尺寸太小、太快，正常玩看不到（真的子彈也看不到）→ 用暫時指令放大 10 倍拍到一排彈頭
+- 換武器：物品欄、主控台把 AK 換成原版十字弩 → Bodkin Bolt（原版圖示）；換回 AK → 子彈；裝著 AK 時裝箭被擋（You cannot do that now.）；輪盤 AK 那格沒有「Change Bolt」，原版十字弩那格有
+- 水中：游泳時換成水中用的子彈；潛水時中鍵（原版的水中射擊）射出去的也是彈頭；上岸換回
+- 暫時的測試行（`GfgBulletSpeed` 的 TEMP）已拿掉；`gfg_debug.ws` 多了 `gfgbulletwatch(秒, 放大)`、`gfgbulletview(距離)`（收尾時整個檔刪掉）
+- 順便看到、沒處理（不是這次的範圍，給使用者決定）：中鍵瞄準時短按左鍵沒開火、放開中鍵照原版射一發（§35.2）
 
 **收尾要做**（全部做完時）：
 - 刪 `workspace\scripts\local\gfg_debug.ws`（暫時的測試指令：`gfgstack`、`gfggraphs`、`gfgdrawlog(秒)` 等；沒進 git）
@@ -86,6 +72,8 @@
   5. 遊戲驗證：物品欄（子彈格、物品格）、輪盤、HUD、射出去；換回十字弩 = 原版 Bodkin
 
 **自己做的決定**：
+- #27：水中也換成子彈（另一個物品，數值照 Harpoon Bolt）；裝著 AK 時只能用子彈（輪盤不列原版的箭、物品欄不能裝箭），換回十字弩照原版
+- #27：提示框類別寫「Ammunition／彈藥」；傷害數字照原版 Bodkin（4-6）不動：AK 的傷害由腳本算
 - #25：AK 用自己的一套動畫圖（原版的複本＋改名），裝上 AK 時換 slot 的圖；不用在原版圖裡加切換節點（要解很多自訂資料格式，風險高）
 - 舊的兩個覆蓋檔（產生的檔、不在 git）移出專案 = 刪除：使用者要求十字弩完全照原版，一定得拿掉
 - #26：條件用「兩手都握在槍上」而不是「拿出後等固定時間」：衝刺停下（槍從單手換回雙手）也會在槍沒對準時開火，同一個條件一起解決；槍管角度在近距離、騎馬時會變，不當條件
