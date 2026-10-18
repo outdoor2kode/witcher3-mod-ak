@@ -170,6 +170,7 @@ public static class Desk {
         var i = new INPUT { type = 1 };
         uint flags = 0x0008;  // KEYEVENTF_SCANCODE
         if (IsExtended(vk)) flags |= 0x0001;
+        if (vk == 0x13) flags = 0;  // Pause 的掃描碼是 E1 1D 45，送不出來 → 用虛擬鍵碼（REDkit 讀虛擬鍵碼）
         if (up) flags |= 0x0002;
         i.u.ki.wVk = vk; i.u.ki.wScan = (ushort)MapVirtualKey(vk, 0); i.u.ki.dwFlags = flags;
         Send(i);
@@ -270,6 +271,7 @@ $Buttons = @{ left = @(0x2, 0x4); right = @(0x8, 0x10); middle = @(0x20, 0x40) }
 $Vk = @{
     enter = 0x0D; esc = 0x1B; escape = 0x1B; tab = 0x09; space = 0x20; backspace = 0x08; delete = 0x2E; del = 0x2E
     insert = 0x2D; home = 0x24; end = 0x23; pageup = 0x21; pagedown = 0x22
+    pause = 0x13  # Pause Break：REDkit 開的遊戲中，焦點回編輯器、遊戲暫停（Wiki「Useful shortcuts」）
     left = 0x25; up = 0x26; right = 0x27; down = 0x28
     ctrl = 0x11; control = 0x11; shift = 0x10; alt = 0x12; win = 0x5B
     oem3 = 0xC0; tilde = 0xC0; minus = 0xBD; equal = 0xBB; comma = 0xBC; period = 0xBE; slash = 0xBF
