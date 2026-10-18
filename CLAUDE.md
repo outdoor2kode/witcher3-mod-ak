@@ -181,6 +181,8 @@
           - AnimBrowser 選動畫 → 下方時間軸右鍵 **Add simple event**／**Add duration event** → 雙擊事件 → 右邊改 `eventName`、`startTime`、`duration` → Ctrl+S
           - 不要用 Copy／Paste 原版那筆再同名匯入：事件帶得過來，但遊戲裡每格報 `fully streamable` 錯誤（原因沒找到）
           - 我們動畫組裡已經有的動畫，用 Import 同名重匯（換動畫資料）：那一筆的事件會保留（2026-10-16 23:0x 實測：騎馬換彈 4 段的 6 個事件、aim_cycle 8 段的韁繩事件都在）
+          - **動畫組裡的名稱是 `gfg_` 開頭**（`docs\findings.md` §34.2）→ 重匯的檔名要用 `gfg_*.re`；用 `man_` 開頭的檔名會多一筆原版名稱、蓋過原版十字弩的動畫（2026-10-19 犯過一次：`docs\m3.md`「換彈動作明顯一點」）
+          - 遊戲開著時匯入：遊戲裡馬上換成新的動畫（2026-10-19 實測）
       - Geralt 的模板鏈：`geralt_player.w2ent` → `player_base_m.w2ent` → `man_base.w2ent`；骨架 `man_base.w2rig`，和人類 NPC 同一套
       - 遊戲生成的玩家是 `gameplay\templates\characters\player\player.w2ent`（`game\witcher3.redgame` 的 `defaultPlayerTemplate`），它 include `geralt_player.w2ent`；dlc16 替 `geralt_player.w2ent` 加動畫組（2026-10-15 讀原版資料，`docs\m3.md`「第三輪查詢」）
       - **複製動畫到自己的動畫組**：Asset Browser 雙擊 `.w2anims` 開 AnimBrowser → **All animations** → 動畫右鍵 **Copy animation** → 另一個動畫組最上面那行右鍵 **Paste animation to set** → 右鍵 **Rename**；動畫資料原封不動（2026-10-15 實測，`docs\m3.md`「第 1～7 步的結果」）

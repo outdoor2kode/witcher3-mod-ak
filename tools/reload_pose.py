@@ -1,22 +1,34 @@
-"""AK 的換彈動畫（使用者回報的第一批第 8 項：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」）。
+"""AK 的換彈動畫（使用者回報的第一批第 8 項：「換彈現在完全沒有動畫 → 做一個真正的 AK-47 換彈動畫」；
+第 34 項：「動作太小…可以讓動作明顯點，例如右手也有些動作」→ 上半身往右轉、槍移到身體右前方往右傾、槍口上翹，
+最後右手離開握把、手肘抬高拉槍機：從背後的遊戲鏡頭看得到）。
 
 用法（Blender 內建的 Python，h5py 在 tools\\_vendor\\pylib）：
     "D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/reload_pose.py
         底層.re 輸出.re [--length 2.4]
 
+- 輸出的檔名要用 gfg_ 開頭（動畫組裡的名稱是 gfg_：docs/findings.md §34.2）；REDkit 同名重匯，那一筆的事件會保留
+  - 用 man_ 開頭的檔名匯入會多一筆原版名稱、蓋過原版十字弩的動畫（10-19 01:0x 犯過一次）→ 這個工具會停下來
 - 底層：正面持槍，用第 0 格
-  - 地面：assets\\anims\\gfg\\square\\man_geralt_gabriel_aim_idle_square.re（輸出 man_geralt_gabriel_reload_lowered、…_reload_front_2）
-  - 騎馬：同步伐現在的 assets\\anims\\gfg\\man_geralt_gabriel_horse_{gait}_reload_lowered.re（已含騎乘骨盆的補正，move_pose.py --pelvis-from）
-- 輸出：--length 秒（每秒 30 格）；所有骨頭先複製底層第 0 格，再每格改頭、兩手臂、l_weapon
-- 動作（關鍵格在下面的表；時間是秒）：槍以握把為軸往身體收、往右傾，左手拿下彈匣 → 左腰換新彈匣 → 裝上 → 繞到右邊拉槍機 → 回到護木
-  - 槍：右手一直握著握把（右手 = 槍 · 底層的相對握法）
+  - 地面：assets\\anims\\gfg\\square\\man_geralt_gabriel_aim_idle_square.re
+    → gfg_geralt_gabriel_reload_lowered.re（gfg_geralt_gabriel_reload_front_2.re 是同一份的複本）
+  - 騎馬：assets\\anims\\gfg\\backup_reload_static_2355\\man_geralt_gabriel_horse_{gait}_reload_lowered.re
+    （靜止的騎馬換彈，已含騎乘骨盆的補正：move_pose.py --pelvis-from）→ gfg_geralt_gabriel_horse_{gait}_reload_lowered.re
+- 輸出：--length 秒（每秒 30 格）；所有骨頭先複製底層第 0 格，再每格改 torso2、torso3、頭、兩手臂、l_weapon
+- 動作（關鍵格在下面的表；時間是秒）：上半身往右轉、前彎，槍以握把為軸往右傾、槍口上翹，左手拿下彈匣 → 左腰換新彈匣
+  → 裝上（槍往上一頓）→ 左手回護木、槍往左翻 → 右手離開握把、從上面抓住右邊的拉柄往後拉、放開 → 回到握把、舉槍
+  - 上半身（BODY_KEYS）：torso2、torso3 各轉一半；槍、兩手跟著上半身轉（左腰在骨盆上，不跟）
+  - 槍：以握把為軸照 GUN_KEYS 走；右手不拉槍機時握著握把（右手 = 槍 · 底層的相對握法）
+  - 右手拉槍機（RIGHT_KEYS）：握把的手勢繞槍管轉 −90°（掌心朝左 → 朝下、拳頭的軸 朝下 → 朝右），掌心中心放到拉柄；
+    手肘抬高（ELBOW_KEYS：解完 IK 再讓手肘繞肩膀 → 手腕的軸轉）
   - 左手：關鍵格用槍座標（原點 = 握把 ag1_hand_r、F 槍管、U 上、R 右，公尺）或模型座標（左腰）；方向維持底層相對槍的方向（掌心朝上）
   - 位置用三次 Hermite 曲線（中間的關鍵格不停頓；停住的關鍵格前後值一樣時速度 0）；方向 slerp
   - l_weapon 是 l_hand 的子骨頭：左手離開槍的期間，每格設 l_weapon 的區域變換 = 左手⁻¹ · 槍，槍才會照右手走
-  - 兩節手臂 IK：square_pose.two_bone_ik
+  - 兩節手臂 IK：square_pose.two_bone_ik（肩膀、手肘照上半身轉過之後的位置算）
+- 抓彈匣（0.30 秒）、裝上（1.50 秒）時左手相對槍的位置不變 → gfg_ak47.ws 的 GfgMagTick 不用改
 - 量法（docs/handoff.md 第 8 項；暫存 s18\\mag_pos.py）：彈匣底部 F +0.251 U −0.107、彈匣口 F +0.169 U +0.095；
   槍機拉柄 F +0.231 U +0.105 R +0.045；底層左手腕 F +0.261 U +0.045 R −0.046
-- 動畫事件（AnimBrowser 加）：OnWeaponReload 1.50 秒（彈匣裝上）、RaiseWeapon 2.15 秒起 0.25 秒
+- 動畫事件（AnimBrowser 加；同名重匯會保留）：OnWeaponReload 1.50 秒（彈匣裝上）、RaiseWeapon 2.15 秒起 0.25 秒
+- 離線預覽：暫存 s34\\pv.py（Blender 背景渲染：遊戲鏡頭＝背後偏右、右、前、左）
 """
 import argparse
 import math
@@ -39,18 +51,29 @@ GF = S.unit(A.BARREL)                              # 槍座標的軸（l_weapon 
 GU = S.unit(S.GUN_UP - GF * (S.GUN_UP @ GF))
 GR = np.cross(GF, GU)
 
-# 槍：(秒, 往右, 往前, 往上（公尺，角色的軸：body_axes）, 往右傾（度，上方往右）, 槍口往上（度）)；以握把為軸
+# 槍：(秒, 往右, 往前, 往上（公尺，角色的軸：body_axes）, 往右傾（度，上方往右）, 槍口往上（度）, 槍口往右（度）)；以握把為軸
+# 第 34 項：原本（0.30～1.50 秒 左 3、後 6、下 7 公分、右傾 30°、槍口上 8°）從背後的鏡頭幾乎看不出來
+# → 上半身往右轉（BODY_KEYS）、槍往右傾 45°、槍口上翹：槍移到身體右前方、槍管露出右肩上方；
+#   裝上時往上一頓；拉槍機時往左翻（右邊的拉柄朝上，右手從上面抓）；放開時一震
 GUN_KEYS = [
-    (0.00, 0.0, 0.0, 0.0, 0.0, 0.0),
-    (0.30, -0.03, -0.06, -0.07, 30.0, 8.0),
-    (1.50, -0.03, -0.06, -0.07, 30.0, 8.0),
-    (1.70, -0.02, -0.04, -0.05, 12.0, 4.0),
-    (1.90, -0.02, -0.04, -0.05, 12.0, 4.0),
-    (2.20, 0.0, 0.0, 0.0, 0.0, 0.0),
+    (0.00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+    (0.28, 0.02, 0.02, -0.06, 45.0, 18.0, 0.0),
+    (0.42, 0.02, 0.02, -0.08, 48.0, 15.0, 0.0),     # 拉出彈匣時往下帶
+    (1.30, 0.02, 0.02, -0.06, 45.0, 18.0, 0.0),
+    (1.50, 0.02, 0.02, -0.04, 42.0, 21.0, 0.0),     # 裝上：往上一頓
+    (1.66, 0.0, -0.03, -0.04, -10.0, 8.0, 0.0),     # 往左翻、收回胸前（右手搆得到拉柄）
+    (1.80, 0.0, -0.04, -0.04, -10.0, 8.0, 0.0),
+    (1.86, 0.0, -0.03, -0.03, -8.0, 10.0, 0.0),     # 放開：拉柄彈回去
+    (2.22, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
 ]
-# 頭往下看（度）
-HEAD_KEYS = [(0.00, 0.0), (0.30, 15.0), (0.50, 20.0), (0.85, 12.0), (1.05, 12.0), (1.35, 18.0), (1.50, 18.0),
-             (1.70, 10.0), (1.90, 10.0), (2.20, 0.0)]
+# 上半身：(秒, 往右轉（度）, 往前彎（度）)；torso2、torso3 各轉一半，槍、兩手跟著（左腰在骨盆上，不跟）
+BODY_KEYS = [(0.00, 0.0, 0.0), (0.28, 22.0, 8.0), (1.30, 22.0, 8.0), (1.50, 20.0, 7.0), (1.70, 14.0, 5.0),
+             (1.90, 10.0, 4.0), (2.22, 0.0, 0.0)]
+# 頭往下看（度；另外跟著上半身）
+HEAD_KEYS = [(0.00, 0.0), (0.28, 20.0), (0.50, 24.0), (0.85, 14.0), (1.05, 14.0), (1.35, 22.0), (1.50, 22.0),
+             (1.70, 16.0), (1.86, 12.0), (2.22, 0.0)]
+# 右手肘抬高（度；手肘繞肩膀 → 手腕的軸轉，手不動）：拉槍機時手肘往上、往外張
+ELBOW_KEYS = [(0.00, 0.0), (1.56, 0.0), (1.70, 45.0), (1.86, 45.0), (2.08, 0.0)]
 # 左手腕：'hg' = 底層的護木位置；'pouch' = 左腰（模型座標 POUCH）；('mag', (F, U, R)) = 握彈匣的手再移 (F, U, R)；
 # 其他 = 槍座標 (F, U, R)，方向同護木
 LEFT_KEYS = [
@@ -61,12 +84,25 @@ LEFT_KEYS = [
     (1.05, 'pouch'),
     (1.35, ('mag', (0.01, -0.07, -0.01))),  # 新彈匣在彈匣口下
     (1.50, ('mag', (0.0, 0.0, 0.0))),       # 裝上
-    (1.60, (0.24, -0.04, 0.09)),    # 繞到彈匣右邊
-    (1.68, (0.23, 0.05, 0.05)),     # 拉柄下方
-    (1.80, (0.11, 0.05, 0.05)),     # 往後拉
-    (1.88, (0.12, 0.00, 0.02)),     # 放開
-    (2.20, 'hg'),
+    (1.64, 'hg'),                           # 回護木：右手拉槍機時撐住槍
+    (2.40, 'hg'),
 ]
+# 右手（掌心中心）：'grip' = 握把（底層的握法）；('rack', (F, U, R)) = 拉槍機的手勢、掌心中心在拉柄再移 (F, U, R)；
+# ('mid', (F, U, R), w) = 掌心中心在槍座標 (F, U, R)、手勢從握把轉到拉槍機的 w（繞到槍的右邊，不穿過機匣）
+RIGHT_KEYS = [
+    (0.00, 'grip'),
+    (1.56, 'grip'),
+    (1.63, ('mid', (0.10, 0.10, 0.14), 0.6)),
+    (1.70, ('rack', (0.0, 0.0, 0.0))),      # 抓住拉柄
+    (1.80, ('rack', (-0.12, 0.0, 0.0))),    # 往後拉到底
+    (1.85, ('rack', (-0.13, 0.03, 0.04))),  # 放開
+    (1.97, ('mid', (-0.02, 0.06, 0.12), 0.3)),
+    (2.08, 'grip'),
+    (2.40, 'grip'),
+]
+CHARGING_HANDLE = (0.231, 0.105, 0.070)  # 拉柄（槍座標；量的點 R +0.045 往外 2.5 公分：拳頭握在拉柄的頭上，不碰機匣）
+RACK_TURN = -90.0                        # 拉槍機的手勢：握把的手勢繞槍管轉幾度（掌心朝左 → 朝下）
+PALM_R = np.array([0.061, 0.032, -0.002, 1.0])  # 右掌心，r_hand 座標（two_hand_pose.py）
 # 握彈匣（10-17 04:3x：原本手勢一律同握護木＝掌心朝上，彈匣浮在手掌上方 10 公分）：把握護木的手勢轉到彈匣上
 # → 掌心貼彈匣左面、四指繞到前緣、拇指在後緣（彈匣卡榫）；轉換：槍管 → 彈匣往上、上 → 右、右 → 彈匣前方
 # 量法（暫存 s19\hg_slice.py、mag_axis.py）：護木截面（F 0.29～0.35）U 0.066～0.12、R ±0.019；
@@ -130,13 +166,32 @@ def body_axes(g0: np.ndarray) -> np.ndarray:
 
 def gun_at(t: float, g0: np.ndarray, grip0: np.ndarray, body: np.ndarray) -> np.ndarray:
     v = hermite([(k[0], k[1:]) for k in GUN_KEYS], t)
-    d, roll, pitch = body.T @ v[:3], v[3], v[4]
+    d, roll, pitch, yaw = body.T @ v[:3], v[3], v[4], v[5]
     f0, r0 = g0[:3, :3] @ GF, g0[:3, :3] @ GR
-    rg = A.axis_angle(r0, pitch) @ A.axis_angle(f0, roll)
+    rg = A.axis_angle(body[2], -yaw) @ A.axis_angle(r0, pitch) @ A.axis_angle(f0, roll)
     m = np.eye(4)
     m[:3, :3] = rg @ g0[:3, :3]
     m[:3, 3] = grip0 + d + rg @ (g0[:3, 3] - grip0)
     return m
+
+
+def elbow_lift(solved: dict, bones: tuple[str, str, str], deg: float) -> None:
+    """兩節手臂解好之後，手肘繞「肩膀 → 手腕」的軸轉 deg 度（正 = 手肘往上）；手的位置、方向不變。"""
+    upper, lower, hand = bones
+    s, e, w = (solved[b][:3, 3] for b in bones)
+    u = S.unit(w - s)
+    r = A.axis_angle(u, deg)
+    if (r @ (e - s))[2] < (e - s)[2]:
+        r = A.axis_angle(u, -deg)
+    solved[upper] = S.rigid(r @ solved[upper][:3, :3], s)
+    solved[lower] = S.rigid(r @ solved[lower][:3, :3], s + r @ (e - s))
+
+
+def seg_dist(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
+    """點 p 到線段 ab 的距離。"""
+    ab = b - a
+    u = min(1.0, max(0.0, float((p - a) @ ab / (ab @ ab))))
+    return float(np.linalg.norm(p - (a + u * ab)))
 
 
 def gun_point(g: np.ndarray, fur) -> np.ndarray:
@@ -178,6 +233,9 @@ def main() -> int:
     p.add_argument('--pouch-bone', default='pelvis',
                    help='左腰跟著哪根骨頭（預設 pelvis：腰帶在骨盆上；torso = 和地面一樣的上半身相對位置）')
     a = p.parse_args()
+    if a.out.name.startswith('man_'):
+        print(f'停止：輸出檔名 {a.out.name} 是 man_ 開頭；動畫組裡的名稱是 gfg_，用 man_ 匯入會多一筆、蓋過原版十字弩（docs/findings.md §34.2）')
+        return 1
 
     hier = A.read_skeleton(a.base)
     par = dict(hier)
@@ -192,6 +250,23 @@ def main() -> int:
     grip0 = g0[:3, :3] @ A.GRIP + g0[:3, 3]
     rel_r = np.linalg.inv(g0) @ w0['r_hand']
     rel_l = np.linalg.inv(g0) @ w0['l_hand']
+    # 右手拉槍機的手勢（l_weapon 座標）：握把的手勢繞槍管轉 RACK_TURN
+    rack_rot = A.axis_angle(GF, RACK_TURN) @ rel_r[:3, :3]
+    ch = A.GRIP + CHARGING_HANDLE[0] * GF + CHARGING_HANDLE[1] * GU + CHARGING_HANDLE[2] * GR
+
+    def right_rel(kv) -> np.ndarray:
+        """右手的關鍵格 → 右手（r_hand）相對槍的 4×4（l_weapon 座標）。"""
+        if kv == 'grip':
+            return rel_r
+        if kv[0] == 'rack':
+            d = kv[1]
+            rk, pc = rack_rot, ch + d[0] * GF + d[1] * GU + d[2] * GR
+        else:
+            fur, wgt = kv[1], kv[2]
+            rk, pc = slerp_rot(rel_r[:3, :3], rack_rot, wgt), A.GRIP + fur[0] * GF + fur[1] * GU + fur[2] * GR
+        return S.rigid(rk, pc - rk @ PALM_R[:3])
+
+    r_rel = [(kt, right_rel(kv)) for kt, kv in RIGHT_KEYS]
     hg_lw = rel_l[:3, 3] - A.GRIP
     hg = (hg_lw @ GF, hg_lw @ GU, hg_lw @ GR)
     body = body_axes(g0)
@@ -216,11 +291,22 @@ def main() -> int:
     print(f'左腰時彈匣中點：模型 ({pm[0]:+.3f},{pm[1]:+.3f},{pm[2]:+.3f})')
 
     n = int(round(a.length * FPS)) + 1
-    changed = ['head', 'l_weapon'] + list(LEFT_ARM) + list(RIGHT_ARM)
-    results, worst, reach = [], {'右手': 0.0, '左手': 0.0, '槍': 0.0}, []
+    changed = ['torso2', 'torso3', 'head', 'l_weapon'] + list(LEFT_ARM) + list(RIGHT_ARM)
+    results, worst, reach, rreach = [], {'右手': 0.0, '左手': 0.0, '槍': 0.0}, [], []
+    butt_min, arm_min = 1.0, 1.0
     for i in range(n):
         t = i / FPS
-        g = gun_at(t, g0, grip0, body)
+        # 上半身往右轉、往前彎：torso2、torso3 各轉一半（世界座標、以各自的關節為軸）；槍跟著轉（左腰不跟）
+        twist, lean = hermite([(k[0], np.array(k[1:])) for k in BODY_KEYS], t)
+        rb = A.axis_angle(body[2], -twist / 2) @ A.axis_angle(body[0], -lean / 2)
+        loc = dict(loc0)
+        tb = np.eye(4)
+        for bone in ('torso2', 'torso3'):
+            wcur = S.fk4(hier, loc)
+            p_ = wcur[bone][:3, 3]
+            loc[bone] = (wcur[par[bone]][:3, :3].T @ rb @ wcur[bone][:3, :3], loc0[bone][1])
+            tb = S.rigid(rb, p_ - rb @ p_) @ tb
+        g = tb @ gun_at(t, g0, grip0, body)
         # 左手的關鍵格換成這一格的模型座標
         keys = []
         for kt, kv in LEFT_KEYS:
@@ -238,17 +324,24 @@ def main() -> int:
         si, sw = segment(keys, t)
         lrot = slerp_rot(keys[si][2], keys[si + 1][2], sw)
         lt = S.rigid(lrot, lpos)
-        rt = g @ rel_r
-        loc = dict(loc0)
+        # 右手：關鍵格換成這一格的模型座標（同左手）
+        rkeys = [(kt, g @ m) for kt, m in r_rel]
+        rpos = hermite([(k[0], k[1][:3, 3]) for k in rkeys], t)
+        ri, rw = segment(rkeys, t)
+        rt = S.rigid(slerp_rot(rkeys[ri][1][:3, :3], rkeys[ri + 1][1][:3, :3], rw), rpos)
+        wl = S.fk4(hier, loc)
         # 頭往下看：繞角色的右方
         hdeg = float(hermite([(k[0], np.array([k[1]])) for k in HEAD_KEYS], t)[0])
-        hw = A.axis_angle(body[0], -hdeg) @ w0['head'][:3, :3]
-        loc['head'] = (w0[par['head']][:3, :3].T @ hw, loc0['head'][1])
+        hw = A.axis_angle(body[0], -hdeg) @ wl['head'][:3, :3]
+        loc['head'] = (wl[par['head']][:3, :3].T @ hw, loc0['head'][1])
         solved = {}
-        solved.update(S.two_bone_ik(w0, LEFT_ARM, lt))
-        solved.update(S.two_bone_ik(w0, RIGHT_ARM, rt))
+        solved.update(S.two_bone_ik(wl, LEFT_ARM, lt))
+        solved.update(S.two_bone_ik(wl, RIGHT_ARM, rt))
+        lift = float(hermite([(k[0], np.array([k[1]])) for k in ELBOW_KEYS], t)[0])
+        if abs(lift) > 1e-6:
+            elbow_lift(solved, RIGHT_ARM, lift)
         for bones in (LEFT_ARM, RIGHT_ARM):
-            parent = w0[par[bones[0]]]
+            parent = wl[par[bones[0]]]
             for name in bones:
                 m = np.linalg.inv(parent) @ solved[name]
                 loc[name] = (m[:3, :3], loc0[name][1])
@@ -264,10 +357,22 @@ def main() -> int:
         worst['槍'] = max(worst['槍'], float(np.linalg.norm(wn['l_weapon'][:3, 3] - g[:3, 3])))
         s_, e_, w_ = (wn[b][:3, 3] for b in LEFT_ARM)
         reach.append(np.linalg.norm(w_ - s_) / (np.linalg.norm(e_ - s_) + np.linalg.norm(w_ - e_)))
-        if i % 6 == 0 or i == n - 1:
-            d = wn['l_hand'][:3, 3]
-            print(f'  {t:4.2f}s：左手腕 模型 ({d[0]:+.2f},{d[1]:+.2f},{d[2]:+.2f})；左臂伸直 {reach[-1]:.2f}；'
-                  f'槍管 {np.round(g[:3, :3] @ GF, 2)}；頭往下 {hdeg:.0f}°')
+        s_, e_, w_ = (wn[b][:3, 3] for b in RIGHT_ARM)
+        rreach.append(np.linalg.norm(w_ - s_) / (np.linalg.norm(e_ - s_) + np.linalg.norm(w_ - e_)))
+        # 槍托後端離脊椎（torso → neck 的折線）多遠：檢查放低、往後收時有沒有插進胸口
+        butt = (g @ np.append(S.BUTT, 1.0))[:3]
+        spine = [wn[b][:3, 3] for b in ('torso', 'torso2', 'torso3', 'neck')]
+        bd = min(seg_dist(butt, spine[k], spine[k + 1]) for k in range(len(spine) - 1))
+        butt_min = min(butt_min, bd)
+        # 槍托（後端到握把的中點）離右上臂（r_bicep → r_forearm）多遠：槍口往左下時槍托翹到右肩前，不能插進上臂
+        stock = [butt, (g @ np.append((S.BUTT + A.GRIP) / 2, 1.0))[:3]]
+        ad = min(seg_dist(p, wn['r_bicep'][:3, 3], wn['r_forearm'][:3, 3]) for p in stock)
+        arm_min = min(arm_min, ad)
+        if i % 3 == 0 or i == n - 1:
+            d, rd, re_ = wn['l_hand'][:3, 3], wn['r_hand'][:3, 3], wn['r_forearm'][:3, 3]
+            print(f'  {t:4.2f}s：左手腕 ({d[0]:+.2f},{d[1]:+.2f},{d[2]:+.2f}) 伸直 {reach[-1]:.2f}；'
+                  f'右手腕 ({rd[0]:+.2f},{rd[1]:+.2f},{rd[2]:+.2f}) 伸直 {rreach[-1]:.2f}、手肘 ({re_[0]:+.2f},{re_[1]:+.2f},{re_[2]:+.2f})；'
+                  f'槍管 {np.round(g[:3, :3] @ GF, 2)}；槍托離脊椎 {bd:.2f}、離右上臂 {ad:.2f}；右轉 {twist:.0f}°、前彎 {lean:.0f}°、頭往下 {hdeg:.0f}°')
 
     extend(a.base, a.out, n)
     with h5py.File(a.out, 'r+') as f:
@@ -292,7 +397,8 @@ def main() -> int:
     d1 = max(float(np.linalg.norm(wz[b][:3, 3] - w0[b][:3, 3])) for b in changed)
     print(f'寫好 {a.out}：{n} 格（{a.length} 秒）')
     print(f'檢查：右手和目標最多差 {worst["右手"] * 1000:.2f} 公釐、左手 {worst["左手"] * 1000:.2f} 公釐（搆不到時會大）、'
-          f'槍 {worst["槍"] * 1000:.3f} 公釐；左臂伸直 {min(reach):.2f}～{max(reach):.2f}；第 0 格和底層差 {d0 * 1000:.3f}、最後一格 {d1 * 1000:.3f} 公釐')
+          f'槍 {worst["槍"] * 1000:.3f} 公釐；左臂伸直 {min(reach):.2f}～{max(reach):.2f}、右臂 {min(rreach):.2f}～{max(rreach):.2f}；'
+          f'槍托離脊椎最近 {butt_min:.3f}、離右上臂最近 {arm_min:.3f} 公尺；第 0 格和底層差 {d0 * 1000:.3f}、最後一格 {d1 * 1000:.3f} 公釐')
     return 0
 
 
