@@ -300,6 +300,28 @@ function PlayOwnerReloadAnim() : bool
 	return false;
 }
 
+// 主動換彈（第 33 項；R：CPlayerInput.OnCbtAttackWithAlternateHeavy 的包裝）：彈匣沒滿、拿在手上（瞄準、射擊狀態）、兩手握好、
+// 沒衝刺、不在空中 → 丟掉槍上裝好的那發，走打空時同一條路（GfgTryFire 最後：isWeaponLoaded = false、Crossbow_Reload）：
+// 原版接著 OnWeaponReloadStart → State_WeaponReload（rangedWeapon.ws:75-79），換彈動畫中段 OnWeaponReload 裝上新的一發（:81-94、:338-363），
+// 結束時 shotCount 歸零（:697-703）＝滿 30 發。原版的 ClearDeployedEntity 只刪停下來的箭（:532-539）→ 自己刪
+@addMethod(Crossbow)
+function GfgManualReload() : bool
+{
+	if ( !GfgIsAk() || !deployedEnt || shotCount <= 0 )
+		return false;
+	if ( GetCurrentStateName() != 'State_WeaponAim' && GetCurrentStateName() != 'State_WeaponShoot' )
+		return false;
+	if ( !GfgGripReady() )
+		return false;
+	if ( ownerPlayer.IsUsingVehicle() || ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() )
+		return false;
+	deployedEnt.Destroy();
+	deployedEnt = NULL;
+	SetBehaviorGraphVariables( 'isWeaponLoaded', false );
+	RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
+	return true;
+}
+
 // ===== 全自動：AK 是選用物品時，左鍵＝扳機（使用者 2026-10-12 選定）=====
 
 @addField(Crossbow)
@@ -504,6 +526,13 @@ function ProcessFullBodyAnimWeight( optional forceUpperBodyAnim : bool ) : bool
 	result = wrappedMethod( forceUpperBodyAnim );
 	if ( !GfgIsAkDrawn() || ownerPlayer.IsSwimming() || ownerPlayer.GetCurrentStateName() == 'AimThrow' )
 		return result;
+	// 閃躲、翻滾中（第 29 項：GfgEvadeTick）：上半身
+	if ( ownerPlayer.GfgAkEvading() )
+	{
+		setFullWeight = false;
+		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 0.f );
+		return false;
+	}
 	// 側移中（開槍中又在移動、戰鬥中朝目標移動）：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgAkTurnTick）
 	if ( ownerPlayer.gfgStrafing && !forceUpperBodyAnim )
 	{
@@ -532,6 +561,12 @@ function CalculateMoveSpeed() : float
 	var speed, inputMag : float;
 
 	speed = wrappedMethod();
+	// 閃躲、翻滾中（第 29 項：GfgEvadeTick）：上半身圖一樣當作跑步，才不會選全身瞄準
+	if ( player.GfgAkEvading() )
+	{
+		player.SetBehaviorVariable( 'playerMoveTypeForOverlay', (int)PMT_Run );
+		return speed;
+	}
 	if ( speed <= 0.f || player.playerMoveType > PMT_Walk || !player.rangedWeapon || !player.rangedWeapon.GfgIsAkDrawn()
 		|| player.IsSwimming() || player.GetCurrentStateName() == 'AimThrow' )
 		return speed;
@@ -1196,16 +1231,32 @@ function GfgTryFire()
 		RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
 }
 
+// 選用的物品是 AK，而且就是裝在遠程武器格的那把
+// 主控台、物品欄換成別的十字弩時，選用物品可能還指著背包裡的 AK（10-19 實測）：
+// 這時原版的中鍵用裝著的十字弩瞄準（playerInput.ws:3184），劍也照常 → 不能當成 AK
+function GfgIsAkSelected( p : CR4Player ) : bool
+{
+	var w : W3PlayerWitcher;
+	var id, equipped : SItemUniqueId;
+
+	w = (W3PlayerWitcher)p;
+	if ( !w )
+		return false;
+	id = p.GetSelectedItemId();
+	if ( !p.inv.IsIdValid( id ) || !p.inv.ItemHasTag( id, 'gfg_ak47' ) )
+		return false;
+	if ( !w.GetItemEquippedOnSlot( EES_RangedWeapon, equipped ) )
+		return false;
+	return equipped == id;
+}
+
 // 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
 @addMethod(CPlayerInput)
 function GfgSelectedAk() : Crossbow
 {
-	var id : SItemUniqueId;
-
-	id = thePlayer.GetSelectedItemId();
-	if ( !thePlayer.inv.IsIdValid( id ) || !thePlayer.inv.ItemHasTag( id, 'gfg_ak47' ) )
+	if ( !GfgIsAkSelected( thePlayer ) )
 		return NULL;
-	return (Crossbow)thePlayer.inv.GetItemEntityUnsafe( id );
+	return (Crossbow)thePlayer.inv.GetItemEntityUnsafe( thePlayer.GetSelectedItemId() );
 }
 
 // 左鍵（輕攻擊，input_qwerty.ini:656）：AK 選用時改成扳機
@@ -1246,6 +1297,207 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 // 按住左鍵 0.2 秒的特殊攻擊（input_qwerty.ini:674）：AK 選用時不放劍招
 @wrapMethod(CPlayerInput)
 function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
+{
+	if ( GfgSelectedAk() )
+		return true;
+	return wrappedMethod( action );
+}
+
+// 中鍵（使用物品 ThrowItem：legacy\base\input_qwerty.ini:225、:481-482；處理：playerInput.ws:3133-3328）：AK 選用時沒有行為
+// （第 31 項；使用者 2026-10-18：「持槍射擊時，按下滑鼠滾輪，行為會是拿弩的行為，也就是單發射出箭矢……使按下滾輪沒有行為。
+//   不要影響到原本持有弩的所有原有行為，這更改僅限於 AK47」）
+// - 原版：按下 → 拿出、瞄準十字弩，放開 → 射一發（:3185-3214）；拿出時中鍵還按著 → 中鍵瞄準 AimThrow（CheckGotoAimThrow：rangedWeapon.ws:1362-1400）
+//   → 按下、放開都擋掉；按下時把中鍵設成放開（同原版強制收十字弩：rangedWeapon.ws:208-209），CheckGotoAimThrow 讀到的就是沒按
+// - 水中照原版：潛水時左鍵不是扳機（[Diving] 沒有 BASE_ATTACK_LIGHT），中鍵射一發是 AK 在水中唯一的開火方式（docs/findings.md §35.2）
+// - 騎馬：下面 W3VehicleCombatManagerStateNull.StartItemAction 的包裝；船照原版（船上左鍵照原版，中鍵是唯一的開火方式）
+// - 舒適操作模式按住替代施法鍵再按中鍵（施放亞克席法印：:3139-3146）照原版
+@addMethod(CPlayerInput)
+function GfgMiddleBlocked( action : SInputAction ) : bool
+{
+	if ( thePlayer.IsSwimming() || thePlayer.IsUsingVehicle() )
+		return false;
+	if ( GetIsAltSignCastingPressed() && theInput.GetMouserControllerScheme() == MouserControllerScheme_Comfort )
+		return false;
+	if ( !GfgSelectedAk() )
+		return false;
+	if ( IsPressed( action ) )
+	{
+		theInput.ForceDeactivateAction( 'ThrowItem' );
+		theInput.ForceDeactivateAction( 'ThrowItemHold' );
+	}
+	return true;
+}
+
+@wrapMethod(CPlayerInput)
+function OnCbtThrowItem( action : SInputAction )
+{
+	if ( GfgMiddleBlocked( action ) )
+		return false;
+	return wrappedMethod( action );
+}
+
+@wrapMethod(CPlayerInput)
+function OnCbtThrowItemHold( action : SInputAction )
+{
+	if ( GfgMiddleBlocked( action ) )
+		return false;
+	return wrappedMethod( action );
+}
+
+// ===== 右下角的操作提示：拿著 AK 時加「收槍」「換彈」（第 32、33 項；使用者 2026-10-18：「增加持有槍枝時可執行指令說明，
+//       目前持有槍枝後畫面右下角可執行動作為衝刺跳躍和專注。增加一個 C 收槍」；換彈的鍵「也記得加入畫面右下角」）=====
+// 原版 CR4HudModuleControlsFeedback.SendInputContextActions（hudModuleControlsFeedback.ws:216-769）依按鍵情境列出動作，
+// 每項一個 KeyBindingData（:540-560）→ SetFlashArray（:764）；值存放區讀不回來 → AK 拿在手上時，原版列完後整份重做蓋掉：
+// - 探索：原版那幾項（衝刺、跳躍、獵魔感官：:277-299；條件用原版剛設好的欄位）＋換彈（R）＋收槍（C：SwordSheathe）＋叫馬（有空格才列）
+// - 戰鬥：射擊（左鍵）、換彈、閃躲、法印、收槍（原版的輕擊、重擊：:372-386，拿 AK 時不對）
+// 拿出、收起 AK 時重做（GfgHudTick，每格）
+@wrapMethod(CR4HudModuleControlsFeedback)
+function SendInputContextActions( inputContextName : name, optional isForced : bool )
+{
+	var rebuilt : bool;
+
+	// 原版只在強制或情境變了才重做（:249-252）
+	rebuilt = GetEnabled() && ( isForced || !( m_previousInputContext == m_currentInputContext
+		|| ( m_previousInputContext == 'JumpClimb' && m_currentInputContext == 'Exploration' )
+		|| ( m_previousInputContext == 'Exploration' && m_currentInputContext == 'JumpClimb' ) ) );
+	wrappedMethod( inputContextName, isForced );
+	if ( rebuilt && !m_altSignCasting && thePlayer.GfgHudAkShown() && ( inputContextName == 'Exploration' || inputContextName == 'Combat' ) )
+		GfgSendAkActions( inputContextName );
+}
+
+// Flash 那邊只有 5 格（HudModuleControlsFeedback.as 的 mcBtn1～5），多的不顯示
+@addMethod(CR4HudModuleControlsFeedback)
+function GfgSendAkActions( inputContextName : name )
+{
+	var arr : CScriptedFlashArray;
+	var act : name;
+	var pcSprint : bool;
+
+	arr = m_flashValueStorage.CreateTempFlashArray();
+	if ( inputContextName == 'Combat' )
+	{
+		// 原版：輕擊、重擊、閃躲、法印（:372-386）→ 射擊、換彈（R＝原版重擊的鍵）、閃躲、法印、收槍
+		GfgPushBinding( arr, 'AttackLight', 'AttackWithAlternateLight', GetLocStringByKeyExt( "gfg_hud_shoot" ) );
+		GfgPushBinding( arr, 'AttackHeavy', 'AttackWithAlternateHeavy', GetLocStringByKeyExt( "gfg_hud_reload" ) );
+		GfgPushBinding( arr, 'Dodge', 'Dodge', GetLocStringByKeyExt( "panel_input_action_dodge" ) );
+		GfgPushBinding( arr, 'CastSign', 'CastSign', GetLocStringByKeyExt( "panel_input_action_castsign" ) );
+		GfgPushBinding( arr, 'SwordSheathe', 'SwordSheathe', GetLocStringByKeyExt( "gfg_hud_holster" ) );
+	}
+	else
+	{
+		// 衝刺照原版：用哪個動作（:282-286）、鎖住移動時換成「跑」（:575-581）、前綴（:594-614）
+		if ( m_displaySprint && !theGame.IsFocusModeActive() )
+		{
+			pcSprint = m_lastUsedPCInput || !thePlayer.GetLeftStickSprint();
+			act = 'SprintToggle';
+			if ( pcSprint )
+				act = 'Sprint';
+			if ( m_movementLockType != PMLT_Free )
+				GfgPushBinding( arr, act, act, GetLocStringByKeyExt( "panel_input_action_run" ), GfgPrefix( !pcSprint ) );
+			else if ( theInput.IsToggleSprintBound() )
+				GfgPushBinding( arr, act, act, GetLocStringByKeyExt( "panel_input_action_sprint" ) );
+			else
+				GfgPushBinding( arr, act, act, GetLocStringByKeyExt( "panel_input_action_sprint" ), GfgPrefix( act == 'SprintToggle' ) );
+		}
+		if ( m_displayJump )
+			GfgPushBinding( arr, 'Jump', 'Jump', GetLocStringByKeyExt( "panel_button_common_jump" ) );
+		if ( m_displayFocus )
+			GfgPushBinding( arr, 'Focus', 'Focus', GetLocStringByKeyExt( "panel_input_action_focus" ), GfgPrefix( false ) );
+		GfgPushBinding( arr, 'AttackHeavy', 'AttackWithAlternateHeavy', GetLocStringByKeyExt( "gfg_hud_reload" ) );
+		GfgPushBinding( arr, 'SwordSheathe', 'SwordSheathe', GetLocStringByKeyExt( "gfg_hud_holster" ) );
+		// 叫馬放最後：5 格滿了就不列（使用者要的是收槍、換彈）
+		if ( m_displayCallHorse && arr.GetLength() < 5 )
+			GfgPushBinding( arr, 'SpawnHorse', 'SpawnHorse', GetLocStringByKeyExt( "ControlLayout_SummonHorse" ) );
+	}
+	m_flashValueStorage.SetFlashArray( KEY_CONTROLS_FEEDBACK_LIST, arr );
+}
+
+// 「按住」「按一下」的前綴（原版 :594-624）
+@addMethod(CR4HudModuleControlsFeedback)
+function GfgPrefix( press : bool ) : string
+{
+	var open, close, s : string;
+
+	GetBracketSymbols( open, close );
+	if ( press )
+		s = StrReplace( GetLocStringByKeyExt( "ControlLayout_press" ), " -", "" );
+	else
+		s = GetLocStringByKeyExt( "ControlLayout_hold" );
+	return "<font color=\"#FCAD36\">" + open + s + close + "</font>";
+}
+
+// 一項提示：鍵照原版的查法（:425-431 手把、:500 鍵盤），標籤照 :754-757
+@addMethod(CR4HudModuleControlsFeedback)
+function GfgPushBinding( arr : CScriptedFlashArray, padAction : name, pcAction : name, label : string, optional prefix : string )
+{
+	var tmp, data : CScriptedFlashObject;
+	var pad, pc : array< EInputKey >;
+
+	theInput.GetPadKeysForAction( padAction, pad );
+	if ( m_lastUsedPCInput )
+		theInput.GetPCKeysForAction( pcAction, pc );
+	tmp = m_flashValueStorage.CreateTempFlashObject();
+	data = tmp.CreateFlashObject( "red.game.witcher3.data.KeyBindingData" );
+	if ( pad.Size() > 0 )
+		data.SetMemberFlashInt( "gamepad_keyCode", pad[0] );
+	else
+		data.SetMemberFlashInt( "gamepad_keyCode", 0 );
+	if ( pc.Size() > 0 )
+		data.SetMemberFlashInt( "keyboard_keyCode", pc[0] );
+	else
+		data.SetMemberFlashInt( "keyboard_keyCode", 0 );
+	if ( theGame.IsLanguageArabic() )
+		data.SetMemberFlashString( "label", prefix + " <font color=\"#FFFFFF\">" + label + "</font>" );
+	else
+		data.SetMemberFlashString( "label", " <font color=\"#FFFFFF\">" + label + "</font> " + prefix );
+	arr.PushBackFlashObject( data );
+}
+
+@addField(CR4Player)
+var gfgHudAk : bool;	// 右下角的提示現在是 AK 版
+
+@addMethod(CR4Player)
+function GfgHudAkShown() : bool
+{
+	return rangedWeapon && rangedWeapon.GfgIsAkDrawn();
+}
+
+// 拿出、收起 AK 時重做提示（UpdateInputContextActions：:164-187，戰鬥情境用 'Combat'）
+@addMethod(CR4Player)
+function GfgHudTick()
+{
+	var hud : CR4ScriptedHud;
+	var module : CR4HudModuleControlsFeedback;
+
+	if ( GfgHudAkShown() == gfgHudAk )
+		return;
+	gfgHudAk = !gfgHudAk;
+	hud = (CR4ScriptedHud)theGame.GetHud();
+	if ( hud )
+		module = (CR4HudModuleControlsFeedback)hud.GetHudModule( "ControlsFeedbackModule" );
+	if ( module )
+		module.UpdateInputContextActions();
+}
+
+// R（重擊 AttackWithAlternateHeavy：使用者 input.settings 的 [Exploration]、[Combat]；處理：playerInput.ws:2054-2057）：AK 選用時＝主動換彈
+// （第 33 項；使用者 2026-10-18：「增加主動換子彈功能，你來選擇一個適合的按鍵」）
+// 選 R：CS2 換彈也是 R；拿 AK 時不准用劍（第 19 項），重擊沒有用；不用改按鍵設定。騎馬、游泳、潛水的情境沒有綁 R → 照舊打空才換
+@wrapMethod(CPlayerInput)
+function OnCbtAttackWithAlternateHeavy( action : SInputAction )
+{
+	var ak : Crossbow;
+
+	ak = GfgSelectedAk();
+	if ( !ak )
+		return wrappedMethod( action );
+	if ( IsPressed( action ) )
+		ak.GfgManualReload();
+	return true;
+}
+
+// 按住 R 0.2 秒的特殊攻擊（:2284）：AK 選用時不放劍招（同左鍵）
+@wrapMethod(CPlayerInput)
+function OnCbtSpecialAttackWithAlternateHeavy( action : SInputAction )
 {
 	if ( GfgSelectedAk() )
 		return true;
@@ -1414,12 +1666,9 @@ var gfgTriggerWanted : bool;	// 地面的左鍵按著（OnCbtAttackWithAlternate
 @addMethod(CR4Player)
 function GfgNoSwordMode() : bool
 {
-	var id : SItemUniqueId;
-
 	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
 		return true;
-	id = GetSelectedItemId();
-	return inv.IsIdValid( id ) && inv.ItemHasTag( id, 'gfg_ak47' );
+	return GfgIsAkSelected( this );
 }
 
 // 手上有劍：目前的武器（拔劍一開始就設好：playerWeaponHolster.ws:601），或劍還在手上（收劍到收好才離手）
@@ -2009,6 +2258,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	var akDrawn : bool;
 	var up, right : float;
 
+	GfgHudTick();
 	akDrawn = false;
 	if ( rangedWeapon )
 	{
@@ -2044,6 +2294,67 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	GfgMagTick( akDrawn );		// 換彈時彈匣拿下來（第 8 項 B）
 	GfgNoSwordTick();			// 不准拿劍、自動舉 AK（第 19 項）
 	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
+	GfgEvadeTick( akDrawn );	// 戰鬥中閃躲、翻滾（第 29 項）
+}
+
+// ===== 戰鬥中閃躲、翻滾（第 29 項；使用者 2026-10-18：「戰鬥時應該要能翻滾，閃避(維持跟持劍時一樣的戰鬥可執行選項)」）=====
+// 上半身動畫圖（pc_overlay）的瞄準姿勢：戰鬥動作中（isInCombatActionForOverlay：player.ws:1520）一律全身瞄準（#18960：docs/findings.md §20.10）
+// → 閃躲、翻滾（也是戰鬥動作：combat.ws:1134-1146、:1424-1436）被全身瞄準的姿勢蓋掉，人站著不動（10-19 實測；AK 收起來時翻滾正常）
+// 拿著 AK 閃躲中：上半身圖改走「上半身」那支（同推移動鍵時）→ 身體照閃躲動畫
+// - isInCombatActionForOverlay：原版只在戰鬥動作開始、結束時設（player.ws:1505-1521）→ 閃躲中每格設 0，結束時照原版的值還原
+// - playerMoveTypeForOverlay：原版每格設（locomotionDirectController.ws:1095）→ CalculateMoveSpeed 的包裝裡設成跑步
+// - fullBodyAnimWeight：原版每 0.1 秒設（rangedWeapon.ws:1285）→ ProcessFullBodyAnimWeight 的包裝裡設 0
+// 閃躲動畫快結束時（動畫事件 AllowBlend）有移動、沒在瞄準就收槍（上半身圖 WeaponAim → WeaponHolster：#21321）；
+// AK 收好後不會再自動舉起（10-19 實測）→ 閃躲中、結束後 0.3 秒，上半身圖的 isAimingWeapon 當作 1（十字弩自己的值不動，之後照它還原）
+@addField(CR4Player)
+var gfgEvadeOverlay : bool;	// 上面這幾個值現在是閃躲用的
+
+@addField(CR4Player)
+var gfgEvadeUntil : float;		// 閃躲（含結束後一小段）到這個時間
+
+@addMethod(CR4Player)
+function GfgAkEvading() : bool
+{
+	return gfgEvadeOverlay && rangedWeapon && rangedWeapon.GfgIsAkDrawn();
+}
+
+@addMethod(Crossbow)
+function GfgAimingFlag() : bool
+{
+	return isAimingWeapon;
+}
+
+@addMethod(CR4Player)
+function GfgEvadeTick( akDrawn : bool )
+{
+	var now : float;
+	var cat : int;
+
+	now = theGame.GetEngineTimeAsSeconds();
+	cat = (int)GetBehaviorVariable( 'combatActionType' );
+	// 閃躲、翻滾都是 CAT_Dodge（翻滾另設 isRolling：combat.ws:1424-1427）
+	if ( akDrawn && ( IsCurrentlyDodging() || ( IsInCombatAction() && ( cat == (int)CAT_Dodge || cat == (int)CAT_Roll ) ) ) )
+		gfgEvadeUntil = now + 0.3f;
+	if ( akDrawn && now < gfgEvadeUntil )
+	{
+		if ( !gfgEvadeOverlay )
+		{
+			gfgEvadeOverlay = true;
+			rangedWeapon.GfgRefreshFullBody();
+		}
+		SetBehaviorVariable( 'isInCombatActionForOverlay', 0.f );
+		SetBehaviorVariable( 'isAimingWeapon', 1.f );
+	}
+	else if ( gfgEvadeOverlay )
+	{
+		gfgEvadeOverlay = false;
+		SetBehaviorVariable( 'isInCombatActionForOverlay', (float)IsInCombatAction() );
+		if ( rangedWeapon )
+		{
+			SetBehaviorVariable( 'isAimingWeapon', (float)rangedWeapon.GfgAimingFlag() );
+			rangedWeapon.GfgRefreshFullBody();
+		}
+	}
 }
 
 // ===== 槍口火光（第 10 項；2026-10-17）=====
@@ -2257,7 +2568,7 @@ function StartAttackAction()
 	var ak : Crossbow;
 
 	itemId = rider.GetSelectedItemId();
-	if ( !horseComp || !rider.inv.IsIdValid( itemId ) || !rider.inv.ItemHasTag( itemId, 'gfg_ak47' ) )
+	if ( !horseComp || !GfgIsAkSelected( rider ) )
 	{
 		wrappedMethod();
 		return;
@@ -2281,6 +2592,17 @@ function StartAttackAction()
 		ak.OnRangedWeaponPress();
 	}
 	ak.GfgSetTrigger( true );
+}
+
+// 閒置時按中鍵（OnItemAction：useVehicle.ws:615-689；回到閒置時還按著：ShouldEnterNextState :605-608）：
+// 騎馬、AK 選用時沒有行為（第 31 項；左鍵開火：上面 StartAttackAction 的包裝）。原版會拿出十字弩、進入 ShootCrossbow，放開射一發（:744-758）
+// 炸彈、船照原版
+@wrapMethod(W3VehicleCombatManagerStateNull)
+function StartItemAction()
+{
+	if ( horseComp && GfgIsAkSelected( rider ) )
+		return;
+	wrappedMethod();
 }
 
 // 騎馬時鏡頭的每格更新（horseRiding.ws:361-426；不會呼叫 CR4Player 的 OnGameCameraTick）
@@ -2419,7 +2741,7 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 
 	// 扳機：閒置以外的狀態收不到左鍵的事件（只有 Null、SwordAttack 有 OnAttack：useVehicle.ws:706、:1123），
 	// 所以每格直接讀左鍵（原版也這樣讀：:601）。放開一律放開扳機；按著時要 AK 拿在手上才扣（還沒拿出來時由 StartAttackAction 的包裝拿出）
-	pressed = theInput.IsActionPressed( 'VehicleAttack' ) && inv.ItemHasTag( GetSelectedItemId(), 'gfg_ak47' );
+	pressed = theInput.IsActionPressed( 'VehicleAttack' ) && GfgIsAkSelected( this );
 	if ( rangedWeapon.gfgTriggerHeld && !pressed )
 		rangedWeapon.GfgSetTrigger( false );
 	else if ( !rangedWeapon.gfgTriggerHeld && pressed && rangedWeapon.GfgIsAkDrawn() )

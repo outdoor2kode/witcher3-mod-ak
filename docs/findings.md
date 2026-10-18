@@ -2554,3 +2554,52 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 物品欄：Space 作用在「選取中」的格子；遊戲游標移過去（`desk.ps1 rmove`）只顯示提示框、不會選取 → 先點一下再按 Space（10-18 第一次在格子上按 Space 換成了第一格的十字弩）
 - 鏡頭前生成實體：`theCamera.GetCameraPosition() + theCamera.GetCameraDirection() * 距離`；畫面位置：`theCamera.WorldVectorToViewRatio( 位置, x, y )`，(x+1)/2、(y+1)/2 = 遊戲畫面的 0～1（`hud.ws:1864-1874`）
 - 元件放大：`CComponent.SetScale( Vector )`（`components.ws:28`）
+
+## 36. 中鍵、主動換彈、右下角提示、戰鬥中閃躲（2026-10-19 第 29、31～33 項；遊戲實測）
+
+### 36.1 中鍵沒有行為（第 31 項）
+
+- 原版：地面 `CPlayerInput.OnCbtThrowItem`／`OnCbtThrowItemHold`（`playerInput.ws:3133-3273`）；拿出時中鍵還按著就進中鍵瞄準（`rangedWeapon.ws:1345` `CheckGotoAimThrow`）
+- 騎馬：`W3VehicleCombatManagerStateNull.StartItemAction`（`useVehicle.ws:744-758`；`OnItemAction`、`ShouldEnterNextState` 都走它）
+- 做法：AK 是選用物品時兩個輸入事件都擋；按下時 `ForceDeactivateAction('ThrowItem'／'ThrowItemHold')`（同原版強制收弩：`rangedWeapon.ws:208-209`）；騎馬的 `StartItemAction` 不做事
+- 實測：AK 在背上、拿在手上、連射中按住中鍵：都不拿出、不瞄準、不開火；原版十字弩（輪盤選好）：中鍵瞄準、放開射一發（`Thrown <<Bodkin Bolt>>`）
+- **選用物品可能指著背包裡的 AK**：主控台 `additem('Crossbow 1', 1, true)` 換掉 AK 後，選用物品還是 AK（已經沒裝備）
+  - 只看標籤的話，原版十字弩的中鍵、拔劍都被擋掉 → `GfgIsAkSelected`：選用的 AK 要就是遠程武器格裝的那把（`GetItemEquippedOnSlot( EES_RangedWeapon )`）
+  - 修好後這情況可以拔劍；中鍵沒反應是原版自己的行為（射擊流程用選用物品的實體：`r4Player.ws:10712`）
+
+### 36.2 主動換彈（第 33 項）
+
+- R＝使用者 `input.settings` 的 `AttackWithAlternateHeavy`（`[Exploration]`、`[Combat]`；按住 0.2 秒是 `SpecialAttackWithAlternateHeavy`）；處理：`playerInput.ws:2054`、`:2284`
+- 換彈同打空時：刪掉膛內那發（`ClearDeployedEntity` 只刪停下來的：`rangedWeapon.ws:532-539`）→ `isWeaponLoaded` false → `Crossbow_Reload` 事件；之後照原版：中段 `OnWeaponReload` 裝新的一發、結束時 `ResetShotCount`（`:75-94`、`:338-363`、`:697-703`）
+- 實測：射 11 發 → R → `GfgManualReload(): Destroying entity …`、2 秒後 `Equipped bullet item gfg_ak47_ammo`、射擊數歸零；彈匣滿時按 R 沒有紀錄；AK 在背上按 R：不重擊、不拔劍
+
+### 36.3 右下角的操作提示（第 32 項）
+
+- 原版：`CR4HudModuleControlsFeedback.SendInputContextActions`（`hudModuleControlsFeedback.ws:216-769`，private）依按鍵情境列動作 → `SetFlashArray( "hud.module.controlsfeedback", … )`
+  - 重做的時機：情境變了（`UpdateInputContext`：`:84-93`）；OnTick 發現輸入裝置、允許的動作變了（`:95-162`）
+- **Flash 只有 5 格**：`HudModuleControlsFeedback.as` 的 `mcBtn1`～`mcBtn5`，第 6 項以後不顯示
+- 做法：包 `SendInputContextActions`：原版做完之後，AK 拿在手上、情境是探索／戰鬥 → 自己整份重做；拿出、收起時（`GfgHudTick`）呼叫 `UpdateInputContextActions`
+- 字串（原版沒有）：`gfg_hud_holster` 10000011（Holster／收槍）、`gfg_hud_reload` 10000012（Reload／換彈）、`gfg_hud_shoot` 10000013（Shoot／射擊）
+- REDkit 剛開遊戲時，原版的提示鍵名顯示 `None`：還沒用過鍵盤滑鼠（`m_lastUsedPCInput` false 時不查鍵盤的鍵）；用過之後正常
+- 實測（EN）：
+  - 探索：Sprint（Left Shift）、Jump（Space）、Witcher Senses [Hold]、Reload（R）、Holster（C）
+  - 戰鬥：Shoot（滑鼠）、Reload（R）、Dodge（Left Control）、Cast Sign（Q）、Holster（C）
+  - 收起 AK：原版 4 項（含 Call Horse）
+
+### 36.4 戰鬥中閃躲、翻滾（第 29 項）
+
+- 原版流程：`OnCbtDodge`／`OnCbtRoll`（`playerInput.ws:2649`、`:2714`）→ `EvadePressed`（`playerWitcher.ws:3715`）→ `OnPerformEvade`（戰鬥狀態：`combat.ws:1134`；其他狀態是空的：`r4Player.ws:13448`）→ `PerformEvade`：設 `combatActionType` = `CAT_Dodge`、`isRolling` → `RaiseForceEvent( 'CombatAction' )`（`combat.ws:1424-1436`）
+- 拿 AK 戰鬥時玩家在 `CombatFists`；條件都過（可閃躲、可輸入；`OnPerformEvade`、`OnCombatActionStart` 都有跑），但**人站著不動**；AK 收起來時翻滾正常
+- 原因：上半身動畫圖的瞄準姿勢在**戰鬥動作中**（`isInCombatActionForOverlay`：`player.ws:1505-1521`）一律選全身瞄準（#18960：§20.10）→ 閃躲動畫（連位移）被全身瞄準的姿勢整個蓋掉
+  - 原版十字弩通常在持劍戰鬥時用；這是「空手戰鬥＋兩手 AK」的新組合
+- 做法（`GfgEvadeTick`）：AK 拿在手上、閃躲中（`IsCurrentlyDodging()` 或戰鬥動作是 `CAT_Dodge`／`CAT_Roll`）到結束後 0.3 秒：
+  - `isInCombatActionForOverlay` 設 0：原版只在開始、結束時設 → 結束時照 `IsInCombatAction()` 還原
+  - `playerMoveTypeForOverlay` 設跑步：原版每格設（`locomotionDirectController.ws:1095`）→ 在 `CalculateMoveSpeed` 的包裝裡設
+  - `fullBodyAnimWeight` 設 0：原版每 0.1 秒設 → 在 `ProcessFullBodyAnimWeight` 的包裝裡設
+  - → 上半身圖走「上半身」那支（同推移動鍵時），身體照閃躲動畫
+- 第二個問題：閃躲快結束時 AK 被收到背上，之後不會自動舉起（沒有 `OnForceHolster` 的呼叫，十字弩直接進 `State_WeaponHolster`）
+  - 上半身圖 WeaponAim → WeaponHolster（#21321）：動畫事件 `AllowBlend`＋沒在射擊、沒在瞄準＋有移動速度
+  - → 閃躲期間上半身圖的 `isAimingWeapon` 當作 1（只改玩家的動畫變數；十字弩自己的欄位不動，結束時照它還原）
+- 實測：Ctrl＋D 閃躲、空白鍵翻滾、A＋空白鍵往左翻滾：都有動作、AK 單手跟著身體、翻完回到兩手持槍（`State_WeaponAim`）；翻完馬上射正常
+  - 連射中翻滾：翻滾時停火（兩手沒握好：§34.3）、翻完接著射；換彈中翻滾：照樣換完、歸零
+- 查法：暫時包 `W3PlayerWitcher.EvadePressed`、`CR4PlayerStateCombat.OnPerformEvade` 記下條件（`gfg_debug.ws`）；連拍用 `desk.ps1 burst … hold=a key=space`、主控台 `slow(0.25)` 放慢
