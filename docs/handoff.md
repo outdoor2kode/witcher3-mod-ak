@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 02:3x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-1 做完）
+最後更新：2026-10-19 02:4x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-2 做完，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 ---
 
@@ -15,7 +15,7 @@
 | # | 任務 | 狀態 |
 |---|---|---|
 | A | 開發流程圖：每件事用什麼工具、做什麼、匯出到哪；標出工具是自己寫的還是別人的；簡單好讀 | **完成**（02:2x）：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（「AK 模組工具鏈」；原始檔在 session 暫存 `flow\ak_pipeline.html`，要改：Artifact read 這個網址） |
-| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | **進行中**（下面「B 的計畫」） |
+| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | **進行中**（下面「B 的計畫」；進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`） |
 
 **決定**
 - 流程圖：發布成網頁（Artifact），連結寫在這裡和最後的回覆；內容來源 = `CLAUDE.md`、`docs\m3.md`、`docs\findings.md`、`tools\`
@@ -23,7 +23,7 @@
   - REDkit 一次只開一個專案 → 練習時關掉這個 mod 的專案、開練習專案；mod 的檔案都在 git 裡、不受影響
 - 叫用方式：使用者層級的技能（`C:\Users\beyon\.claude\skills\`，任何資料夾都叫得到）
   - 「你現在是 redkit 開發專家」→ 技能 `redkit-expert`：讀知識庫的索引、照裡面的做法工作
-  - 「開啟自主模式」→ 技能（做 `CLAUDE.md` §14「開始時」那幾步）
+  - 「開啟自主模式」→ 技能 `autonomous-mode`（做 `CLAUDE.md` §14「開始時」那幾步；工具用絕對路徑，任何資料夾都能跑）
 - 自主模式**不跑結束程序**（使用者：「直到我接收前，不斷訓練自己」）：保持清醒、看門狗、每小時續做排程都繼續；排程 7 天過期（10-18 22:3x 建立 → 10-24 重排）
 
 **B 的計畫**（02:2x 定；做完一步就在這裡打勾、commit 到訓練資料夾的 git）
@@ -43,10 +43,10 @@
    - 切換專案前：mod 的 REDkit 要先存好（AnimBrowser 沒有未存的變更）；練完切回 mod 的專案（使用者回來時 REDkit 開著 mod 的專案最方便）
 7. 一直做到使用者回來；每完成一個主題 commit；context 到 45% 照 §14 壓縮
 
-**接續的步驟**（02:3x，壓縮前）
-- B-1 ✓：`D:\OneDrive\Desktop\redkit_expert\` 建好（git，commit `ec318b3`；本機 git 身分照 mod 的 repo；`core.autocrlf false`）：`CLAUDE.md`、`knowledge\INDEX.md`（21 個主題，都還是 ○）、`labs\LOG.md`、`sources\wiki_pages.md`（mod 開發時讀過的 10 頁）
-- 下一步 B-2：兩個技能 `C:\Users\beyon\.claude\skills\redkit-expert\SKILL.md`、`autonomous-mode\SKILL.md`（frontmatter：`name`、`description`；description 要寫觸發的說法「你現在是 redkit 開發專家」「開啟自主模式」）
-- 再來 B-3：mod 已查證的知識整理成主題檔（從 `CLAUDE.md` §6、§12、`docs\findings.md` 開始）→ B-4 Wiki 清單 → B-6 練習
+**接續的步驟**（02:4x 起）
+- **訓練的進度、決定、接續的步驟都改寫在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`** → 壓縮後先讀那份（這裡只留指標，免得 mod 的交接檔塞滿訓練的東西）
+- B-1 ✓（`ec318b3`）、B-2 ✓（02:4x：技能 `redkit-expert`、`autonomous-mode` 在 `C:\Users\beyon\.claude\skills\`，技能清單已出現）
+- 下一步 B-3：mod 已查證的知識整理成訓練資料夾的主題檔
 - REDkit 還開著 mod 的專案（遊戲已 F10 結束）；mod 的 git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
 - 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（最後的回覆要給使用者）
 
