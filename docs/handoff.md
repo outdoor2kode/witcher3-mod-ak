@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 17:5x（自主模式中；#27 完成，接著 #24）
+最後更新：2026-10-18 18:00（自主模式中；#27 完成，#24 第 1 步；context 42% 壓縮前）
 
 ---
 
@@ -59,6 +59,8 @@
   - 物品欄裡裝上 AK（選取格子 → Space）就重現：預覽左手拿 AK、槍口朝下（截圖 `scratchpad{B}desk{B}inv14g.png`）
 - **#24 的做法（17:5x 決定）**：照 #25 的換圖做法，只在裝著 AK 時換預覽人物的 `Inventory` slot
   1. REDkit AnimBrowser 開 `geralt_inventory_gui_animation.w2anims`，5 段匯出成 .re（`g.sh` 的 `export_anim`，要先改 `AB` 成 AnimBrowser 的 handle）
+     - **18:00 狀態**：REDkit 17:51 重開過（主視窗 `0xD12FC`；遊戲已 F10 結束）；AnimBrowser 已經開著這個動畫組（`0x911790`，`g.sh` 的 `AB` 已改）；Asset Browser `0x91726` 停在 `animations\man\inventory`
+     - `export_anim 名稱` 存到 `assets\anims\名稱.re`（存檔視窗按 Enter 用預設資料夾；先確認存檔視窗的資料夾是 `assets\anims`）
   2. 新工具 `tools{B}inv_pose.py`（Blender 內建 Python，照 `square_pose.py`、`two_hand_pose.py` 的 FK、兩節手臂 IK）：每一格保留原版的身體（腿、脊椎、頭），AK（`l_weapon`）放在胸前「低持」（槍口朝前下、斜過身體，跟著 torso3），兩手 IK 握槍（右手握把、左手護木）；格數、長度照原版 → 輸出 `gfg_akinv_*.re`（名稱：`inventory_` 換成同長度的 `gfg_akinv_`）
   3. 匯入我們的動畫組（`import_one plain`）、存檔
   4. `tools{B}ak_graphs.py` 加一張：`pc_inventory.w2beh` 複本，5 個名稱同長度改名 → `workspace{B}dlc{B}gunforgeralt{B}data{B}behaviors{B}gfg_pc_inventory.w2beh`（新檔 → 重開 REDkit）
