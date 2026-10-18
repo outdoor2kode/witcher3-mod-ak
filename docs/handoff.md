@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 23:3x（自主模式：#24 完成）
+最後更新：2026-10-18 23:5x（自主模式：#24 完成；#31 寫好沒測；#32、#33 設計好）
 
 ---
 
@@ -31,7 +31,43 @@
   - 不用「斜放胸前、槍口往左上」：握法是瞄準時的握法，斜放時右手腕一定多扭 130° 左右（idle 第 0 格試了幾千組，暫存 `scratchpad\s30\inv_search*.py`）
   - 拿出／收回時甩的那段：AK 跟著原版的左手（左手握護木），再混到兩手低持
 
-**現在在做**：#31（中鍵：AK 沒有行為；先查原版中鍵的路線）
+**現在在做**：#31～#33 寫程式 → 一次進 REDkit 編譯、測（#31 已寫好、沒編譯沒測）
+
+**#31 中鍵**（程式寫好了：`gfg_ak47.ws` 搜「第 31 項」；**沒編譯、沒測**）
+- 地面：包 `CPlayerInput.OnCbtThrowItem`／`OnCbtThrowItemHold`（`GfgMiddleBlocked`）：AK 是選用物品 → 按下、放開都擋；按下時 `ForceDeactivateAction('ThrowItem'/'ThrowItemHold')`（原版強制收弩也這樣：`rangedWeapon.ws:208-209`）→ `CheckGotoAimThrow`（`:1362`，拿出時中鍵按著就進中鍵瞄準）讀到沒按
+- 騎馬：包 `W3VehicleCombatManagerStateNull.StartItemAction`（`useVehicle.ws:744-758`；`OnItemAction`、`ShouldEnterNextState` 都走它）：`horseComp` 有、選用 AK → 不做事
+- **決定**：水中（游泳、潛水）、船照原版 → 潛水時左鍵不是扳機（`[Diving]` 沒有）、船上左鍵照原版，中鍵單發是 AK 在那裡唯一的開火方式；舒適操作模式「替代施法鍵＋中鍵」照原版
+- 原本 `CLAUDE.md` §7「瞄準沿用十字弩的瞄準模式」（中鍵＝瞄準）→ 使用者這次要中鍵沒有行為：做完要改 §7
+- 測：地面拿 AK 按中鍵 → 不拿出、不瞄準、不開火；開槍中按住中鍵 → 不進中鍵瞄準；裝原版十字弩 → 中鍵照原版（瞄準、放開射一發）；騎馬同樣兩種
+
+**#33 主動換彈**（決定，還沒寫）
+- 鍵：**R**＝使用者 `input.settings` 的重擊 `AttackWithAlternateHeavy`（`[Exploration]`、`[Combat]` 都有；按住 0.2 秒是 `SpecialAttackWithAlternateHeavy`）；CS2 也是 R；拿 AK 不准用劍，重擊沒意義；不用改按鍵設定
+  - 騎馬、游泳、潛水的情境沒有綁 R → 那裡沒有主動換彈（照舊打空自動換）
+- 寫法：包 `CPlayerInput.OnCbtAttackWithAlternateHeavy`（`playerInput.ws:2054`）：`GfgSelectedAk()` 有 → 按下時 `ak.GfgManualReload()`、一律 `return true`（不重擊）；`OnCbtSpecialAttackWithAlternateHeavy`（:2284）同 `OnCbtSpecialAttackWithAlternateLight` 擋掉
+- `@addMethod(Crossbow) GfgManualReload`：`GfgIsAk()`、`deployedEnt` 有、`shotCount > 0`（彈匣沒滿）、狀態 `State_WeaponAim`/`State_WeaponShoot`、`GfgGripReady()`、沒衝刺沒在空中 → `deployedEnt.Destroy(); deployedEnt = NULL;`、`SetBehaviorGraphVariables('isWeaponLoaded', false)`、`RaiseOwnerGraphEvents('Crossbow_Reload', true)`（＝打空時 `GfgTryFire` 最後那段；之後原版：`OnWeaponReloadStart` → `State_WeaponReload`，動畫中段 `OnWeaponReload` 裝新的一發，結束 `ResetShotCount`：`rangedWeapon.ws:75-94`、`338-363`、`697-703`）
+  - `ClearDeployedEntity` 只在 `IsStopped()` 才 Destroy（`:532-539`）→ 自己 Destroy
+
+**#32 右下角提示**（決定，還沒寫）
+- 原版 `CR4HudModuleControlsFeedback.SendInputContextActions`（`hudModuleControlsFeedback.ws:216-769`，private）依情境列動作：探索＝衝刺（按住）、跳躍、獵魔感官（按住）、叫馬；戰鬥＝輕擊、重擊、閃躲、法印；每項 `KeyBindingData`（`gamepad_keyCode`、`keyboard_keyCode`、`altKeyCode`、`label`）→ `m_flashValueStorage.SetFlashArray("hud.module.controlsfeedback", 陣列)`；值存放區沒有讀回的函式
+- 寫法：包 `SendInputContextActions`：呼叫前先算原版會不會重做（`isForced` 或情境變了，同 :249-252）；之後 AK 拿在手上（`rangedWeapon.GfgIsAkDrawn()`）、情境是 `Exploration`／`Combat` → 自己整份重做再 `SetFlashArray` 蓋掉
+  - 探索：照原版那 4 項（條件用原版剛設好的 `m_displaySprint`、`m_displayJump`、`m_displayFocus`、`m_displayCallHorse`、`m_lastUsedPCInput`；標籤 `panel_input_action_sprint`／`panel_button_common_jump`／`panel_input_action_focus`／`ControlLayout_SummonHorse`；按住的前綴同 :594-624，`GetBracketSymbols`：`localizedContent.ws:673`）＋**收槍**（`SwordSheathe` 的鍵 C）＋**換彈**（`AttackWithAlternateHeavy` 的鍵 R）
+  - 戰鬥：**射擊**（`AttackWithAlternateLight`）、換彈、收槍、閃躲（`Dodge`）、法印（`CastSign`）（原版的輕擊、重擊拿 AK 時是錯的）
+  - 拿出、收起 AK 時要重做：每格的 tick 記上一次的狀態，變了就 `hud.GetHudModule("ControlsFeedbackModule")`（名稱要查）→ `ForceModuleUpdate()`（:189-192）
+- 字串（原版沒有收槍、換彈、射擊）：專案字串庫加 `gfg_hud_holster`（Holster／收槍）、`gfg_hud_reload`（Reload／換彈）、`gfg_hud_shoot`（Shoot／射擊）；**REDkit 關著時**照 `scratchpad\s27\add_cat_string.py` 的寫法（DB＋CSV；EN 語言 2、ZH 8；VERSION 各不同）；`GetLocStringByKeyExt("gfg_hud_reload")`
+- 原版字串查詢（唯讀）：`scratchpad\s31\strings_query.py [--text] 片段`（`r4data\LocalEditorStringDataBaseW3_UTF8.db`）
+
+**#29 閃避、翻滾**（查到一半）
+- 使用者的鍵：戰鬥情境 `Dodge`＝左 Ctrl、`CbtRoll`＝空白鍵（`input.settings` `[Combat]`）
+- 十字弩的 `Lock()`（`rangedWeapon.ws:374-423`）的例外名單本來就有 `EIAB_Dodge`、`EIAB_Roll` → 不是它擋的
+- 下一步：讀 `playerInput.ws:2649` `OnCbtDodge`、`:2714` `OnCbtRoll` 的條件（拿著十字弩時走哪條）；我們的「不准拿劍」「戰鬥中舉 AK」有沒有擋到；進遊戲拿 AK 在戰鬥中按 Ctrl／空白鍵看紀錄
+
+**接續的步驟**（23:5x；context 45% 壓縮前寫的）
+- 沒 commit 的：`gfg_ak47.ws`（#31 的兩段，沒編譯）；`gfg_debug.ws` 多了 `gfgakstate()`、`gfgakshow(n)`（不進 git）
+- REDkit 開著、遊戲在跑（reference_level；主視窗 `0x6D043E`；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新；`ak_select` 檢查的 `pose` 紀錄已經沒有了，別信它的「沒拿出來」）
+1. 寫 #33、#32（照上面）
+2. F10 → 關 REDkit → 加 3 個字串 → 重開 REDkit（Welcome → Browse (1238,814) → `typepath` 專案檔 → Enter；新的主視窗 handle 改進 `g.sh` 的 `MW`）→ File (20,32) → reference_level (150,245) → `game_start2` → 看編譯 → 測 #31、#33、#32（截圖右下角）
+3. #29：查、寫、測
+4. 過了就 commit，接著 #34、#30、#28
 
 **#24 結果**（23:1x，reference_level 遊戲裡驗證）
 - 動畫：`tools\inv_pose.py` → `assets\anims\gfg\gfg_akinv_*.re` 5 段（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）→ 匯入我們的動畫組（89 段＝原本 84＋5；原本 84 段的資料、事件一個 byte 都沒變：`scratchpad\s31\cmp_anims.py` 比對 HEAD）
