@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 01:5x（自主模式：#24、#29、#31～#34 完成；#30 做到一半）
+最後更新：2026-10-19 02:0x（自主模式：#24、#29、#31～#34 完成；#30 做到一半：跑步 4 段做好、還沒匯入）
 
 ---
 
@@ -57,10 +57,13 @@
 - F10 有一次沒結束遊戲（用過 AnimBrowser 之後）→ 先點一下遊戲畫面再按
 - `tools\charge_pose.py`（新，commit 了）：試跑 `--lean 16 --down 25 --head 12` → 槍管往下 41°（太陡，像巡邏不像衝鋒）→ **選定 `--lean 16 --down 8 --head 16`（已設成預設值）**：槍管往下 24°、左臂伸直 0.90（預覽 `scratchpad\s34\pv_dd.png` 第 1 列）；走路用 `--lean 8 --head 8`（還沒試）
 1. #30：
-   1. 調 `charge_pose.py` 的參數（`--down` 10 左右、看預覽 `bash scratchpad\s34\pv.sh 檔.re 輸出.png 0.0`）→ 輸出 Q2（例：`assets\anims\gfg\square\man_geralt_gabriel_charge.re`，只當輸入、不匯入）
-   2. `move_pose.py Q2 …` 重做跑步 4 段（`docs\m3.md` 第 1365 行附近的指令，`Q` 換成 Q2、`SP` = `--spread 0.2 0.4 0.4`）；走路 2 段用前傾小一點的 Q2'（或照舊）
-      - **輸出檔名用 `ex_gfg_…`**（動畫組裡的名稱；`man_` 會多一筆蓋過原版十字弩）；先備份現在的檔
-   3. AnimBrowser 同名重匯（plain）；`cmp_anims.py` 比 HEAD：只有這幾段變、還是 89 段
+   1. ~~調參數~~ 做好：Q2 = `assets\anims\gfg\square\man_geralt_gabriel_charge.re`（`charge_pose.py` 預設值；只當輸入、不匯入）
+   2. 跑步 4 段做好（01:5x，**還沒匯入**）：`assets\anims\gfg\ex_gfg_geralt_gabriel_aim_run.re`、`_aim_slow_run`、`_aim_run_45_up`、`_aim_run_45_down`（檢查 0°）
+      - 指令：`move_pose.py Q2 A\ex_man_geralt_gabriel_aim_run.re G\ex_gfg_geralt_gabriel_aim_run.re --full --mean --spread 0.2 0.4 0.4`（`aim_slow_run` 同樣）；
+        坡度：`move_pose.py Q2 A\ex_man_geralt_gabriel_aim_run.re G\ex_gfg_…_45_up.re 21 --motion A\ex_man_…_45_up.re SP`（`_45_down` 的 `--motion` 用 `aim_run`）
+      - 舊的（正面持槍）留在 `G\ex_man_*.re`（沒動）
+      - 走路 2 段還沒做（Q2'：`charge_pose.py --lean 8 --head 8`，指令 `move_pose.py Q2' A\ex_man_gabriel_walk_cycle_slow_forward.re G\ex_gfg_gabriel_walk_cycle_slow_forward.re --full SP`，快走同樣）
+   3. AnimBrowser 同名重匯（plain：`g.sh` 的 `import_one plain 檔名`）；`cmp_anims.py` 比 HEAD：只有這幾段變、還是 89 段
    4. 遊戲裡連拍：A／D 跑、W 跑、走路；開槍中移動（側移射擊）要和之前一樣
 2. #28
 3. 收尾（下面「收尾要做」）＋結束程序
