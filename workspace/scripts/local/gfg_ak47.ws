@@ -24,6 +24,146 @@ function GfgMagazineSize() : int
 	return ownerPlayerWitcher.inv.GetCrossbowAmmo( id );
 }
 
+// ===== AK 用自己的一套動畫圖（第 25 項；2026-10-18）=====
+// 原版十字弩要完全照原版（使用者 2026-10-18：AK 的改動不能影響十字弩）：
+// AK 的 84 段動畫改名成 gfg_（不再同名蓋過原版），原版的 4 張動畫圖各做一份播 AK 動畫的複本（tools/ak_graphs.py）。
+// 裝上 AK 時把玩家這 4 個 slot 的圖換成複本、重新建立實例；換成別的十字弩（或沒有）時換回原版。
+// 玩家的 slot 都在 runtimeBehaviorInstanceSlots（geralt_player.w2ent 的 CAnimBehaviorsParam），
+// 腳本改了 slot 的圖，實例重新建立時就用新的圖（2026-10-18 遊戲實測：docs/findings.md §34）
+
+// i：0 上半身（一直在堆疊最上面）、1 主動畫圖、2 騎馬、3 游泳
+function GfgAkGraphSlot( i : int ) : name
+{
+	switch ( i )
+	{
+		case 0: return 'PlayerOverlay';
+		case 1: return 'Gameplay';
+		case 2: return 'VehicleHorse';
+		default: return 'PlayerSwimming';
+	}
+}
+
+// 同 tools/ak_graphs.py 的 GRAPHS
+function GfgAkGraphPath( i : int ) : string
+{
+	switch ( i )
+	{
+		case 0: return "dlc\gunforgeralt\data\behaviors\gfg_overlay.w2beh";
+		case 1: return "dlc\gunforgeralt\data\behaviors\gfg_gameplay.w2beh";
+		case 2: return "dlc\gunforgeralt\data\behaviors\gfg_rider.w2beh";
+		default: return "dlc\gunforgeralt\data\behaviors\gfg_swimming.w2beh";
+	}
+}
+
+// 換掉 slot 的圖，回傳原本的圖（沒有這個 slot 時 NULL）
+@addMethod(CAnimatedComponent)
+function GfgSwapSlotGraph( slotName : name, graph : CBehaviorGraph ) : CBehaviorGraph
+{
+	var i : int;
+	var old : CBehaviorGraph;
+
+	for ( i = 0; i < runtimeBehaviorInstanceSlots.Size(); i += 1 )
+	{
+		if ( runtimeBehaviorInstanceSlots[i].instanceName == slotName )
+		{
+			old = runtimeBehaviorInstanceSlots[i].graph;
+			runtimeBehaviorInstanceSlots[i].graph = graph;
+			return old;
+		}
+	}
+	return NULL;
+}
+
+@addField(CR4Player)
+var gfgAkGraphsOn : bool;			// slot 現在是 AK 的圖
+
+@addField(CR4Player)
+var gfgAkGraphs : array< CBehaviorGraph >;		// GfgAkGraphPath 的 4 張
+
+@addField(CR4Player)
+var gfgVanillaGraphs : array< CBehaviorGraph >;	// 第一次換掉時記下的原版
+
+@addMethod(CR4Player)
+function GfgAkGraphsWanted() : bool
+{
+	var witcher : W3PlayerWitcher;
+	var id : SItemUniqueId;
+
+	witcher = (W3PlayerWitcher)this;
+	if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_RangedWeapon, id ) )
+		return false;
+	return inv.ItemHasTag( id, 'gfg_ak47' );
+}
+
+@addMethod(CR4Player)
+function GfgApplyAkGraphs( on : bool )
+{
+	var comp : CAnimatedComponent;
+	var i : int;
+	var old, want : CBehaviorGraph;
+	var base : name;
+	var rebuildBase : bool;
+
+	comp = GetRootAnimatedComponent();
+	if ( !comp )
+		return;
+	if ( gfgAkGraphs.Size() == 0 )
+	{
+		for ( i = 0; i < 4; i += 1 )
+		{
+			gfgAkGraphs.PushBack( (CBehaviorGraph)LoadResource( GfgAkGraphPath( i ), true ) );
+			gfgVanillaGraphs.PushBack( NULL );
+			if ( !gfgAkGraphs[i] )
+				LogChannel( 'GFG', "AK graph not found: " + GfgAkGraphPath( i ) );
+		}
+	}
+	base = GetBehaviorGraphInstanceName( 0 );
+	rebuildBase = false;
+	for ( i = 0; i < 4; i += 1 )
+	{
+		if ( !gfgAkGraphs[i] )
+			continue;
+		if ( on )
+			want = gfgAkGraphs[i];
+		else
+			want = gfgVanillaGraphs[i];
+		if ( !want )
+			continue;
+		old = comp.GfgSwapSlotGraph( GfgAkGraphSlot( i ), want );
+		if ( on && old && old != gfgAkGraphs[i] )
+			gfgVanillaGraphs[i] = old;
+		if ( i > 0 && old != want && base == GfgAkGraphSlot( i ) )
+			rebuildBase = true;
+	}
+	gfgAkGraphsOn = on;
+
+	// 重新建立用到的實例：上半身一直都在；底層是主動畫圖、騎馬、游泳的其中一個時也重建（劇情等其他圖不動）。
+	// 同名的實例已經在堆疊裡時，ActivateBehaviorsSync 不會重建（實測）→ 先拆再掛；底層先掛、上半身後掛，順序同原本
+	DetachBehavior( 'PlayerOverlay' );
+	if ( rebuildBase )
+	{
+		DetachBehavior( base );
+		AttachBehaviorSync( base );
+	}
+	AttachBehaviorSync( 'PlayerOverlay' );
+	LogChannel( 'GFG', "AK graphs " + on + ": rebuilt base " + rebuildBase + ", stack " + GetBehaviorGraphInstanceName( 0 ) + " " + GetBehaviorGraphInstanceName( 1 ) + " " + GetBehaviorGraphInstanceName( 2 ) );
+}
+
+// 每 0.1 秒檢查裝的是不是 AK（物品欄換裝備時遊戲暫停，關掉後第一次檢查就換）
+@addMethod(CR4Player)
+timer function GfgAkGraphTimer( dt : float, id : int )
+{
+	if ( gfgAkGraphsOn != GfgAkGraphsWanted() )
+		GfgApplyAkGraphs( !gfgAkGraphsOn );
+}
+
+@wrapMethod(W3PlayerWitcher)
+function OnSpawned( spawnData : SEntitySpawnData )
+{
+	AddTimer( 'GfgAkGraphTimer', 0.1f, true );
+	return wrappedMethod( spawnData );
+}
+
 // 彈匣：原版射滿 shotCountLimit（預設 1）就播換彈動畫（rangedWeapon.ws:830-852），
 // AK 改成射滿彈匣才播；沒播動畫時，原版會立刻裝上下一支箭（rangedWeapon.ws:276-297）。
 // 不採用原版 S_Perk_17 多一發的規則。
@@ -68,6 +208,54 @@ var gfgNextShotTime : float;
 // 上一次檢查能不能開火的時間（引擎時間，秒）
 @addField(Crossbow)
 var gfgLastCheckTime : float;
+
+// ===== 兩手握好槍才開火（第 26 項；使用者 2026-10-18：按左鍵時槍還在背上、還沒好好拿在手上就開火）=====
+// 原版流程：拿出（State_WeaponDraw）→ 動畫圖進瞄準時就到瞄準狀態（OnWeaponAimStart：rangedWeapon.ws:98-103），這時兩手還在把槍拿到前面；
+// 衝刺停下時槍從單手提著換回雙手、換彈結束時右手回到握把，也都在瞄準狀態裡。
+// 判斷：右手（r_hand）到左手的武器骨頭（l_weapon，AK 掛在這裡）的距離（2026-10-18 遊戲裡量：docs/findings.md §34）
+// - 兩手握槍 0.404～0.438 公尺：站、走、側移、騎馬、上下左右瞄準、近距離（2 公尺）、連射中都在這個範圍
+// - 拿出途中 0.56～1.2；衝刺單手提槍 0.47～0.88（擺動時偶爾有一格剛好經過 0.43）→ 在範圍內超過一格（0.02 秒）才算握好
+// - 地面：握好時槍管已經對準（偏 2～9°，和一直瞄準時一樣）；騎馬拿出：握好後槍還在轉向目標（偏 29° → 0.2 秒後 5°）→ 騎馬時握好後再等 0.2 秒
+// 拿著 AK 時每格更新（GfgCameraTick），開火前也更新（中鍵瞄準 AimThrow 的鏡頭更新不呼叫父類別：aimThrow.ws:161）；收起來時清掉
+@addField(Crossbow)
+var gfgGripSince : float;	// 兩手開始握著槍的時間（引擎時間）；0 = 沒握著
+
+@addMethod(Crossbow)
+function GfgGripUpdate( akDrawn : bool )
+{
+	var hand, weapon : int;
+	var d : float;
+
+	if ( !akDrawn )
+	{
+		gfgGripSince = 0.f;
+		return;
+	}
+	hand = ownerPlayer.GetBoneIndex( 'r_hand' );
+	weapon = ownerPlayer.GetBoneIndex( 'l_weapon' );
+	if ( hand < 0 || weapon < 0 )
+		d = 0.42f;	// 找不到骨頭：不擋（不會發生；保險）
+	else
+		d = VecDistance( MatrixGetTranslation( ownerPlayer.GetBoneWorldMatrixByIndex( hand ) ),
+			MatrixGetTranslation( ownerPlayer.GetBoneWorldMatrixByIndex( weapon ) ) );
+	if ( d < 0.395 || d > 0.445 )
+		gfgGripSince = 0.f;
+	else if ( gfgGripSince <= 0.f )
+		gfgGripSince = theGame.GetEngineTimeAsSeconds();
+}
+
+@addMethod(Crossbow)
+function GfgGripReady() : bool
+{
+	var wait : float;
+
+	GfgGripUpdate( true );
+	if ( ownerPlayer.IsUsingVehicle() )
+		wait = 0.2f;
+	else
+		wait = 0.02f;
+	return gfgGripSince > 0.f && theGame.GetEngineTimeAsSeconds() - gfgGripSince >= wait;
+}
 
 // 射擊間隔：CS2 m_flCycleTime = 0.1 秒（data/cs2/weapons.vdata:13298）
 @addMethod(Crossbow)
@@ -843,13 +1031,17 @@ function GfgTryFire()
 	if ( !gfgTriggerHeld )
 		return;
 
-	// 還沒拿出來（拿出中由原版流程處理）
-	if ( GetCurrentStateName() == 'State_WeaponWait' || GetCurrentStateName() == 'State_WeaponHolster' )
+	// 只有瞄準、射擊狀態才開火：
+	// - 還沒拿出來、收槍中（Wait、Holster）
+	// - 拿出中（Draw；第 26 項，使用者 2026-10-18：槍還在背上就開火）：AK 收在背上時箭（deployedEnt）一直裝著，
+	//   拿出的流程是 State_WeaponDraw（rangedWeapon.ws:1108-1213）→ 動畫圖進瞄準時 OnWeaponAimStart（:98-103）→ State_WeaponAim
+	// - 換彈中（Reload）：換彈動畫中段就裝上新箭（rangedWeapon.ws:150-152、338-363），
+	//   換彈結束才把 shotCount 歸零（rangedWeapon.ws:697-703）；中間開火會打斷換彈
+	if ( GetCurrentStateName() != 'State_WeaponAim' && GetCurrentStateName() != 'State_WeaponShoot' )
 		return;
 
-	// 換彈中不開火：換彈動畫中段就裝上新箭（rangedWeapon.ws:150-152、338-363），
-	// 換彈結束才把 shotCount 歸零（rangedWeapon.ws:697-703）；中間開火會打斷換彈
-	if ( GetCurrentStateName() == 'State_WeaponReload' )
+	// 兩手還沒握好槍：拿出、衝刺停下、換彈結束的過程（GfgGripUpdate）
+	if ( !GfgGripReady() )
 		return;
 
 	// 沒有裝好的箭：拿出或換彈中
@@ -1737,6 +1929,8 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 			GfgClearDeadSlideTarget();
 		}
 	}
+	if ( rangedWeapon )
+		rangedWeapon.GfgGripUpdate( akDrawn );	// 兩手握好槍才開火（第 26 項）
 	if ( akDrawn && !IsUsingVehicle() )
 		GfgAkTurnTick();
 	else

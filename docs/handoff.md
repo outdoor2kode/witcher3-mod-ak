@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 15:0x（自主模式中）
+最後更新：2026-10-18 16:3x（自主模式中）
 
 ---
 
@@ -14,36 +14,28 @@
 
 | # | 問題（使用者的描述） | 狀態 |
 |---|---|---|
-| 24 | 物品欄打開時，預覽人物握槍的方式有誤（截圖 2：AK 掛在左手、槍口朝下） | 未開始 |
-| 25 | 原版十字弩的所有姿態要維持原樣，AK 的改動不能影響十字弩（截圖 3、4：十字弩變成雙手拿，原本單手；截圖 5：拿十字弩時腰扭得很怪） | 未開始 |
-| 26 | 按左鍵時槍還在背上（還沒拿好）就擊發 → 槍到手上才可以開槍 | 未開始 |
+| 24 | 物品欄打開時，預覽人物握槍的方式有誤（截圖 2：AK 掛在左手、槍口朝下） | 未開始（查到的在下面） |
+| 25 | 原版十字弩的所有姿態要維持原樣，AK 的改動不能影響十字弩（截圖 3、4：十字弩變成雙手拿，原本單手；截圖 5：拿十字弩時腰扭得很怪） | **完成**（遊戲驗證；`docs\findings.md` §34.1、34.2） |
+| 26 | 按左鍵時槍還在背上（還沒拿好）就擊發 → 槍到手上才可以開槍 | **完成**（遊戲驗證；§34.3） |
 | 27 | 子彈還是箭（物品欄看到的）→ 改成子彈：物品欄、射出去的樣子；原版的箭不受影響；其他會用到這子彈的地方也要做 | 未開始 |
 
 **背景程序**：保持清醒（`desk.ps1 awake`，背景工作 bti6jlddx）、看門狗（`claude_compact.ps1 … watch`，bfqd3uv04）、每小時第 13 分的續做排程（CronCreate a5f72a93）
 
-**現在在做**：#25 的腳本（下面「#25 的做法」第 4 步）；#26 的修法一起寫
+**現在在做**：#27（子彈）→ 再做 #24（物品欄預覽）
 
-### #25 的做法（15:3x 定案、工具做好）
+**收尾要做**（全部做完時）：
+- 刪 `workspace\scripts\local\gfg_debug.ws`（暫時的測試指令：`gfgstack`、`gfggraphs`、`gfgdrawlog(秒)` 等；沒進 git）
+- `tools\overlay_patch.py`、`gameplay_patch.py` 直接跑會寫到原版的覆蓋路徑（`workspace\gameplay\behaviors\pc\behaviorgraph\`）→ 改成擋掉或只給 `ak_graphs.py` 用
+- `CLAUDE.md`：§4 加 `workspace\dlc\gunforgeralt\data\behaviors\`（`ak_graphs.py` 產生、不進 git）；§6 加「slot 換圖」「動畫用 gfg_ 名稱、匯入檔名 gfg_*.re」；§6.16 的「本專案改過的」改成複本；§12 加 F10、`xy()`
 
-查到的事實（15:1x～15:2x 遊戲實測，暫時的指令在 `workspace\scripts\local\gfg_debug.ws`：`gfgstack()`、`gfgrslot`、`gfgsetslot`、`gfgact`、`gfgdet`、`gfgatt`、`gfgreatt`；做完要刪）：
-- 玩家的動畫圖堆疊：`[0]Gameplay [1]PlayerOverlay`（`GetBehaviorGraphInstanceName(i)`：0 在下面）；`PlayerOverlay` 是 alwaysOnTop
-- 玩家的 8 個 slot 都在 `CAnimatedComponent.runtimeBehaviorInstanceSlots`（`behaviorInstanceSlots` 是空的）：Cutscene、PlayerOverlay(top)、StoryScene、VehicleHorse、PlayerSwimming、PlayerSailing、Gameplay、Inventory（來源：`geralt_player.w2ent` 的 `CAnimBehaviorsParam`）
-- **腳本可以改 slot 裡的圖**（`@addMethod(CAnimatedComponent)` 改 `runtimeBehaviorInstanceSlots[i].graph`，`LoadResource( 路徑, true )` 轉型 `CBehaviorGraph`）→ 實例重新建立時用新的圖：
-  - PlayerOverlay 換成 pc_dialog → `DetachBehavior` + `AttachBehaviorSync` → Geralt 消失（確實換了）；換回 pc_overlay 再掛 → 回來
-  - Gameplay 換成 pc_dialog → `ActivateBehaviorsSync(['Gameplay'])`（已經是 Gameplay）沒有重建；先 `['StoryScene']` 再 `['Gameplay']` → T 字姿勢（確實換了）
-  - 也能加新的 runtime slot（`GfgTest`）再 `ActivateBehaviorsSync(['GfgTest'])` → 堆疊 `[GfgTest, PlayerOverlay]`（overlay 自動留在上面）
-- 原版的 `bob.reddlc` 也用 `CR4EntityTemplateParamDLCMounter` + `CAnimBehaviorsParam` 加 slot（不需要：腳本就能換）
+### #25、#26 做完的重點（細節在 findings §34）
 
-做法：
-1. `tools\ak_graphs.py`（新，15:3x 做好、跑過）：原版 4 張圖 → 套之前的修改（`overlay_patch.py` 的手臂覆蓋版、`gameplay_patch.py`）→ 84 段動畫的名稱 `man_` → `gfg_`（同長度，只改名稱表、雜湊 FNV-1a 32 含結尾 0、表 0／1 和檔頭的 CRC）→ `workspace\dlc\gunforgeralt\data\behaviors\gfg_overlay.w2beh`、`gfg_gameplay.w2beh`、`gfg_rider.w2beh`、`gfg_swimming.w2beh`（改名數 26、13、56、5）
-2. `--animset`：我們的動畫組 84 段原地改名（`gfg_ak47_geralt.w2anims`，git 有原檔）→ 不再蓋過原版（**已做**）
-3. 舊的 `workspace\gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh`、`pc_gameplay.w2beh`（直接改原版的）**已移到** session 暫存 `scratchpad\s24\old_overrides\`（可用舊工具重做）→ 十字弩用回原版的圖
-4. 腳本（**還沒寫**）：裝上 AK（`EES_RangedWeapon` 有 `gfg_ak47` 標籤）時，把 slot `PlayerOverlay`、`Gameplay`、`VehicleHorse`、`PlayerSwimming` 的圖換成上面 4 張（第一次換時記下原版的圖）、重新建立實例（overlay：Detach + AttachSync；底層的實例也重建，順序：拆 overlay → 拆底層 → 掛底層 → 掛 overlay，要測）；換成別的十字弩時換回原版
-   - 檢查時機：`W3PlayerWitcher.OnSpawned` 包裝加 0.1 秒重複的計時器（選單、劇情中都會跑）
-   - 騎馬中切換：底層 VehicleHorse 重建有風險 → 先試，不行就只換 slot、等下次上馬
-5. **新的 workspace 檔（4 張圖）要重開 REDkit 才讀得到**（CLAUDE.md §6.16）
-6. 之後：腳本所有包裝都檢查有沒有 `GfgIsAk` 之類的條件（截圖 5 的扭腰可能也和腳本有關：`UpdateLookAtVariables`、`GfgAkTurnTick` 等）
-7. 驗證：原版十字弩（`additem('Crossbow 1', 1, true)`）拿出、瞄準、射擊、換彈、走跑、騎馬 → 單手、不扭腰；AK 全部照舊；兩者在物品欄切換
+- #25：`tools\ak_graphs.py` 產生 4 張 AK 專用圖（`workspace\dlc\gunforgeralt\data\behaviors\gfg_*.w2beh`，不進 git；重做：`python -X utf8 tools/ak_graphs.py`）；動畫組 84 段改名 `gfg_`；腳本每 0.1 秒檢查裝的是不是 AK，換 slot 的圖、重建實例（`gfg_ak47.ws` 開頭「AK 用自己的一套動畫圖」）
+  - 舊的兩個覆蓋檔（直接改原版的 `pc_overlay`、`pc_gameplay`）移到 session 暫存 `scratchpad\s24\old_overrides\`
+  - 腳本的包裝都檢查過：都有限定 AK（或只在 AK 開火、換彈時才有作用）
+  - 之後在 REDkit 匯入動畫：**檔名要用 `gfg_*.re`**
+- #26：兩手（`r_hand`–`l_weapon`）距離在 0.395～0.445 超過 0.02 秒（騎馬 0.2 秒）才開火（`GfgGripUpdate`、`GfgGripReady`）；拿掉了先前寫的「拿出後固定等 0.25 秒」
+- `tools\desk.ps1 burst` 加 `mouse=left`：連拍開始時按住滑鼠鍵（看拿出到第一發）
 
 ### #24 查到的（15:2x 遊戲實測）
 
@@ -53,20 +45,16 @@
 - 打算：預覽人物也換一張改名的 `pc_inventory` 複本，5 段十字弩展示動畫換成 AK 版（雙手、自然的拿法），要自己做動畫；或其他較便宜的做法（還沒決定）
 - 物品欄的預覽（X）只對衣服、染色有用，十字弩沒有
 
-### #26 查到的
-
-- 原因：AK 收在背上時「箭」（`deployedEnt`）還裝著；`GfgTryFire` 只擋 Wait／Holster／Reload，**拿出中（`State_WeaponDraw`）會開火**
-- 原版流程：`State_WeaponDraw.Equip()`（`rangedWeapon.ws:1166-1205`）→ 動畫圖進瞄準 → `OnWeaponAimStart` → `State_WeaponAim`
-- 修法：只有 `State_WeaponAim`／`State_WeaponShoot` 才開火；從 Draw 進 Aim 後再等雙手握好（時間要量：右手 `r_hand` 和 `l_weapon` 的距離穩定下來；舊的量法 `GfgLogBone` 在 commit c79d7f2）
-
 ### #27 查到的
 
 - 原版的箭：`def_item_bolts.xml`（`Bodkin Bolt`：無限、`hold_template="bodkin_bolt"`；`Harpoon Bolt`：水下）；箭的模型（裝在十字弩上、射出去的）都是 `hold_template`
+- 腳本已經有「子彈的樣子」（第 9 項：`gfg_ak47.ws`「子彈的樣子」一節：AK 射出的箭藏模型、拿掉軌跡）
 - 還沒開始做
 
 **自己做的決定**：
 - #25：AK 用自己的一套動畫圖（原版的複本＋改名），裝上 AK 時換 slot 的圖；不用在原版圖裡加切換節點（要解很多自訂資料格式，風險高）
 - 舊的兩個覆蓋檔（產生的檔、不在 git）移出專案 = 刪除：使用者要求十字弩完全照原版，一定得拿掉
+- #26：條件用「兩手都握在槍上」而不是「拿出後等固定時間」：衝刺停下（槍從單手換回雙手）也會在槍沒對準時開火，同一個條件一起解決；槍管角度在近距離、騎馬時會變，不當條件
 
 ---
 

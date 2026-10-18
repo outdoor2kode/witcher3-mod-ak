@@ -2443,3 +2443,58 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 
 - 10-18 03:34 直接跑 `wcc_lite.exe cooksounds`（想看用法）之後，`tools\wcc_compile.py` 再跑時又跳出 EULA 視窗
 - 沒有替使用者按 Agree（`tools\wcc_compile.py` 的說明：要使用者本人確認）→ 改用 REDkit 的 Reload scripts 確認編譯（`Scriptables reloaded.`）
+
+---
+
+## 34. AK 用自己的一套動畫圖、兩手握好才開火（2026-10-18 第 25、26 項；遊戲實測）
+
+### 34.1 玩家的動畫圖堆疊、slot
+
+- 堆疊：`GetBehaviorGraphInstanceName(i)`，0 在最下面；平常 `[0]Gameplay [1]PlayerOverlay`，騎馬 `[0]VehicleHorse [1]PlayerOverlay`；`PlayerOverlay` 是 alwaysOnTop
+- 玩家的 8 個 slot 都在 `CAnimatedComponent.runtimeBehaviorInstanceSlots`（`behaviorInstanceSlots` 是空的）：Cutscene、PlayerOverlay(top)、StoryScene、VehicleHorse、PlayerSwimming、PlayerSailing、Gameplay、Inventory
+  - 來源：`geralt_player.w2ent` 的 `CAnimBehaviorsParam`（componentName `man_base`）
+- **腳本可以換 slot 的圖**：`@addMethod(CAnimatedComponent)` 改 `runtimeBehaviorInstanceSlots[i].graph`（`(CBehaviorGraph)LoadResource( 路徑, true )`）
+  - 實例重新建立時才用新的圖：`DetachBehavior( 名稱 )` + `AttachBehaviorSync( 名稱 )`
+  - `ActivateBehaviorsSync([已經在用的名稱])` 不會重建
+  - 實測順序（`gfg_ak47.ws` 的 `GfgApplyAkGraphs`）：拆 overlay → 拆、掛底層 → 掛 overlay → 堆疊照舊 `[底層, PlayerOverlay]`；騎馬中也可以（`stack VehicleHorse PlayerOverlay`）
+  - 也能加新的 runtime slot 再 `ActivateBehaviorsSync`（overlay 自動留在上面）；本專案沒用到
+- 新的 workspace 檔（4 張圖）要重開 REDkit 才讀得到（`CLAUDE.md` §6.16）
+
+### 34.2 動畫圖、動畫組改名（`tools\ak_graphs.py`）
+
+- 原因：我們的動畫組用原版的名稱蓋過原版 → 原版十字弩也變成 AK 的姿勢（雙手、扭腰）；改過的 `pc_overlay`、`pc_gameplay` 也套在十字弩
+- 做法：原版 4 張圖（`pc_overlay`、`pc_gameplay`、`pc_rider`、`pc_swimming`）各做一份複本，84 段動畫名稱 `man_` → `gfg_`（第一個出現的）；動畫組同樣改名
+  - 同長度改名：只改字串表、名稱表的雜湊（FNV-1a 32，對 UTF-8 加結尾 0；空名稱是 0）、表 0／1 的 CRC、檔頭的 CRC；物件用名稱的索引，資料不變
+  - 動畫組裡每個名稱第二次出現的是 `importFile`（字串，只是紀錄）→ 不改
+  - 之後在 REDkit 匯入、重匯動畫：檔名要用 `gfg_*.re`（用 `man_` 開頭會多一筆原版名稱；工具會擋）
+- 84 段只在這 4 張圖用到（5 段也在 `pc_combat_sword.w2beh`，玩家沒有這張圖的 slot）
+- 結果（遊戲實測）：
+  - 原版十字弩：瞄準單手（右手）、射完收回；騎馬單手瞄準、左手拉韁繩
+  - AK：裝上時紀錄 `AK graphs true: rebuilt base true, stack Gameplay PlayerOverlay`；開火、側移、騎馬雙手持槍照舊
+  - 兩把互換（地面、騎馬中）：每次都換對
+
+### 34.3 兩手握好槍才開火（第 26 項）
+
+- 原版：拿出（`State_WeaponDraw`）→ 動畫圖進瞄準就到 `State_WeaponAim`（`rangedWeapon.ws:98-103`），這時兩手還在把槍拿到前面
+- 量法：右手 `r_hand` 到左手武器骨頭 `l_weapon`（AK 掛在這裡）的距離 d；槍管方向（`l_weapon` 座標：握把 (-0.3032,-0.0115,-0.2320) → 槍口 (0.2368,0.0409,0.1710)）和鏡頭正前方的夾角
+- 地面拿出：Draw 0.38 秒 → Aim；進 Aim 後 0.19 秒 d 穩定在 0.426、槍管對準
+- d 的範圍（開火中、瞄準中）：
+  - 兩手握槍 0.404～0.438：站、走、側移、換彈中、騎馬、往上／側面／近距離（2 公尺）瞄準、連射
+  - 拿出途中 0.36～1.2；衝刺單手提槍 0.47～0.88（擺動時偶爾一格 0.43）
+  - **騎馬、槍收著（兩手拉韁繩）也是 0.40～0.44** → 只看 d 分不出有沒有拿槍；但這時不是瞄準狀態
+- 修正前的問題（紀錄）：
+  - 拿出途中就開火（使用者回報）
+  - 衝刺停下時槍還單手提著：槍管偏 80°、30° 各開一槍，第三發才對準
+  - 騎馬拿出：第一發槍管偏 29°（兩手已握著，槍還在轉向目標，約 0.2 秒後 5°）
+- 槍管夾角不能當條件：近距離（2 公尺）一直瞄準時「槍管 vs 槍口→目標點」12～14°、連射到 26°；騎馬時「槍管 vs 鏡頭」隨鏡頭俯仰 3～25°
+- 做法：d 在 0.395～0.445 超過 0.02 秒（騎馬 0.2 秒）才開火（`GfgGripUpdate`、`GfgGripReady`）
+  - 結果：地面拿出第一發在進 Aim 後 0.21 秒（偏 9°）；衝刺停下等到 d 0.409（偏 2°）才開；騎馬拿出第一發偏 11°（穩定值約 10°）；換彈後馬上接著射；連射間隔照舊 0.1 秒
+  - 連拍（`desk.ps1 burst … mouse=left`）：0.34 秒槍從背上拔出、0.64 秒舉好、0.70 秒第一個火光
+
+### 34.4 操作上學到的
+
+- REDkit 裡玩遊戲時，滑鼠被鎖在遊戲畫面裡 → REDkit 的選單點不到（游標停在畫面上緣）
+  - 要重載腳本：**F10 結束遊戲**、回到編輯器 → Tools → Debuggers → Reload scripts → 再開遊戲
+  - F10 是結束遊戲（不是暫停切換）
+- 村子裡太擠（衝刺、叫馬會卡）：`xy(100, -40)`（`playerCheats.ws:325`，傳送到地面）→ White Orchard 村外的空地
+- `spawn('wolf', …)` 生在鏡頭方向；被房子擋住時看不到

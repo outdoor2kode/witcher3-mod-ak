@@ -10,6 +10,7 @@
   shot <out.png> [scale=0.5] [rect=x,y,w,h] [grid=100]
                                            截桌面（全部螢幕或指定範圍）存 PNG；grid 畫格線、標螢幕座標
   burst <前綴> <張數> <間隔毫秒> [scale=0.5] [rect=x,y,w,h] [hold=w,shift] [pre=毫秒] [key=space 或 key=shift,shift] [keyhold=shift]
+                                           [mouse=left|right|middle]：連拍開始時按住滑鼠鍵（在游標位置），連拍結束放開
                                            連拍：先按住 hold、等 pre、按一下 key，再每隔幾毫秒拍一張（看跳躍落地等快速動作）
   wshot <視窗> <out.png> [scale=…] [grid=…] [mode=print]
                                            截視窗的範圍；mode=print 用 PrintWindow：視窗被擋住也截得到（含 REDkit 的 D3D12 畫面）
@@ -344,6 +345,13 @@ switch ($cmd) {
         if ($o.keyhold) {
             foreach ($kn in ($o.keyhold -split ',')) { $kk = Get-Vk $kn; [Desk]::Key($kk, $false); $holds += $kk; Start-Sleep -Milliseconds 20 }
         }
+        # mouse：按住滑鼠鍵到連拍結束（例：拿出 AK 到第一發的時間；第一張 = 按下的那一刻；2026-10-18 加）
+        $mb = $null
+        if ($o.mouse) {
+            $mb = $o.mouse.ToLower(); $p = [Desk]::Cursor()
+            Assert-Allowed ([Desk]::RootAt($p.X, $p.Y)) "滑鼠 $mb ($($p.X), $($p.Y))"
+            [Desk]::Mouse($Buttons[$mb][0], 0, 0, 0)
+        }
         $sw = [Diagnostics.Stopwatch]::StartNew(); $frames = @(); $times = @()
         for ($i = 0; $i -lt $n; $i++) {
             $bmp = New-Object System.Drawing.Bitmap $w, $h
@@ -354,6 +362,7 @@ switch ($cmd) {
             $wait = ($i + 1) * $iv - $sw.ElapsedMilliseconds
             if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
         }
+        if ($mb) { [Desk]::Mouse($Buttons[$mb][1], 0, 0, 0) }
         [array]::Reverse($holds)
         foreach ($k in $holds) { [Desk]::Key($k, $true); Start-Sleep -Milliseconds 20 }
         for ($i = 0; $i -lt $n; $i++) { Save-Shot $x $y $w $h "$($rest[0])$($i + 1).png" $scale 0 $frames[$i] | Out-Null }
