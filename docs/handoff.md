@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 02:0x（自主模式：#24、#29、#31～#34 完成；#30 做到一半：跑步 4 段做好、還沒匯入）
+最後更新：2026-10-19 01:5x（自主模式：#24、#29～#34 完成；接著 #28）
 
 ---
 
@@ -18,13 +18,13 @@
 | 24 | 物品欄預覽的握槍方式（左手拿、槍口朝下） | **完成**（10-18 23:1x 遊戲驗證：下面「#24 結果」） |
 | 28 | 物品欄子彈圖示：一顆子彈、不要死死的垂直 | 還沒做 |
 | 29 | 戰鬥時要能翻滾、閃避（和持劍時一樣的戰鬥動作） | **完成**（10-19 00:3x 遊戲驗證：`docs\findings.md` §36.4） |
-| 30 | 沒進戰鬥、按 A／D 往左右跑（走）時上半身太挺、很滑稽 → 參考持劍未戰鬥時的左右走跑，做成持槍衝鋒的姿勢 | 還沒做 |
+| 30 | 沒進戰鬥、按 A／D 往左右跑（走）時上半身太挺、很滑稽 → 參考持劍未戰鬥時的左右走跑，做成持槍衝鋒的姿勢 | **完成**（01:4x 遊戲驗證：`docs\m3.md`「沒開槍時走跑：持槍衝鋒的姿勢」） |
 | 31 | 持槍時按滑鼠中鍵（滾輪）會照十字弩單發射出 → 改成沒有行為；**十字弩的原有行為一律不動，只改 AK** | **完成**（00:0x；§36.1） |
 | 32 | 右下角的操作提示（現在是衝刺、跳躍、專注）加「C 收槍」 | **完成**（00:1x；§36.3） |
 | 33 | 主動換彈：Claude 選一個適合的鍵；也加進右下角提示 | **完成**（R；00:0x；§36.2） |
 | 34 | 換彈只有左手在動、太不明顯（玩家不知道為什麼突然停火）→ 動作明顯一點，例如右手也動；找最合適的動畫並實作 | **完成**（01:3x 遊戲驗證：`docs\m3.md`「換彈動作明顯一點」） |
 
-**順序**：接著 #30（動畫），最後 #28
+**順序**：接著 #28（最後一項）
 
 **決定**（理由寫在各項；已定案的寫進 `CLAUDE.md` §7）：
 - #24 展示姿勢＝**低持**：槍托頂在右胸前（肩窩）、槍口往前下約 27°、略往左；左手沿護木往後 7 公分
@@ -34,39 +34,18 @@
 - #33：R（CS2 也是 R；拿 AK 時重擊沒用；不用改按鍵設定）
 - #32：Flash 只有 5 格 → 探索時「叫馬」排最後、有空格才列；戰鬥時照原版的位置換成射擊、換彈、閃躲、法印、收槍
 - #29：閃躲時 AK 留在手上（不收槍）；翻完馬上能射
+- #30：跑步前傾 16°、槍口朝前下 24°；走路前傾 8°（槍口 16°）；走跑瞄準差值沒重算（沒開槍移動時上半身不跟鏡頭）
 - #34：原版沒有槍的換彈動畫可借 → 自己的關鍵格：上半身右轉、槍移到身體右前方、槍口上翹；最後右手拉槍機（手肘抬高）；從背後的鏡頭看得到
 
-**現在在做**：#30（沒進戰鬥、A／D 往左右跑時上半身太挺 → 持槍衝鋒的姿勢）
+**現在在做**：#28（物品欄子彈圖示：一顆、不要死死的垂直）
 
-**#30 查到的**（01:4x）
-- 遊戲裡連拍（reference_level，沒戰鬥按住 A；暫存 `desk\sw_g.png`、`desk\ak_g.png`）：
-  - 持劍：上半身前傾約 20°、劍低垂在身後
-  - 拿 AK：槍舉在肩膀高度瞄準、上半身直挺（腳在跑、上半身像站著瞄準）→ 使用者說的滑稽
-- 沒開槍時的走跑用 `ex_gfg_geralt_gabriel_aim_run`（`_45_up`、`_45_down`）、`aim_slow_run`、走路 `ex_gfg_gabriel_walk_cycle_slow_forward`／`_fast_forward`
-  - 是 `tools\move_pose.py` 把「正面持槍」底層 Q（`assets\anims\gfg\square\man_geralt_gabriel_aim_idle_square.re`）的上半身套到原版走跑上做的（指令：`docs\m3.md` 第 1365 行附近「重做」）
-  - 開槍中移動用另一組（開槍中側移 6 段）→ 只改這幾段不影響開槍
-- 做法（進行中）：新工具 `tools\charge_pose.py`：Q 第 0 格 → 「持槍衝鋒」底層 Q2（上半身前傾、槍以槍托為軸槍口往下（低持）、兩手 IK、頭抬回來看前方）
-  → `move_pose.py Q2 …` 重做跑步 4 段（走路 2 段也用，前傾小一點）→ 同名重匯（**檔名用 gfg_**）→ 遊戲裡連拍比對
-  - 注意：走跑瞄準差值（`aim_delta.py A Q G --set walk|run`）是對 Q 算的；換了底層要不要重算：遊戲裡看開槍中移動有沒有變
-
-**接續的步驟**（01:5x，壓縮前）
-- REDkit 開著、遊戲在跑（reference_level；拿著 AK、沒戰鬥；主視窗 `0x1A19F2`、AnimBrowser `0x5F0898`（我們的動畫組）；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新）
-- `g.sh`：`game_start2` 一進遊戲馬上 `god()`；`gridm 輸出 每行張數 x:y:w:h 圖…`（多行拼圖，`grid.ps1`）；連拍跑步：`$D burst "$P/前綴" 8 250 scale=0.25 rect=0,40,1640,960 hold=a pre=800`
-  - 拿 AK 往左跑前先轉鏡頭離開牆（`d rmove 900 0 10 15`），不然貼著牆跑不動、鏡頭被擠近
-- `gfg_debug.ws`（不進 git）：`gfgshots(n)` 設定已射發數；`gfgakstate()` 印 `magOut`
-- F10 有一次沒結束遊戲（用過 AnimBrowser 之後）→ 先點一下遊戲畫面再按
-- `tools\charge_pose.py`（新，commit 了）：試跑 `--lean 16 --down 25 --head 12` → 槍管往下 41°（太陡，像巡邏不像衝鋒）→ **選定 `--lean 16 --down 8 --head 16`（已設成預設值）**：槍管往下 24°、左臂伸直 0.90（預覽 `scratchpad\s34\pv_dd.png` 第 1 列）；走路用 `--lean 8 --head 8`（還沒試）
-1. #30：
-   1. ~~調參數~~ 做好：Q2 = `assets\anims\gfg\square\man_geralt_gabriel_charge.re`（`charge_pose.py` 預設值；只當輸入、不匯入）
-   2. 跑步 4 段做好（01:5x，**還沒匯入**）：`assets\anims\gfg\ex_gfg_geralt_gabriel_aim_run.re`、`_aim_slow_run`、`_aim_run_45_up`、`_aim_run_45_down`（檢查 0°）
-      - 指令：`move_pose.py Q2 A\ex_man_geralt_gabriel_aim_run.re G\ex_gfg_geralt_gabriel_aim_run.re --full --mean --spread 0.2 0.4 0.4`（`aim_slow_run` 同樣）；
-        坡度：`move_pose.py Q2 A\ex_man_geralt_gabriel_aim_run.re G\ex_gfg_…_45_up.re 21 --motion A\ex_man_…_45_up.re SP`（`_45_down` 的 `--motion` 用 `aim_run`）
-      - 舊的（正面持槍）留在 `G\ex_man_*.re`（沒動）
-      - 走路 2 段還沒做（Q2'：`charge_pose.py --lean 8 --head 8`，指令 `move_pose.py Q2' A\ex_man_gabriel_walk_cycle_slow_forward.re G\ex_gfg_gabriel_walk_cycle_slow_forward.re --full SP`，快走同樣）
-   3. AnimBrowser 同名重匯（plain：`g.sh` 的 `import_one plain 檔名`）；`cmp_anims.py` 比 HEAD：只有這幾段變、還是 89 段
-   4. 遊戲裡連拍：A／D 跑、W 跑、走路；開槍中移動（側移射擊）要和之前一樣
-2. #28
-3. 收尾（下面「收尾要做」）＋結束程序
+**接續的步驟**（01:5x）
+- REDkit 開著、遊戲在跑（reference_level；拿著 AK、沒戰鬥；主視窗 `0x1A19F2`、AnimBrowser `0x5F0898`；`scratchpad\desk\g.sh`）
+- `g.sh`：`game_start2`（一進遊戲馬上 `god()`）、`ak_select2`、`con "指令"`、`gridm 輸出 每行張數 x:y:w:h 圖…`
+  - 讀移動速度：連拍畫面下方的鏡頭座標 `$D burst "$P/前綴" 3 1000 scale=1 rect=900,960,760,50 hold=a pre=1200`
+- `gfg_debug.ws`（不進 git）：`gfgshots(n)`、`gfgakstate()`
+1. #28：`tools\ammo_build.py` 加傾斜的參數、`--count 1` → `workspace\dlc\gunforgeralt\data\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_ammo_64x128.png`；遊戲裡物品欄看（拿著 AK 時打不開：先 C 收槍再 I）
+2. 收尾（下面「收尾要做」）＋結束程序
 
 **#24 結果**（23:1x，reference_level 遊戲裡驗證）
 - 動畫：`tools\inv_pose.py` → `assets\anims\gfg\gfg_akinv_*.re` 5 段（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）→ 匯入我們的動畫組（89 段＝原本 84＋5；原本 84 段的資料、事件一個 byte 都沒變：`scratchpad\s31\cmp_anims.py` 比對 HEAD）
