@@ -480,6 +480,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
     - 不用結束遊戲，也不用重開 REDkit；只重開遊戲則**不會**重新編譯（§13.10）
     - ⚠️ **Script Studio 的 Debug → Reload scripts（F7）不要用**：只重編 1525 個原版檔，workspace 的腳本（我們的 mod）掉出去（exec 函式變 `Unknown global function`），之後 REDkit 的 Reload scripts 也補不回來 → 要 File → Restart... 重開 REDkit（2026-10-19 練習專案實測：`D:\OneDrive\Desktop\redkit_expert\labs\LOG.md` L4f）
     - Script Studio 的中斷點：原版腳本會停（Callstack、Locals、Watch、F10 逐步）；**workspace 的腳本（mod）不會停**（行號旁是空心圈）→ mod 用 `LogChannel`＋editor.log（同上 L4f）
+      - `@wrapMethod` 的 mod：中斷點下在**被包的原版方法**裡 → Callstack 有 mod 的包裝框（`檔名.ws!類別::方法(參數=值) Line N`），原版方法顯示成 `方法@類別@wrapper000`；Locals 有 `this` 和參數（同上 L4g）
   - **測試用世界建議 `engine\reference_level\world\reference_level.w2w`**：官方的測試關卡，實測載入 0.20 秒（Novigrad 約 2～3 秒），見 `docs\findings.md` §13.9
   - 需要平常存檔的狀態時才用 `load a saved game`（約 35 秒，會播前情提要影片）
   - **按 `Fast` 前先把鏡頭放到地面附近**，否則 Geralt 會從鏡頭位置掉下來摔死（Wiki「Start the game from the editor」）
