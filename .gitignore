@@ -58,3 +58,5 @@ desktop.ini
 # 改過的原版動畫圖（2.9 MB、7.7 MB；tools/overlay_patch.py、tools/gameplay_patch.py 從原檔重做）
 /workspace/gameplay/behaviors/pc/behaviorgraph/pc_overlay.w2beh
 /workspace/gameplay/behaviors/pc/behaviorgraph/pc_gameplay.w2beh
+# AK 專用的動畫圖（tools/ak_graphs.py 產生；第 25 項）
+/workspace/dlc/gunforgeralt/data/behaviors/
