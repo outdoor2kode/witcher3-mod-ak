@@ -96,7 +96,8 @@
     dlc\<dlc名稱>\                ← 自訂 DLC：物品 XML、實體模板、.reddlc（.reddlc 要在 REDkit 建立）
       data\items\weapons\gfg_ak47\  ← AK 的實體模板（納入 git）、模型、貼圖（REDkit 匯入的產物，不納入 git）
     scripts\local\                ← mod 腳本（annotation）；2026-10-12 確認會被遊戲載入
-    gameplay\behaviors\pc\behaviorgraph\pc_overlay.w2beh、pc_gameplay.w2beh  ← 改過的原版動畫圖（tools\overlay_patch.py、gameplay_patch.py 產生，不納入 git；§6.16）
+    dlc\gunforgeralt\data\behaviors\gfg_*.w2beh  ← AK 專用的動畫圖（原版 5 張的複本＋修改；tools\ak_graphs.py 產生，不納入 git；§6.16）
+    dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims  ← AK 的動畫組（89 段，名稱都是 gfg_ 開頭；納入 git；§6.11）
     soundbanks\pc\gfg_ak47.bnk    ← AK 槍聲的 SoundBank（tools\ak_soundbank.py 產生，不納入 git；§6 第 20 項）
   assets\ak47\                    ← M3 腳本的輸出（.blend、.fbx、.png 不納入 git）、匯入模型用的材質 XML（納入 git）
     sound\                        ← CS2 的槍聲 ak47_01、02、04.wav（tools\vpk_extract.py 取出 'sounds/weapons/ak47/*'＋Source 2 Viewer 命令列版轉 WAV；不納入 git）
@@ -220,7 +221,10 @@
     - 校驗碼有 3 層，都是 CRC32：每個物件（存在物件表）→ 物件表（存在檔頭的表格欄位）→ 檔頭（前 160 bytes，校驗碼欄位先填 `0xDEADBEEF` 再算）；改一個物件要 3 層都重算
     - 做法、檢查的方式照 `tools\overlay_patch.py`：原檔只讀、先驗證原檔的校驗碼和要改的內容、寫完讀回來檢查
     - 改過的原版檔用 `.gitignore` 排除，靠腳本重做
-    - 本專案改過的：`pc_overlay.w2beh` 的曲線 #18561（站著瞄準時右手臂不再被換成 `man_ger_sword_axii_arm_override`）；`pc_gameplay.w2beh` 3 個直線走跑節點的骨頭表（`tools\gameplay_patch.py`：拿十字弩直線走跑時兩隻手臂都用十字弩動畫；`docs\m3.md`「直線走路、跑步的右手」）
+    - 本專案改的（2026-10-18 第 25 項起）：**不蓋原版的檔**，改用複本 → 原版十字弩照舊
+      - `tools\ak_graphs.py`：原版 `pc_overlay`、`pc_gameplay`、`pc_rider`、`pc_swimming`、`pc_inventory` 複製一份，套上 `overlay_patch.py`、`gameplay_patch.py` 的修改（右手臂覆蓋、直線走跑兩手臂），動畫名稱改成 `gfg_` 開頭 → `workspace\dlc\gunforgeralt\data\behaviors\gfg_*.w2beh`
+      - **腳本換 slot 的圖**：裝的是 AK 時，把玩家動畫元件的 slot 換成複本、重建實例（`gfg_ak47.ws` 開頭「AK 用自己的一套動畫圖」；`docs\findings.md` §34）
+      - `overlay_patch.py`、`gameplay_patch.py` 直接跑會停（不加 `--override` 就不寫原版的覆蓋路徑）
     - 物件變大小也可以改：物件資料連續排列、沒有 buffer 的檔，後面的物件位移往後挪、更新物件表和檔頭的檔案大小（第 6、7 個 u32）（`tools\gameplay_patch.py`）
     - **REDkit 開著時新建的 workspace 檔，遊戲讀不到 → 重開 REDkit 才生效**（2026-10-16 `pc_gameplay.w2beh` 實測）；改既有的檔不用重開
     - 模型的材質數值參數（`SpecularColor`、`RSpecScale` 等）：`tools\mesh_material_patch.py` 原地改（2026-10-18；改完重開 REDkit 後生效；`docs\findings.md` §32）
@@ -480,7 +484,9 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - **按 `Fast` 前先把鏡頭放到地面附近**，否則 Geralt 會從鏡頭位置掉下來摔死（Wiki「Start the game from the editor」）
     - 滑鼠指向地面按 **J**：鏡頭瞬移到該點；**Q／E** 升降；**Ctrl+Alt+0～9** 存鏡頭位置、**Ctrl+0～9** 叫回（Wiki「Useful shortcuts」、「Control the camera」）
     - 存的位置寫在 `<REDKIT_DIR>\bin\r4LavaEditor2.sessions.ini` 各世界的 `WorldCameraBookmarks` 區段
-  - **F10**：Wiki 兩頁說法不同——「Switch between the game and editor」寫切回編輯器、再按回到遊戲；「Useful shortcuts」寫結束遊戲（quit game session）；實際行為未確認
+  - **F10 = 結束遊戲、回到編輯器**（2026-10-18 實測，`docs\findings.md` §34）；遊戲中滑鼠被鎖在遊戲畫面裡、REDkit 的選單點不到 → 重載腳本要先 F10
+    - 用過 AnimBrowser 之後 F10 有時沒反應：先點一下遊戲畫面再按
+  - 傳送：主控台 `xy(x, y)`（`playerCheats.ws:325`；傳到該點的地面）
   - 遊戲中其他快捷鍵（Wiki「Useful shortcuts」）：數字鍵盤 **1** 殺死範圍內所有敵人、數字鍵盤 **+／-** 調整時間流速、**F1** 自由鏡頭
   - 存檔資料夾：`C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`（REDkit 的紀錄檔所示）
 - 測試前備份存檔：`文件\The Witcher 3\gamesaves`

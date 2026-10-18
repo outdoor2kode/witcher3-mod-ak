@@ -429,7 +429,13 @@ def main() -> int:
     p.add_argument('--check', action='store_true', help='只檢查，不寫檔')
     p.add_argument('--legacy', action='store_true', help='舊版：只把曲線 #18561 改成 0')
     p.add_argument('--switch', action='store_true', help='（只配 --legacy）也改 #18960（實驗：移動時走站著的瞄準；實測角色不能移動）')
+    p.add_argument('--override', action='store_true', help='真的寫到原版的覆蓋路徑（原版十字弩也會跟著變）')
     args = p.parse_args()
+    # 第 25 項（2026-10-18）之後 AK 用自己的動畫圖複本（tools/ak_graphs.py 匯入本檔的函式），不再蓋原版的 pc_overlay.w2beh
+    if not args.check and not args.override:
+        print(f'停止：直接寫會蓋掉原版的上半身動畫圖（{DST}），原版十字弩也會跟著變；'
+              'AK 的圖用 tools/ak_graphs.py 做。真的要蓋原版：加 --override')
+        return 2
     if args.switch and not args.legacy:
         print('--switch 只能和 --legacy 一起用')
         return 2

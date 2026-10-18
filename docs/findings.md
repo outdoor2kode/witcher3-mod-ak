@@ -2583,6 +2583,15 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 換彈同打空時：刪掉膛內那發（`ClearDeployedEntity` 只刪停下來的：`rangedWeapon.ws:532-539`）→ `isWeaponLoaded` false → `Crossbow_Reload` 事件；之後照原版：中段 `OnWeaponReload` 裝新的一發、結束時 `ResetShotCount`（`:75-94`、`:338-363`、`:697-703`）
 - 實測：射 11 發 → R → `GfgManualReload(): Destroying entity …`、2 秒後 `Equipped bullet item gfg_ak47_ammo`、射擊數歸零；彈匣滿時按 R 沒有紀錄；AK 在背上按 R：不重擊、不拔劍
 
+- **修正（10-19 02:1x，收尾測試發現）**：按 R 換完彈後，跑步時上半身變回原版十字弩的拿法（左手提著、槍口朝下）；收槍再拿出就好；打空自動換彈（換彈開始時扳機按著）沒有這個問題
+  - 腳本看得到的動畫圖變數（`hasCrossbowHeld`、`isAimingWeapon`、`isShootingWeapon`、`isWeaponLoaded`、`fullBodyAnimWeight` 等）在好、壞兩種情況完全一樣（暫時指令 `gfgbv()`，在 `backup\gfg_debug_gfgbv_2026-10-19.ws`）
+  - 上半身圖（`pc_overlay` 複本；暫存 `s30b\trans.py` 讀 dump 列出狀態的轉移和條件）：瞄準 `WeaponAim`（#17292）→ 換彈 `WeaponReload`（#17300）要「`isWeaponLoaded` = 0 而且 `isAimingWeapon` = 1（#17296）或 `isShootingWeapon` = 1（#21254）」；按 R 時兩個都是 0 → 上半身圖沒進換彈（只有腳本和全身那張圖換）
+    - 換彈的轉出全部到 `WeaponAim`（要 `RaiseWeapon` 事件＋瞄準或射擊 = 1；或彈匣裝好、兩個都 0、站姿不是 1／3）或 `WeaponHolster`（`canHolsterAfterDelay` ≥ 1）
+    - 瞄準 → 收槍：#21310 停用（`isEnabled` false）；#21321 = 動畫事件 `AllowBlend`＋沒瞄準、沒射擊＋移動（#29 閃躲遇到的那條）
+    - 壞的時候上半身圖確切在哪個狀態：沒查到（腳本讀不到；遊戲裡 F9 的 ImGui 選單點不到）→ 推論，修正後的結果符合
+  - 做法：按 R 起到換彈狀態結束後 0.3 秒，上半身圖的 `isAimingWeapon` 當作 1（同閃躲的做法）；之後照十字弩自己的值還原（`gfg_ak47.ws`「R 換彈時上半身圖當作瞄準中」：`GfgReloadAimStart`、`GfgReloadAimTick`）
+  - 遊戲裡：開幾槍 → R → 換彈動作照常（槍轉到右前方、槍口上翹）→ 跑步 A、D 都是衝鋒姿勢；換完射 0.8 秒 14 發；`isAimingWeapon` 回到 0
+
 ### 36.3 右下角的操作提示（第 32 項）
 
 - 原版：`CR4HudModuleControlsFeedback.SendInputContextActions`（`hudModuleControlsFeedback.ws:216-769`，private）依按鍵情境列動作 → `SetFlashArray( "hud.module.controlsfeedback", … )`

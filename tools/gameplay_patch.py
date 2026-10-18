@@ -217,7 +217,13 @@ def main() -> int:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     p = argparse.ArgumentParser(description='pc_gameplay.w2beh：直線走路、跑步拿十字弩時兩隻手臂都蓋')
     p.add_argument('--check', action='store_true', help='只檢查，不寫檔')
+    p.add_argument('--override', action='store_true', help='真的寫到原版的覆蓋路徑（原版十字弩也會跟著變）')
     args = p.parse_args()
+    # 第 25 項（2026-10-18）之後 AK 用自己的動畫圖複本（tools/ak_graphs.py 匯入本檔的函式），不再蓋原版的 pc_gameplay.w2beh
+    if not args.check and not args.override:
+        print(f'停止：直接寫會蓋掉原版的主動畫圖（{DST}），原版十字弩也會跟著變；'
+              'AK 的圖用 tools/ak_graphs.py 做。真的要蓋原版：加 --override')
+        return 2
     if not SRC.is_file():
         print(f'找不到原檔：{SRC}')
         return 1

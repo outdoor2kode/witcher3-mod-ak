@@ -317,6 +317,7 @@ function GfgManualReload() : bool
 		return false;
 	deployedEnt.Destroy();
 	deployedEnt = NULL;
+	ownerPlayer.GfgReloadAimStart();
 	SetBehaviorGraphVariables( 'isWeaponLoaded', false );
 	RaiseOwnerGraphEvents( 'Crossbow_Reload', true );
 	return true;
@@ -2295,6 +2296,7 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 	GfgNoSwordTick();			// 不准拿劍、自動舉 AK（第 19 項）
 	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
 	GfgEvadeTick( akDrawn );	// 戰鬥中閃躲、翻滾（第 29 項）
+	GfgReloadAimTick( akDrawn );	// R 換彈時上半身圖當作瞄準中（第 33 項的修正）
 }
 
 // ===== 戰鬥中閃躲、翻滾（第 29 項；使用者 2026-10-18：「戰鬥時應該要能翻滾，閃避(維持跟持劍時一樣的戰鬥可執行選項)」）=====
@@ -2355,6 +2357,45 @@ function GfgEvadeTick( akDrawn : bool )
 			rangedWeapon.GfgRefreshFullBody();
 		}
 	}
+}
+
+// ===== R 換彈時上半身圖當作瞄準中（第 33 項的修正；2026-10-19 收尾測試發現）=====
+// 現象：按 R 換完彈後，跑步時上半身變回原版十字弩的拿法（左手提著、槍口朝下）；收槍再拿出就好；打空自動換彈沒有這個問題
+// 原因（docs/findings.md §36.2）：上半身圖（pc_overlay）瞄準 → 換彈的轉移要「彈匣空了」而且 isAimingWeapon 或 isShootingWeapon 是 1
+// （#17296、#21254）；打空時扳機按著（isShootingWeapon 1）會轉過去，按 R 時兩個都是 0 → 上半身圖沒進換彈，只有腳本和全身那張圖換
+// → 按 R 起到換彈狀態結束後 0.3 秒，上半身圖的 isAimingWeapon 當作 1（同閃躲：GfgEvadeTick），之後照十字弩自己的值還原
+@addField(CR4Player)
+var gfgReloadAim : bool;
+
+@addField(CR4Player)
+var gfgReloadAimUntil : float;
+
+@addMethod(CR4Player)
+function GfgReloadAimStart()
+{
+	gfgReloadAim = true;
+	gfgReloadAimUntil = theGame.GetEngineTimeAsSeconds() + 1.0f;	// 換彈狀態還沒開始時最多等 1 秒
+	SetBehaviorVariable( 'isAimingWeapon', 1.f );
+}
+
+@addMethod(CR4Player)
+function GfgReloadAimTick( akDrawn : bool )
+{
+	var now : float;
+
+	if ( !gfgReloadAim )
+		return;
+	now = theGame.GetEngineTimeAsSeconds();
+	if ( akDrawn && rangedWeapon && rangedWeapon.GetCurrentStateName() == 'State_WeaponReload' )
+		gfgReloadAimUntil = now + 0.3f;
+	if ( akDrawn && now < gfgReloadAimUntil )
+	{
+		SetBehaviorVariable( 'isAimingWeapon', 1.f );
+		return;
+	}
+	gfgReloadAim = false;
+	if ( rangedWeapon )
+		SetBehaviorVariable( 'isAimingWeapon', (float)rangedWeapon.GfgAimingFlag() );
 }
 
 // ===== 槍口火光（第 10 項；2026-10-17）=====
