@@ -20,6 +20,8 @@
   - 動畫組裡同樣的字串另外出現在 importFile（匯入來源的路徑，String）：只是紀錄，不改
 
 要改名的名稱：動畫組裡的動畫（CSkeletalAnimation 的 name）；改過的（gfg_）換回 man_ 當作原版的名稱
+- 例外：物品欄預覽的 5 段（第 24 項，tools/inv_pose.py）：原版名稱 inventory_*，AK 的 gfg_akinv_*（INV_NAMES）
+  → 只用在物品欄預覽的圖（gfg_inventory.w2beh），不參與 man_／gfg_ 的改名
 - 以後在 REDkit 匯入新動畫：檔名用 gfg_ 開頭（例：gfg_geralt_gabriel_aim_idle_rp.re），同名覆蓋；
   用 man_ 開頭匯入會多一段蓋過原版的動畫 → 這個工具會停下來（同一個名稱改名後重複）
 """
@@ -69,6 +71,12 @@ def name_hash(raw: bytes) -> int:
     for x in raw + b'\0':
         h = ((h ^ x) * 0x01000193) & 0xFFFFFFFF
     return h
+
+
+# 物品欄預覽（第 24 項）：原版 → AK（同長度）
+INV_NAMES = {n: 'gfg_akinv_' + n[len('inventory_'):] for n in (
+    'inventory_unsheathe_crossbow', 'inventory_crossbow_idle', 'inventory_crossbow_check1',
+    'inventory_crossbow_to_noequipment', 'inventory_sheathe_crossbow')}
 
 
 def ak_name(vanilla: str) -> str:
@@ -194,12 +202,13 @@ def patch_gameplay(src: bytes) -> bytes:
     return out
 
 
-# （輸出檔名, 原版的圖, 之前對原版的修改）；腳本裡的路徑要一樣（gfg_ak47.ws 的 GfgAkGraphPath）
+# （輸出檔名, 原版的圖, 之前對原版的修改, 改名的對照：None = 動畫組的 man_ → gfg_）；腳本裡的路徑要一樣（gfg_ak47.ws 的 GfgAkGraphPath）
 GRAPHS = (
-    ('gfg_overlay.w2beh', 'pc_overlay.w2beh', patch_overlay),     # PlayerOverlay：上半身（瞄準、射擊、換彈）
-    ('gfg_gameplay.w2beh', 'pc_gameplay.w2beh', patch_gameplay),  # Gameplay：主動畫圖（走跑）
-    ('gfg_rider.w2beh', 'pc_rider.w2beh', None),                  # VehicleHorse：騎馬
-    ('gfg_swimming.w2beh', 'pc_swimming.w2beh', None),            # PlayerSwimming：游泳、潛水
+    ('gfg_overlay.w2beh', 'pc_overlay.w2beh', patch_overlay, None),     # PlayerOverlay：上半身（瞄準、射擊、換彈）
+    ('gfg_gameplay.w2beh', 'pc_gameplay.w2beh', patch_gameplay, None),  # Gameplay：主動畫圖（走跑）
+    ('gfg_rider.w2beh', 'pc_rider.w2beh', None, None),                  # VehicleHorse：騎馬
+    ('gfg_swimming.w2beh', 'pc_swimming.w2beh', None, None),            # PlayerSwimming：游泳、潛水
+    ('gfg_inventory.w2beh', 'pc_inventory.w2beh', None, INV_NAMES),     # 物品欄預覽人物的 Inventory（第 24 項）
 )
 
 
@@ -215,7 +224,7 @@ def main() -> int:
     if errors:
         print('停止：動畫組的校驗碼不對：' + '、'.join(errors))
         return 1
-    current = animset_names(anim_data)
+    current = [n for n in animset_names(anim_data) if n not in INV_NAMES.values()]
     vanilla = sorted({vanilla_name(n) for n in current})
     if len(vanilla) != len(current):
         print('停止：動畫組裡同一段動畫有原版名稱和 gfg_ 名稱兩筆（用 man_ 開頭的檔名匯入過？）：'
@@ -229,7 +238,8 @@ def main() -> int:
     print(f'動畫組：{len(current)} 段（還是原版名稱的 {sum(1 for n in current if n in mapping)} 段）')
 
     outputs = []
-    for out_name, src_name, patcher in GRAPHS:
+    for out_name, src_name, patcher, names in GRAPHS:
+        names = names or mapping
         src_path = R4DATA / PC_GRAPHS / src_name
         src = src_path.read_bytes()
         try:
@@ -237,8 +247,8 @@ def main() -> int:
             errors = check_name_tables(base) + overlay_patch.check_crcs(base)
             if errors:
                 raise ValueError('改名前的校驗碼不對：' + '、'.join(errors))
-            out, renamed = rename(base, mapping)
-            verify_rename(base, out, mapping)
+            out, renamed = rename(base, names)
+            verify_rename(base, out, names)
         except ValueError as e:
             print(f'停止（{src_name}）：{e}')
             return 1
