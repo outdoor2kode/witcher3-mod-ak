@@ -40,7 +40,7 @@
 - 原本 `CLAUDE.md` §7「瞄準沿用十字弩的瞄準模式」（中鍵＝瞄準）→ 使用者這次要中鍵沒有行為：做完要改 §7
 - 測：地面拿 AK 按中鍵 → 不拿出、不瞄準、不開火；開槍中按住中鍵 → 不進中鍵瞄準；裝原版十字弩 → 中鍵照原版（瞄準、放開射一發）；騎馬同樣兩種
 
-**#33 主動換彈**（決定，還沒寫）
+**#33 主動換彈**（程式寫好了：搜「第 33 項」；**沒編譯、沒測**）
 - 鍵：**R**＝使用者 `input.settings` 的重擊 `AttackWithAlternateHeavy`（`[Exploration]`、`[Combat]` 都有；按住 0.2 秒是 `SpecialAttackWithAlternateHeavy`）；CS2 也是 R；拿 AK 不准用劍，重擊沒意義；不用改按鍵設定
   - 騎馬、游泳、潛水的情境沒有綁 R → 那裡沒有主動換彈（照舊打空自動換）
 - 寫法：包 `CPlayerInput.OnCbtAttackWithAlternateHeavy`（`playerInput.ws:2054`）：`GfgSelectedAk()` 有 → 按下時 `ak.GfgManualReload()`、一律 `return true`（不重擊）；`OnCbtSpecialAttackWithAlternateHeavy`（:2284）同 `OnCbtSpecialAttackWithAlternateLight` 擋掉
@@ -62,9 +62,10 @@
 - 下一步：讀 `playerInput.ws:2649` `OnCbtDodge`、`:2714` `OnCbtRoll` 的條件（拿著十字弩時走哪條）；我們的「不准拿劍」「戰鬥中舉 AK」有沒有擋到；進遊戲拿 AK 在戰鬥中按 Ctrl／空白鍵看紀錄
 
 **接續的步驟**（23:5x；context 45% 壓縮前寫的）
-- 沒 commit 的：`gfg_ak47.ws`（#31 的兩段，沒編譯）；`gfg_debug.ws` 多了 `gfgakstate()`、`gfgakshow(n)`（不進 git）
+- 沒 commit 的：`gfg_ak47.ws`（#31、#33，沒編譯）；`gfg_debug.ws` 多了 `gfgakstate()`、`gfgakshow(n)`（不進 git）
+- #33 測：拿 AK 射幾發 → 按 R → 換彈動畫、紀錄 `Equipped bullet item gfg_ak47_ammo`、之後 `gfgammo()`／`GfgDbgShots` 歸零；彈匣滿時按 R 沒反應；AK 在背上按 R 沒反應（不重擊、不拔劍）
 - REDkit 開著、遊戲在跑（reference_level；主視窗 `0x6D043E`；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新；`ak_select` 檢查的 `pose` 紀錄已經沒有了，別信它的「沒拿出來」）
-1. 寫 #33、#32（照上面）
+1. 寫 #32（照上面；#33 已寫）
 2. F10 → 關 REDkit → 加 3 個字串 → 重開 REDkit（Welcome → Browse (1238,814) → `typepath` 專案檔 → Enter；新的主視窗 handle 改進 `g.sh` 的 `MW`）→ File (20,32) → reference_level (150,245) → `game_start2` → 看編譯 → 測 #31、#33、#32（截圖右下角）
 3. #29：查、寫、測
 4. 過了就 commit，接著 #34、#30、#28
