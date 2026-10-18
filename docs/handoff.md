@@ -61,6 +61,7 @@
   1. REDkit AnimBrowser 開 `geralt_inventory_gui_animation.w2anims`，5 段匯出成 .re（`g.sh` 的 `export_anim`，要先改 `AB` 成 AnimBrowser 的 handle）
      - **18:00 狀態**：REDkit 17:51 重開過（主視窗 `0xD12FC`；遊戲已 F10 結束）；AnimBrowser 已經開著這個動畫組（`0x911790`，`g.sh` 的 `AB` 已改）；Asset Browser `0x91726` 停在 `animations\man\inventory`
      - `export_anim 名稱` 存到 `assets\anims\名稱.re`（存檔視窗按 Enter 用預設資料夾；先確認存檔視窗的資料夾是 `assets\anims`）
+     - **第 1 步做完（18:01）**：5 段都匯出到 `assets\anims\inventory_*.re`（不進 git；unsheathe 0.93 MB、idle 0.96、check1 1.03、to_noequipment 0.54、sheathe 0.98）→ 下一步寫 `tools\inv_pose.py`
   2. 新工具 `tools{B}inv_pose.py`（Blender 內建 Python，照 `square_pose.py`、`two_hand_pose.py` 的 FK、兩節手臂 IK）：每一格保留原版的身體（腿、脊椎、頭），AK（`l_weapon`）放在胸前「低持」（槍口朝前下、斜過身體，跟著 torso3），兩手 IK 握槍（右手握把、左手護木）；格數、長度照原版 → 輸出 `gfg_akinv_*.re`（名稱：`inventory_` 換成同長度的 `gfg_akinv_`）
   3. 匯入我們的動畫組（`import_one plain`）、存檔
   4. `tools{B}ak_graphs.py` 加一張：`pc_inventory.w2beh` 複本，5 個名稱同長度改名 → `workspace{B}dlc{B}gunforgeralt{B}data{B}behaviors{B}gfg_pc_inventory.w2beh`（新檔 → 重開 REDkit）
