@@ -39,7 +39,7 @@
 - 還沒確認：**飛行中的子彈看不到**（`gfgbulletspeed(3)` 放慢、瞄天空連拍 `fs1`～`fs5`：槍口附近沒看到）→ 接續步驟 1
 
 **#27 接續的步驟**
-1. （17:14 試過：主控台 `spawnPath("…gfg_ak47_bullet.w2ent")` 用雙引號 → `temp.ws(6811) Accessing invalid handle`，沒生成；先改單引號再試，或看模板能不能單獨生成）查飛行中的子彈為什麼看不到：`spawnPath('dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet.w2ent')` 生成在面前看模型本身；看 `deployedEnt` 的可見狀態（`SetVisibility`）、模型 autohide；必要時暫時放大模型確認
+1. （17:14 試過：主控台 `spawnPath("…gfg_ak47_bullet.w2ent")` → 警告 `temp.ws(6811) Accessing invalid handle` 只是把實體轉成 CActor 失敗（子彈不是角色），實體應該有生成；在玩家前方 3 公尺、太小，截圖 `sp2.png` 看不出來 → 鏡頭靠近地面看，或寫暫時指令把它生成在鏡頭前 0.3 公尺）查飛行中的子彈為什麼看不到：`spawnPath('dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet.w2ent')` 生成在面前看模型本身；看 `deployedEnt` 的可見狀態（`SetVisibility`）、模型 autohide；必要時暫時放大模型確認
 2. 提示框的類別「CROSSBOW BOLT」→ 改成子彈：包 `W3TooltipComponent.GetBaseItemData`（`_old\components\guiTooltipComponent.ws:85`；`ItemCategory` 在 :646），子彈改用新字串（例：EN Ammunition／ZH 子彈；要加 DB 字串 → 關 REDkit 時加、重開）；傷害數字（Bodkin 的 4-6）先不動（AK 的傷害是腳本算的）
 3. 輪盤（Tab）截圖：十字弩格沒有箭的清單；換回原版十字弩：`additem('Crossbow 1', 1, true)` → `gfgammo()` 要是 `Bodkin Bolt`、物品欄是原版圖示；再換回 AK → 子彈
 4. （有空）水中：游泳時 `gfg_ak47_ammo_water`
