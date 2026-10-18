@@ -4,9 +4,29 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 18:1x（自主模式結束：使用者要用電腦；#24 做到第 2 步）
+最後更新：2026-10-18 21:1x（打包 0.3 版、裝進 Steam 版遊戲；使用者試玩中）
 
 ---
+
+## 打包、裝進遊戲（2026-10-18 20:2x～21:1x，完成；使用者：「將目前的開發打包一下，我要在遊戲試玩一下」）
+
+- **使用者正在 Steam 版試玩**（第一次在 Steam 版跑我們的 mod）→ 等回報
+- 版本 0.3（紀錄 `logs\publish 2026-10-18 21-09-47.log`；`info.json` 的 `succesfullyCooked` 是 true）
+- 裝在 `<W3_GAME_DIR>\mods\modgunforgeralt`、`<W3_GAME_DIR>\dlc\gunforgeralt`（使用者同意 Claude 複製；`diff -rq` 和 `packed\` 一致）
+  - 原本兩個資料夾都不存在；`Documents\The Witcher 3\mods.settings` 是空檔（沒有載入順序設定）
+- 槍聲：`tools\sound_cache.py` 包進 `mods\modgunforgeralt\content\soundspc.cache`（校驗碼相符）；`gfg_ak47.bnk` 打包時移出 workspace，之後放回了
+- 存檔備份：專案 `backup\gamesaves_2026-10-18\`（17 MB、73 個檔，`diff` 一致；`.gitignore` 加 `/backup/`）
+- 遊戲是中文介面（`dx12user.settings`：`TextLanguage=ZH`）；主控台已開（`general.ini` `DBGConsoleOn=true`）
+- AK 名稱補中文：字串 10000001 加 ZH 'AK-47'（字串庫＋CSV；`scratchpad\s28\add_zh_ak_name.py`）
+  - `zh.w3strings` 只放有中文的字串，不拿英文代替（補之前 3 個 key、補之後 4 個）→ 沒補的話 AK 在中文遊戲裡沒有名字
+- `gfg_debug.ws`：打包時移出 workspace（不包進去），打包完放回
+- **Publish 當掉的解法**：REDkit 開好專案就打包 → 7 次都在 DLC 那一輪 cook `test.reddlc` 時當掉；**先開世界、按 play game 進一次遊戲、F10 結束，再打包 → 過了**（21:03、21:09 兩次）
+  - 寫進 `docs\findings.md` §27
+  - 故障回報視窗：`desk.ps1` 點不到（不在允許名單）→ `taskkill` 關（不送出）；dump 留在 `%LOCALAPPDATA%\REDEngine\ReportQueue\Witcher3_20261018_*`（REDkit 下次開會不會自己送出：不知道）
+- 打包流程：REDkit 開專案（Welcome → Browse (1238,814) → typepath → Enter）→ File (20,32) → 最近的世界 reference_level (150,245) → play game (650,86) → F10 → Publish (185,32) → Save and publish mod project (281,346) → Next (1183,932) → Start cooking (1168,360) → 關世界 Yes (1070,518)；約 1.5 分鐘；之後的 Next 是發布到工作坊：不用
+- 試玩回報可能遇到的：
+  - 新 DLC 第一次只登記、再開一次遊戲才掛載（REDkit 裡是這樣：`CLAUDE.md` §6.11；Steam 版沒驗證）→ `additem` 沒反應就重開遊戲
+  - 和使用者裝的其他腳本 mod（MCME、SeamlessAutoLoot、MoreSkillSlots 等）一起編譯：沒驗證過
 
 ## 使用者回來時先看這裡（2026-10-18 18:1x）
 
@@ -57,14 +77,13 @@
 - 第 5 步要多包一個：`transmogMenu.ws:285-318` 也有一份 `PlayPaperdollAnimation`（5.x 的外觀選單），同樣送 `DrawCrossbow_Inv`
 - AK 版的姿勢（第 2 步）：拿的時間點照原版事件；拿到之後兩手握槍、低持在胸前
 
-**REDkit 的狀態**（18:1x）
-- REDkit 開著：主視窗 `0xD12FC`；遊戲已 F10 結束
-- AnimBrowser 開著原版的 `geralt_inventory_gui_animation.w2anims`（只看、沒改）
-- 世界：White Orchard（`levels\prolog_village\prolog_village.w2w`）
+**REDkit 的狀態**（21:1x）
+- REDkit 關著（打包完 Claude 關掉的）；要接著做 #24 時重開，AnimBrowser 再開原版的 `geralt_inventory_gui_animation.w2anims`
+- 平常用的世界：White Orchard（`levels\prolog_village\prolog_village.w2w`）
 
 **要使用者決定的**
 - 中鍵瞄準時短按左鍵沒開火、放開中鍵照原版射一發（`docs\findings.md` §35.2）：不在這次範圍，要不要改由使用者決定
-- 下面「上一次自主模式結束時的交接」的「要使用者決定或操作的」還是有效（裝進 Steam 版等）
+- 下面「上一次自主模式結束時的交接」的「要使用者決定或操作的」還是有效（裝進 Steam 版已做：最上面）
 
 ---
 
@@ -185,13 +204,9 @@
 2. **wcc_lite 的 EULA 又跳出來了**：10-18 03:34 Claude 直接跑 `wcc_lite.exe cooksounds`（想看用法）之後
    - 沒有替你按 Agree；下次 `tools\wcc_compile.py` 會跳出 EULA 視窗 → 要你本人按
    - 這段時間 Claude 用 REDkit 的 Reload scripts 確認編譯（`Scriptables reloaded.`）
-3. 裝進 Steam 版遊戲（使用者 10-17：「先不要裝進遊戲，開發完整再來裝」）→ 沒裝
-   - `packed\` 是 10-17 05:46 打包的（版本 0.2）；之後改過腳本、圖示、材質 → **裝之前要重新 Publish**
-   - 要裝時：`packed\mods\modgunforgeralt` 複製到 `<W3_GAME_DIR>\mods\`、`packed\dlc\gunforgeralt` 複製到 `<W3_GAME_DIR>\dlc\`（推論，沒驗證）
-   - **槍聲另外打包**：Publish 不會包 bank → `python -X utf8 tools/sound_cache.py packed/mods/modgunforgeralt/content/soundspc.cache --pack workspace/soundbanks/pc/gfg_ak47.bnk`（格式、校驗碼照原版的檔驗證過；沒在 Steam 版測過）
-   - 會寫遊戲資料夾（唯讀，`CLAUDE.md` §11）→ 使用者同意後 Claude 複製，或使用者自己複製
-   - 裝之前備份存檔 `C:\Users\beyon\OneDrive\Documents\The Witcher 3\gamesaves`
-   - 裝了之後要驗證：拿 AK、開槍（含槍聲）、換彈、騎馬（Steam 版從沒跑過我們的 mod）
+3. 裝進 Steam 版遊戲：**10-18 21:1x 裝了 0.3 版**（最上面「打包、裝進遊戲」）
+   - **槍聲另外打包**：Publish 不會包 bank → `python -X utf8 tools/sound_cache.py packed/mods/modgunforgeralt/content/soundspc.cache --pack workspace/soundbanks/pc/gfg_ak47.bnk`
+   - 裝了之後要驗證：拿 AK、開槍（含槍聲）、換彈、騎馬 → 使用者試玩中
 4. 下面「沒做完的」哪些要做、先做哪個
 
 **沒做完的**（已知的小問題；要做的話跟 Claude 說）

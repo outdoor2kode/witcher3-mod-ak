@@ -146,8 +146,11 @@
 2. REDkit 專案中，要修改的原版檔案需先在 REDkit **check out**，REDkit 才會打包
 3. 從 **REDkit 編輯器啟動遊戲**時，可在遊戲中**熱重載腳本**（Tools → Debuggers → Reload scripts，2026-10-13 實測）；XML 要重新啟動遊戲，模型等資源未確認
    - 這時遊戲跑在 `editor.exe` 裡，直接讀 `workspace` 的原始檔（`docs\findings.md` §13.16）
-   - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod **2026-10-17 打包成功**（Publish → Save and publish mod project，輸出在專案的 `packed\`：`docs\findings.md` §27；最新一次 05:46、版本 0.2），**還沒裝進遊戲、沒在 Steam 版驗證**（使用者 2026-10-17：開發完整再裝；裝進去要寫遊戲資料夾 → 先問使用者）
+   - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod 用 REDkit 打包（Publish → Save and publish mod project，輸出在專案的 `packed\`：`docs\findings.md` §27）
+   - **2026-10-18 裝進遊戲**（0.3 版；使用者同意；`mods\modgunforgeralt`、`dlc\gunforgeralt`）；Steam 版能不能用還沒驗證；之後再裝（寫遊戲資料夾）照樣先問使用者
+   - **打包前先在 REDkit 進一次遊戲（play game → F10）**：剛開好專案就打包，cook DLC 時一定當掉（2026-10-18 7 次；進過遊戲後 2 次都過；§27）
    - 打包後同一次開著的 REDkit 按 play game 會當掉 → 打包完重開 REDkit 再測
+   - 中文遊戲：每個字串都要有 ZH（打包不拿英文代替；§27）
 4. REDkit 匯入動畫時，**骨骼名稱與階層必須完全一致**
    → CS2 的動畫不能套到 Geralt，持槍／開槍／換彈動作要用 Geralt 骨架重做
 5. 模型流程：Source 2 Viewer 匯出 glTF → Blender 內建 glTF 匯入 → 調整 → 匯出 FBX → REDkit Asset Browser「Import > Mesh」

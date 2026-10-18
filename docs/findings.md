@@ -2227,6 +2227,20 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `dlc\…\blob0.bundle` 13 個檔：第一次的內容，加上槍口火光 `data\fx\gfg_muzzle_flash.w2ent`、彈匣替身 `gfg_ak47_mag.w2ent`／`.w2mesh`、沒彈匣的 AK `gfg_ak47_nomag.w2ent`／`.w2mesh`；`buffers0.bundle` 3 個模型的 buffer → workspace 裡腳本以外的 14 個檔都包進去了
   - `mods\…\precompiled.rsblob` 40,473 bytes（＝清理後 `wcc_compile.py` 編出來的大小）
   - 打包完關 REDkit：紀錄寫 `Main window closed`，程序卻沒結束（視窗都變成停用、選單點不開）→ `taskkill` 後重開（同 `docs\handoff.md`「操作備忘」的重開步驟）→ 開遊戲、拿 AK、連射、換彈都正常
+- **第三次打包**（10-18 21:03、21:09，版本 0.3；紀錄 `logs\publish 2026-10-18 21-09-47.log`）
+  - **REDkit 開好專案就打包 → 每次當掉**（10-18 20:2x～20:5x 共 7 次）
+    - `EXCEPTION_ACCESS_VIOLATION`，讀 -1，位址固定 `editor.exe+0x2C41F59`
+    - 在 DLC 那一輪 cook `dlc\gunforgeralt\test.reddlc` 時：重讀物品定義、掃角色模板（arachas → bear → bies）之後 3～7 秒；紀錄每次停在同一處
+    - 換掉任一項都一樣當：AK 的 4 張動畫圖、動畫組（換 10-17 版）、`test.reddlc`（換 10-17 版）、字串庫的一筆、#27 的子彈（物品 XML、模板、模型、貼圖）、腳本、槍聲 bank、打包前有沒有開世界
+  - **先開世界、按 play game 進一次遊戲、F10 結束，再打包 → 過了**（連續 2 次）
+    - 10-17 成功的那次也是測過遊戲才打包：紀錄裡 GC 的物件數約 32.5 萬（當掉的幾次約 10 萬）
+    - 為什麼進過遊戲就不當：沒查到
+  - 輸出：`dlc\…\blob0.bundle` 19 個檔、`texture.cache` 含 3 張圖示 → workspace 裡腳本、槍聲以外的檔都包進去了
+  - `mods\…` 沒有 `blob0.bundle`：AK 的動畫圖改成 DLC 裡的複本，不再改原版的檔（§34）；`precompiled.rsblob` 49,566 bytes
+  - **`zh.w3strings` 只放有中文的字串**：字串庫 `LANGUAGES` 表 ZH 的 FALLBACK 是 EN，打包卻不拿英文代替
+    - AK 名稱補中文前 3 個 key、補後 4 個 → 中文遊戲要每個字串都有 ZH
+  - 打包完關 REDkit（File → Exit）：這次程序正常結束
+  - 裝進 Steam 版（10-18 21:1x）：`packed\mods\modgunforgeralt`、`packed\dlc\gunforgeralt` 複製到 `<W3_GAME_DIR>\mods\`、`dlc\`；槍聲另外用 `tools\sound_cache.py` 包進 `mods\…\content\soundspc.cache`；遊戲裡能不能用：使用者試玩中
 
 ## 28. 特效模板：複製原版、在 Entity Editor 改特效（2026-10-17 槍口火光實測）
 

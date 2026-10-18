@@ -32,6 +32,8 @@
 /cooked/
 /cookeddlc/
 /logs/
+# 裝進遊戲前備份的存檔（2026-10-18 起）
+/backup/
 *.bundle
 *.cache
 metadata.store
