@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 01:3x（自主模式：#24、#29、#31～#34 完成；接著 #30）
+最後更新：2026-10-19 01:5x（自主模式：#24、#29、#31～#34 完成；#30 做到一半）
 
 ---
 
@@ -38,17 +38,30 @@
 
 **現在在做**：#30（沒進戰鬥、A／D 往左右跑時上半身太挺 → 持槍衝鋒的姿勢）
 
-**#30 的想法**（還沒查）
-- 先在遊戲裡連拍：拿 AK 沒戰鬥時按 A／D 走、跑；和持劍沒戰鬥時的左右走跑比（使用者說要參考這個）
-- 查 AK 的走跑動畫是哪幾段（`gfg_gameplay.w2beh`：`tools\ak_graphs.py` 做的複本；`docs\m3.md`「直線走路、跑步的右手」、`tools\gameplay_patch.py`）
-- 做法候選：側向走跑的上半身往前傾、槍口朝下（低持）；用 `move_pose.py` 那套改關鍵格
+**#30 查到的**（01:4x）
+- 遊戲裡連拍（reference_level，沒戰鬥按住 A；暫存 `desk\sw_g.png`、`desk\ak_g.png`）：
+  - 持劍：上半身前傾約 20°、劍低垂在身後
+  - 拿 AK：槍舉在肩膀高度瞄準、上半身直挺（腳在跑、上半身像站著瞄準）→ 使用者說的滑稽
+- 沒開槍時的走跑用 `ex_gfg_geralt_gabriel_aim_run`（`_45_up`、`_45_down`）、`aim_slow_run`、走路 `ex_gfg_gabriel_walk_cycle_slow_forward`／`_fast_forward`
+  - 是 `tools\move_pose.py` 把「正面持槍」底層 Q（`assets\anims\gfg\square\man_geralt_gabriel_aim_idle_square.re`）的上半身套到原版走跑上做的（指令：`docs\m3.md` 第 1365 行附近「重做」）
+  - 開槍中移動用另一組（開槍中側移 6 段）→ 只改這幾段不影響開槍
+- 做法（進行中）：新工具 `tools\charge_pose.py`：Q 第 0 格 → 「持槍衝鋒」底層 Q2（上半身前傾、槍以槍托為軸槍口往下（低持）、兩手 IK、頭抬回來看前方）
+  → `move_pose.py Q2 …` 重做跑步 4 段（走路 2 段也用，前傾小一點）→ 同名重匯（**檔名用 gfg_**）→ 遊戲裡連拍比對
+  - 注意：走跑瞄準差值（`aim_delta.py A Q G --set walk|run`）是對 Q 算的；換了底層要不要重算：遊戲裡看開槍中移動有沒有變
 
-**接續的步驟**（01:3x）
-- REDkit 開著、遊戲在跑（reference_level；騎在馬上拿著 AK；主視窗 `0x1A19F2`、AnimBrowser `0x5F0898`（我們的動畫組）；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新）
-- `g.sh`：`game_start2` 改成一進遊戲馬上 `god()`（編輯器鏡頭高，Geralt 會摔死）；`gridm 輸出 每行張數 x:y:w:h 圖…`（多行拼圖，`grid.ps1`）
-- `gfg_debug.ws`（不進 git）：`gfgshots(n)` 又能設定已射發數（`GfgDbgSetShots`）
+**接續的步驟**（01:5x，壓縮前）
+- REDkit 開著、遊戲在跑（reference_level；拿著 AK、沒戰鬥；主視窗 `0x1A19F2`、AnimBrowser `0x5F0898`（我們的動畫組）；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新）
+- `g.sh`：`game_start2` 一進遊戲馬上 `god()`；`gridm 輸出 每行張數 x:y:w:h 圖…`（多行拼圖，`grid.ps1`）；連拍跑步：`$D burst "$P/前綴" 8 250 scale=0.25 rect=0,40,1640,960 hold=a pre=800`
+  - 拿 AK 往左跑前先轉鏡頭離開牆（`d rmove 900 0 10 15`），不然貼著牆跑不動、鏡頭被擠近
+- `gfg_debug.ws`（不進 git）：`gfgshots(n)` 設定已射發數；`gfgakstate()` 印 `magOut`
 - F10 有一次沒結束遊戲（用過 AnimBrowser 之後）→ 先點一下遊戲畫面再按
-1. #30：連拍比對 → 找動畫 → 做 → 遊戲裡驗證
+- `tools\charge_pose.py`（新，commit 了）：試跑 `--lean 16 --down 25 --head 12` → 槍管往下 41°（太陡，像巡邏不像衝鋒；預覽 `scratchpad\s34\pv_q2.png`）、左臂伸直 0.96
+1. #30：
+   1. 調 `charge_pose.py` 的參數（`--down` 10 左右、看預覽 `bash scratchpad\s34\pv.sh 檔.re 輸出.png 0.0`）→ 輸出 Q2（例：`assets\anims\gfg\square\man_geralt_gabriel_charge.re`，只當輸入、不匯入）
+   2. `move_pose.py Q2 …` 重做跑步 4 段（`docs\m3.md` 第 1365 行附近的指令，`Q` 換成 Q2、`SP` = `--spread 0.2 0.4 0.4`）；走路 2 段用前傾小一點的 Q2'（或照舊）
+      - **輸出檔名用 `ex_gfg_…`**（動畫組裡的名稱；`man_` 會多一筆蓋過原版十字弩）；先備份現在的檔
+   3. AnimBrowser 同名重匯（plain）；`cmp_anims.py` 比 HEAD：只有這幾段變、還是 89 段
+   4. 遊戲裡連拍：A／D 跑、W 跑、走路；開槍中移動（側移射擊）要和之前一樣
 2. #28
 3. 收尾（下面「收尾要做」）＋結束程序
 
