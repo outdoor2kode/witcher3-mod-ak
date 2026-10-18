@@ -2555,6 +2555,16 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 鏡頭前生成實體：`theCamera.GetCameraPosition() + theCamera.GetCameraDirection() * 距離`；畫面位置：`theCamera.WorldVectorToViewRatio( 位置, x, y )`，(x+1)/2、(y+1)/2 = 遊戲畫面的 0～1（`hud.ws:1864-1874`）
 - 元件放大：`CComponent.SetScale( Vector )`（`components.ws:28`）
 
+### 35.5 子彈的物品欄圖示（2026-10-19 第 28 項）
+
+- 使用者 10-18：3 顆子彈直立並排「很醜沒質感」→「一顆子彈就夠，然後不要死死的垂直呈現」
+- 原版的箭：格子都是 1×2（`grid_size` 2：`def_item_bolts.xml:130` 等）；圖示 Bodkin `weapons\bodkin_bolt_64x128.png` 4 支直立、魚叉箭 `arrows\harpoon_bolt_64x128.png` 1 支斜放（尖朝右上）、其他 `arrows\*_64x64.png` 1 支斜放
+- 做法：`tools\ammo_build.py` 加 `--tilt`、`--shadow`、`--margin`，預設改成 1 顆、往右斜 25°（尖朝右上）、後面墊一層往右下偏的柔和暗影（不透明度 0.6）、留白 10% → 覆蓋同名的 `gfg_ak47_ammo_64x128.png`（兩個子彈物品共用）
+  - 試了 20、25、30、35°（暫存 `s28b\sheet_v1.png`：放大 3 倍、深色底和原版並排）：35° 寬度卡住、子彈變小；25° 最大又看得出斜放
+- 遊戲裡（REDkit、reference_level；C 收槍 → I）：裝備欄的子彈格（Bolts）是一顆斜放的子彈，和劍的格子一樣斜；提示框照舊（原版物品的提示框沒有圖示）
+- **遊戲開著時覆蓋同名的圖檔：關掉、再打開物品欄就是新的**（換成 35° 的版本 → 重開物品欄變成 35°，換回 25° 也一樣；REDkit、遊戲都沒重開）
+- 測試時注意：點一下遊戲畫面（左鍵）會把 AK 拿出來 → 物品欄打不開；Esc 在物品欄外按是遊戲選單
+
 ## 36. 中鍵、主動換彈、右下角提示、戰鬥中閃躲（2026-10-19 第 29、31～33 項；遊戲實測）
 
 ### 36.1 中鍵沒有行為（第 31 項）

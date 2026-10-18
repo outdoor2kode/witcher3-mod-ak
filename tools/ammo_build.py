@@ -3,13 +3,17 @@
 用法：
     "D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background
         --python-exit-code 1 --python tools/ammo_build.py --
-        ak47_bullet.gltf 顏色.png 圖示.png 輸出資料夾 [--preview 大圖.png] [--samples 64] [--count 3] [--pitch 8]
+        ak47_bullet.gltf 顏色.png 圖示.png 輸出資料夾 [--preview 大圖.png] [--samples 64] [--count 1] [--pitch 8]
+        [--tilt 25] [--shadow 0.6] [--margin 0.1]
 
 - 來源：Source 2 Viewer 匯出的 weapons/models/shared/shells/ak47/ak47_bullet.gltf、ak47_bullet_color.png（docs/handoff.md「#27 查到的」）
   - Blender 匯入後（公尺）：長軸 Y，尖在 -Y（-0.0418）、底在 +Y（0.0213）；7 塊互不相連的頂點
   - 彈頭 = 有尖端的那一塊（59 個頂點，Y -0.0418～-0.0233、半徑 3.4 公釐）；其他是彈殼（外面、內壁、底）
-- 圖示（第 3 個參數）：--count 顆子彈並排直立、尖朝上；正交鏡頭往下看 --pitch 度；Cycles、透明背景
+- 圖示（第 3 個參數）：--count 顆子彈並排、尖朝上，整組在畫面上往右斜 --tilt 度；正交鏡頭往下看 --pitch 度；Cycles、透明背景
   - 先渲染 8 倍大（512×1024），再在線性空間、預乘 alpha 平均每 8×8 → 64×128（同原版箭的圖示 bodkin_bolt_64x128.png）
+  - 第 28 項（2026-10-19，使用者：「一顆子彈就夠，然後不要死死的垂直呈現」）：預設改成 1 顆、往右斜 25°（同原版魚叉箭
+    harpoon_bolt_64x128.png 尖朝右上）；--shadow：子彈後面加一圈往右下偏的柔和暗影（不透明度；原版箭的圖示也有暗邊）；
+    --margin：上下左右留白（比例）；舊的 3 顆直立 = --count 3 --tilt 0 --shadow 0 --margin 0.04
   - 打光：Blender 內建的環境圖 studiolights/world/studio.exr；色彩轉換 Standard（不用預設的 AgX）
 - 輸出資料夾：
   - gfg_ak47_bullet.fbx：彈頭模型，REDkit 的模型座標（公尺，長軸 +Y、尖朝 +Y、底在原點、Z 朝上）
@@ -38,7 +42,6 @@ from mathutils import Matrix, Vector
 
 NAME = 'gfg_ak47_bullet'
 ICON_W, ICON_H, SS = 64, 128, 8  # 圖示大小、超取樣倍數
-MARGIN = 0.04  # 圖示上下左右留白（比例）
 SPACING = 1.15  # 圖示裡子彈的間距（直徑的倍數）
 
 
@@ -51,8 +54,11 @@ def parse_args():
     p.add_argument('out_dir', type=Path)
     p.add_argument('--preview', type=Path, help='另外存渲染的原尺寸大圖（目視用）')
     p.add_argument('--samples', type=int, default=64)
-    p.add_argument('--count', type=int, default=3)
+    p.add_argument('--count', type=int, default=1)
     p.add_argument('--pitch', type=float, default=8.0, help='鏡頭往下看幾度')
+    p.add_argument('--tilt', type=float, default=25.0, help='畫面上往右斜幾度（尖朝右上）')
+    p.add_argument('--shadow', type=float, default=0.6, help='暗影的不透明度（0 = 不加）')
+    p.add_argument('--margin', type=float, default=0.1, help='上下左右留白（比例）')
     a = p.parse_args(argv)
     # Blender 的相對路徑是相對於 .blend 檔 → 一律換成絕對路徑
     for k in ('gltf', 'color', 'icon', 'out_dir', 'preview'):
@@ -178,8 +184,10 @@ def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
     length = hi.y - lo.y
     diameter = max(hi.x - lo.x, hi.z - lo.z)
     # 直立：繞 X 轉 -90°（-Y → +Z），底放在 Z = 0；每顆再繞自己的長軸轉不同角度（貼圖的細節不一樣）
+    # 斜放：整組繞 Y（鏡頭的視線）轉 --tilt 度 → +Z 往 +X 倒 = 畫面上往右斜
     upright = Matrix.Rotation(math.radians(-90), 4, 'X')
     base = Matrix.Translation((0, 0, hi.y))
+    tilt = Matrix.Rotation(math.radians(a.tilt), 4, 'Y')
     copies = [obj]
     for _ in range(a.count - 1):
         dup = obj.copy()  # 共用模型資料
@@ -188,7 +196,7 @@ def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
     for i, o in enumerate(copies):
         x = (i - (a.count - 1) / 2) * diameter * SPACING
         spin = Matrix.Rotation(math.radians(360 * i / a.count + 30), 4, 'Z')
-        o.matrix_world = Matrix.Translation((x, 0, 0)) @ spin @ base @ upright
+        o.matrix_world = tilt @ Matrix.Translation((x, 0, 0)) @ spin @ base @ upright
     bpy.context.view_layer.update()
 
     cam = bpy.data.objects.new('gfg_camera', bpy.data.cameras.new('gfg_camera'))
@@ -206,11 +214,11 @@ def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
     center = cam_x * (u0 + u1) / 2 + cam_y * (v0 + v1) / 2
     cam.matrix_world = Matrix.Translation(center + rot.col[2].xyz * 1.0) @ rot  # 鏡頭看 -Z → 放在 +Z 那側
     # 正交鏡頭的 ortho_scale 對應較長的邊（高）；寬是高的一半
-    need_h = (v1 - v0) / (1 - 2 * MARGIN)
-    need_w = (u1 - u0) / (1 - 2 * MARGIN)
+    need_h = (v1 - v0) / (1 - 2 * a.margin)
+    need_w = (u1 - u0) / (1 - 2 * a.margin)
     cam.data.ortho_scale = max(need_h, need_w * ICON_H / ICON_W)
     scene.camera = cam
-    print(f'圖示：{a.count} 顆，長 {length:.4f}、直徑 {diameter:.4f}；畫面上寬 {u1 - u0:.4f}、高 {v1 - v0:.4f}；ortho_scale {cam.data.ortho_scale:.4f}')
+    print(f'圖示：{a.count} 顆、往右斜 {a.tilt}°，長 {length:.4f}、直徑 {diameter:.4f}；畫面上寬 {u1 - u0:.4f}、高 {v1 - v0:.4f}；ortho_scale {cam.data.ortho_scale:.4f}')
 
     with tempfile.TemporaryDirectory() as tmp:
         big = Path(tmp) / 'big.png'
@@ -224,6 +232,8 @@ def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
             print(f'大圖：{a.preview}')
         bpy.data.images.remove(img)
 
+    if a.shadow > 0:
+        px = add_shadow(px, a.shadow)
     small = downscale(px)
     a.icon.parent.mkdir(parents=True, exist_ok=True)
     out = bpy.data.images.new('gfg_icon', ICON_W, ICON_H, alpha=True)
@@ -245,6 +255,37 @@ def srgb_to_linear(c):
 def linear_to_srgb(c):
     c = np.clip(c, 0, 1)
     return np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1 / 2.4) - 0.055)
+
+
+SHADOW_RADIUS = 2.0  # 暗影模糊的半徑（高斯的標準差；圖示的像素）
+SHADOW_OFFSET = (1.0, 1.5)  # 暗影往右、往下偏（圖示的像素）
+
+
+def box_blur(a, r: int):
+    """每個方向做 3 次寬 2r+1 的平均（近似高斯）；邊界外當 0。"""
+    for axis in (0, 1):
+        for _ in range(3):
+            pad = [(r + 1, r) if ax == axis else (0, 0) for ax in range(a.ndim)]
+            c = np.cumsum(np.pad(a, pad), axis=axis)
+            hi_, lo_ = [slice(None)] * a.ndim, [slice(None)] * a.ndim
+            hi_[axis], lo_[axis] = slice(2 * r + 1, None), slice(None, -2 * r - 1)
+            a = (c[tuple(hi_)] - c[tuple(lo_)]) / (2 * r + 1)
+    return a
+
+
+def add_shadow(px, opacity: float):
+    """子彈後面墊一層黑色的柔和暗影（alpha 模糊、往右下偏），在線性、預乘空間疊上去；回傳同格式（sRGB、alpha 沒預乘）。
+    Blender 的 pixels 第 0 列在最下面 → 往下偏 = 列號變小。"""
+    alpha = px[:, :, 3]
+    sigma = SHADOW_RADIUS * SS
+    blur = box_blur(alpha, max(1, int(round((sigma ** 2 + 0.25) ** 0.5 - 0.5))))  # 3 次寬 2r+1 的平均：變異數 r(r+1)
+    blur = np.roll(blur, (-int(SHADOW_OFFSET[1] * SS), int(SHADOW_OFFSET[0] * SS)), axis=(0, 1))
+    shade = np.clip(opacity * blur, 0, 1) * (1 - alpha)
+    out_a = alpha + shade
+    rgb = srgb_to_linear(px[:, :, :3]) * alpha[:, :, None]  # 暗影是黑色：顏色只來自子彈
+    color = np.divide(rgb, out_a[:, :, None], out=np.zeros_like(rgb), where=out_a[:, :, None] > 1e-6)
+    print(f'暗影：不透明度 {opacity}、半徑 {SHADOW_RADIUS} 像素、偏移 {SHADOW_OFFSET}；最濃 {shade.max():.2f}')
+    return np.concatenate([linear_to_srgb(color), out_a[:, :, None]], axis=2)
 
 
 def downscale(px):

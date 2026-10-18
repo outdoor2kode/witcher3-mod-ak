@@ -231,6 +231,7 @@
     - 要改畫面上的擺法：自己生成同模板的替身（骨架跟著實體走），藏起真的那把（第 5 項的提槍就是這樣做）
 19. **物品圖示（PNG）放在 DLC 的 `data\gameplay\gui_new\` 下**（物品 XML 的 `icon_path` 相對於這裡），`.reddlc` 要有 `CR4ScaleformContentDLCMounter`（2026-10-18 遊戲實測，`docs\findings.md` §31）
     - **加了掛載器、新建圖檔，都要重開 REDkit 才生效**
+    - 覆蓋同名的既有圖檔：不用重開，關掉、再打開物品欄就是新的（2026-10-19 實測，`docs\findings.md` §35.5）
     - `editor.log` 的 `Failed to convert path` 只列找不到的路徑；找到的不寫
     - 本專案：`icons\inventory\weapons\gfg_ak47_64x128.png`（物品欄，直的）、`gfg_ak47_128x64.png`（輪盤，水平：腳本換掉輪盤資料裡的路徑）
 20. **聲音：不用 Wwise 也能加——自己做 SoundBank（`.bnk`）**（2026-10-18 第 22 項遊戲實測，`docs\findings.md` §33）
@@ -292,6 +293,7 @@
 - 只用 CS2 的 **worldmodel**（第三人稱），不用 viewmodel
 - CS2 的粒子特效無法移植，槍口火光、曳光用巫師3 原有特效
 - **物品圖示**：CS2 物品欄的 AK 圖；物品欄用直的（64×128）、輪盤用水平的（128×64）（使用者 2026-10-18；`docs\findings.md` §31）
+  - 子彈：一顆、往右斜 25°（尖朝右上，同原版魚叉箭）（使用者 2026-10-18 第 28 項：「一顆子彈就夠，然後不要死死的垂直呈現」；`tools\ammo_build.py`、`docs\findings.md` §35.5）
 
 **手感參考**（只看影片，不需要檔案）
 
