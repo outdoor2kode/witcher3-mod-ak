@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 04:1x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-5、B-6 進行中，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+最後更新：2026-10-19 04:3x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-5、B-6 進行中，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 ---
 
@@ -43,14 +43,14 @@
    - 切換專案前：mod 的 REDkit 要先存好（AnimBrowser 沒有未存的變更）；練完切回 mod 的專案（使用者回來時 REDkit 開著 mod 的專案最方便）
 7. 一直做到使用者回來；每完成一個主題 commit；context 到 45% 照 §14 壓縮
 
-**接續的步驟**（04:1x）
+**接續的步驟**（04:3x，壓縮前）
 - **訓練的進度、決定、接續的步驟都改寫在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`** → 壓縮後先讀那份（這裡只留指標，免得 mod 的交接檔塞滿訓練的東西）
 - B-1 ✓（`ec318b3`）、B-2 ✓（02:4x：技能 `redkit-expert`、`autonomous-mode` 在 `C:\Users\beyon\.claude\skills\`，技能清單已出現）
-- B-3 ✓（02:4x）；B-4 ✓（03:2x：官方 Wiki 85 頁都讀完，21 個主題都有內容）；B-5 社群、B-6 實際操作 REDkit 進行中（04:1x：L3 練習專案 `labs\lab01`，L3a XML on_conflict 做完）
+- B-3 ✓（02:4x）；B-4 ✓（03:2x：官方 Wiki 85 頁都讀完，21 個主題都有內容）；B-5 社群、B-6 實際操作 REDkit 進行中（04:3x：L3 練習專案 `labs\lab01`：XML on_conflict、Journal Editor、新世界＋地形、新世界 ID 都做完）
 - 10-19 03:25 練習時（在這個 mod 專案只開工具視窗看）：關 Journal Editor 時 REDkit 自動在 `workspace\` 根目錄寫了 `.w2je`（空的日誌資源）→ 已搬到 `D:\OneDrive\Desktop\redkit_expert\labs\artifacts\`；檔案快照比對：mod 專案回到原狀
 - **下一步看 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md` 的「接續的步驟」**
-- **REDkit 現在開著練習專案 lab01**（`D:\OneDrive\Desktop\redkit_expert\labs\lab01`；03:45 換過去，換之前 mod 專案的快照 31 個檔、換之後比對沒有變）
-  - 練完會切回 mod 專案；使用者回來時如果還在 lab01：File → Restart... → Recent projects 點 gunforgeralt 那一列的**空白處**（點名稱文字沒反應）
+- **REDkit 現在開著練習專案 lab01、世界 labworld**（`D:\OneDrive\Desktop\redkit_expert\labs\lab01`；03:45 換過去，換之前 mod 專案的快照 31 個檔、換之後比對沒有變）
+  - 練完會切回 mod 專案；使用者回來時如果還在 lab01：File → Restart...（File 選單第 13 項左右）→ Recent projects 點 gunforgeralt 那一列的**空白處**（點名稱文字沒反應）→ File 選單最近的世界開 reference_level
   - mod 的 git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
 - `tools\desk.ps1` 10-19 加了 `pause` 鍵（Pause Break，用虛擬鍵碼送）：REDkit 開的遊戲裡沒效果；遊戲中要點 REDkit 選單 → 叫出另一個 REDkit 視窗（遊戲會暫停、滑鼠放開）
 - 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（最後的回覆要給使用者）
