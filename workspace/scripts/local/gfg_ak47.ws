@@ -181,7 +181,8 @@ function PlayOwnerReloadAnim() : bool
 	if ( shotCount >= magazine )
 		shouldPlayAnim = true;
 	// 以下兩個條件照抄原版（rangedWeapon.ws:838-841）：特殊箭用完、第一次裝填
-	else if ( previousAmmoItemName != 'Bodkin Bolt' && previousAmmoItemName != 'Harpoon Bolt' && GetSpecialAmmoCount() <= 0 )
+	// AK 的子彈（第 27 項）和原版的無限箭一樣不算特殊箭；不加的話每發都換彈（GetSpecialAmmoCount 不算無限的：rangedWeapon.ws:854-869）
+	else if ( previousAmmoItemName != 'Bodkin Bolt' && previousAmmoItemName != 'Harpoon Bolt' && !GfgIsAkAmmoName( previousAmmoItemName ) && GetSpecialAmmoCount() <= 0 )
 		shouldPlayAnim = true;
 	else if ( previousAmmoItemName == '' )
 		shouldPlayAnim = true;
@@ -2545,6 +2546,25 @@ function UpdateCrossbowItemData( radialSlotId : int, out dataList : CScriptedFla
 	}
 	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsList" ) );
 	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsRangedList" ) );
+	// 第 27 項：AK 只用自己的子彈 → 拿掉中間清單裡的箭（原版列出 bolt 類、跳過目前的無限箭：hudModuleRadialMenu.ws:1109-1151）
+	if ( GetWitcherPlayer() && GetWitcherPlayer().GfgAkEquipped() )
+		GfgRadialRemoveBolts( slot.GetMemberFlashArray( "itemsList" ) );
+}
+
+@addMethod(CR4HudModuleRadialMenu)
+function GfgRadialRemoveBolts( list : CScriptedFlashArray )
+{
+	var i : int;
+	var obj : CScriptedFlashObject;
+
+	if ( !list )
+		return;
+	for ( i = list.GetLength() - 1; i >= 0; i -= 1 )
+	{
+		obj = list.GetElementFlashObject( i );
+		if ( obj && obj.GetMemberFlashString( "category" ) == "bolt" )
+			list.RemoveElement( i );
+	}
 }
 
 // 圖示路徑是 AK 的直式圖示（有沒有 img:// 都算）就換成水平的；有換回傳 true
@@ -2690,8 +2710,9 @@ function GfgManualHit()
 }
 
 // 碰撞：AK 的子彈打到牆壁、地面時播火花（第 9 項）
-// 原版的箭停下來、插著、排 5 秒後刪掉（arrowProjectile.ws:98-114、playerBoltProjectile.ws:182-203）；AK 的子彈看不見（OnProjectileShot 藏起模型），照原版刪
-// （原本「AK 的箭插在牆上不刪」是使用者 2026-10-13 選的；改成子彈後插著的也看不見，拿掉）
+// 原版的箭停下來、插著、排 5 秒後刪掉（arrowProjectile.ws:98-114、playerBoltProjectile.ws:182-203）；AK 的子彈照原版刪，
+// 碰到東西就藏起模型（第 27 項：子彈不會插在牆上、身上露出來）
+// （原本「AK 的箭插在牆上不刪」是使用者 2026-10-13 選的；改成子彈後拿掉）
 @wrapMethod(W3BoltProjectile)
 function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComponent, hitCollisionsGroups : array< name >, actorIndex : int, shapeIndex : int )
 {
@@ -2702,30 +2723,192 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
 		PlayEffect( 'sparks' );
+	if ( gfgAkRange > 0.f )
+		GfgSetBulletMeshVisible( false );
 	return result;
 }
 
-// ===== 子彈的樣子（第 9 項：使用者 2026-10-16「射出去的還是箭，不是子彈」）=====
+// ===== 子彈的樣子（第 9 項：使用者 2026-10-16「射出去的還是箭，不是子彈」；第 27 項 2026-10-18 換成子彈的模型）=====
 // 原版的箭射出時播軌跡 defaultTrail（arrow_trail）＋破空聲（arrowProjectile.ws:19-34）；特效定義在弩箭共用模板 bolt_base.w2ent
-// AK 的子彈：藏起箭的模型、關掉軌跡（2026-10-16 19:2x 實測）
+// AK 射出去的是子彈：模板 gfg_ak47_bullet.w2ent（物品 gfg_ak47_ammo 的 hold_template；模型是 CS2 的彈頭，tools/ammo_build.py）
+// - 飛行中顯示（原版射出時也會把裝好的箭顯示出來：rangedWeapon.ws:130-134）；碰到東西藏起來（上面的碰撞包裝）
+// - 裝在槍上的那顆：原版每發之後立刻裝上的新箭是藏起來的（rangedWeapon.ws:280-286）；換彈動畫裝上的在槍管裡面
+// - 萬一射出去的不是子彈（子彈格是別的箭）：照第 9 項藏起箭的模型
 // - 只藏 CMeshComponent：藏全部 CDrawableComponent 時，特效（CParticleComponent 也是 CDrawableComponent：CParticleComponent.ws:6）也看不到
 // - 原版的軌跡（arrow_trail、_orange、_red、_fire、_mutation_9）在子彈的速度下看不到 → 不當曳光，關掉
 @wrapMethod(W3ArrowProjectile)
 function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNode )
 {
 	var result : bool;
-	var comps : array< CComponent >;
-	var i : int;
+	var witcher : W3PlayerWitcher;
+	var bolt : SItemUniqueId;
 
 	result = wrappedMethod( targetCurrentPosition, target );
 	if ( gfgAkRange > 0.f )
 	{
-		comps = GetComponentsByClassName( 'CMeshComponent' );
-		for ( i = 0; i < comps.Size(); i += 1 )
-			((CDrawableComponent)comps[i]).SetVisible( false );
+		witcher = (W3PlayerWitcher)GetOwner();
+		if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_Bolt, bolt ) || !witcher.inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
+			GfgSetBulletMeshVisible( false );
 		StopActiveTrail();
 	}
 	return result;
+}
+
+@addMethod(W3AdvancedProjectile)
+function GfgSetBulletMeshVisible( visible : bool )
+{
+	var comps : array< CComponent >;
+	var i : int;
+
+	comps = GetComponentsByClassName( 'CMeshComponent' );
+	for ( i = 0; i < comps.Size(); i += 1 )
+		((CDrawableComponent)comps[i]).SetVisible( visible );
+}
+
+// ===== AK 的子彈（第 27 項：使用者 2026-10-18「子彈還是箭的模樣（物品欄看到的）→ 改成子彈：物品欄、射出去的樣子；
+//       不要影響到原本的箭矢；如果任何地方都會用到這子彈，都要做」）=====
+// 原版：裝上十字弩類時自動裝一種無限的箭（AddAndEquipInfiniteBolt：playerWitcher.ws:5679-5717）：
+//   地面 Bodkin Bolt、游泳或潛水 Harpoon Bolt（GetCurrentInfiniteBoltName：:5663-5676）
+// AK：換成自己的子彈（gunforgeralt_items.xml 的 gfg_ak47_ammo、水中 gfg_ak47_ammo_water；兩個都有 gfg_ak47_ammo 標籤）
+// - 物品欄的子彈格、左下角道具格的名稱（hudModuleItemInfo.ws:482-498）跟著物品：圖示 gfg_ak47_ammo_64x128.png（tools/ammo_build.py）、名稱 7.62x39mm
+// - 裝在槍上、射出去的：物品的 hold_template = gfg_ak47_bullet.w2ent（上面「子彈的樣子」）
+// - 原版其他用到箭的地方（2026-10-18 查過所有 'Bodkin Bolt'、InfiniteAmmo 的用法）：
+//   - 用 InfiniteAmmo 標籤判斷的：子彈也有這個標籤 → 和原版的無限箭一樣（不扣數量：playerBoltProjectile.ws:386；不能卸下：inventoryMenu.ws:2562-2565 等）
+//   - 用名稱判斷的：換彈（rangedWeapon.ws:838 → 上面 PlayOwnerReloadAnim 的包裝）、新物品清單（r4guimanager.ws:1636）、
+//     物品欄子彈格的「卸下」按鈕（inventoryContext.ws:646、661）→ 下面補上
+//   - 屬性視窗的十字弩傷害（CharacterStatsPopup.ws:919-920）照原版讀 Bodkin Bolt：AK 的傷害由腳本算（GfgSetAkDamage），和子彈物品無關
+// - AK 只用自己的子彈：輪盤不列出原版的箭（UpdateCrossbowItemData 的包裝）、物品欄不能把箭裝上去；
+//   換回十字弩時照原版裝 Bodkin Bolt（裝 AK 前選的特殊箭留在物品欄）
+
+function GfgIsAkAmmoName( n : name ) : bool
+{
+	return n == 'gfg_ak47_ammo' || n == 'gfg_ak47_ammo_water';
+}
+
+// 遠程武器格裝的是不是 AK（同 Crossbow.GfgIsAk，但不用十字弩的物件：裝備的過程中它可能還沒生成，playerWitcher.ws:6382-6384）
+@addMethod(W3PlayerWitcher)
+function GfgAkEquipped() : bool
+{
+	var id : SItemUniqueId;
+
+	if ( !inv || !GetItemEquippedOnSlot( EES_RangedWeapon, id ) )
+		return false;
+	return inv.ItemHasTag( id, 'gfg_ak47' );
+}
+
+// 該用哪一種無限的箭：裝 AK 時換成子彈（游泳、潛水時照原版換成水中用的那種）
+@wrapMethod(W3PlayerWitcher)
+function GetCurrentInfiniteBoltName( optional forceBodkin : bool, optional forceHarpoon : bool ) : name
+{
+	var n : name;
+
+	n = wrappedMethod( forceBodkin, forceHarpoon );
+	if ( !GfgAkEquipped() )
+		return n;
+	if ( n == 'Harpoon Bolt' )
+		return 'gfg_ak47_ammo_water';
+	return 'gfg_ak47_ammo';
+}
+
+// 原版先刪光 Bodkin、Harpoon 再加新的（:5686-5693）→ 子彈也先刪光（換回十字弩、出入水時不留下舊的）
+@wrapMethod(W3PlayerWitcher)
+function AddAndEquipInfiniteBolt( optional forceBodkin : bool, optional forceHarpoon : bool )
+{
+	var ids : array< SItemUniqueId >;
+	var i : int;
+
+	ids = inv.GetItemsByTag( 'gfg_ak47_ammo' );
+	for ( i = ids.Size() - 1; i >= 0; i -= 1 )
+		inv.RemoveItem( ids[i], inv.GetItemQuantity( ids[i] ) );
+	wrappedMethod( forceBodkin, forceHarpoon );
+}
+
+// 換武器：原版只在子彈格空著時補無限的箭（:6386-6406）；卸下十字弩類時刪掉格子裡的無限箭（:6720-6727）
+// → 十字弩換 AK、AK 換十字弩大多照原版就對了；補上：
+// - 裝 AK 時格子裡是特殊箭（原版不動）或原版的無限箭（例：出水時沒拿十字弩也會裝 Bodkin：swimming.ws:135-139）→ 換成子彈
+// - 裝十字弩時格子裡是子彈 → 換成原版的箭
+@wrapMethod(W3PlayerWitcher)
+function EquipItemInGivenSlot( item : SItemUniqueId, slot : EEquipmentSlots, ignoreMounting : bool, optional toHand : bool ) : bool
+{
+	var ret : bool;
+
+	ret = wrappedMethod( item, slot, ignoreMounting, toHand );
+	if ( ret && slot == EES_RangedWeapon )
+		GfgFixAmmo();
+	return ret;
+}
+
+@addMethod(W3PlayerWitcher)
+function GfgFixAmmo()
+{
+	var ranged, bolt : SItemUniqueId;
+
+	if ( !GetItemEquippedOnSlot( EES_RangedWeapon, ranged ) || !inv.IsItemCrossbow( ranged ) )
+		return;
+	if ( !GetItemEquippedOnSlot( EES_Bolt, bolt ) )
+		return;		// 空著的話原版已經補了（:6403-6406）
+	if ( inv.GetItemName( bolt ) == GetCurrentInfiniteBoltName() )
+		return;
+	if ( GfgAkEquipped() || inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
+		AddAndEquipInfiniteBolt();
+}
+
+// 物品欄：裝 AK 時不能把箭裝到子彈格（同原版水中不能換掉 Harpoon Bolt：inventoryMenu.ws:2275-2283）
+// 只擋「裝備」：商店買賣、箱子拿放照原版（:2213-2242）
+@wrapMethod(CR4InventoryMenu)
+function OnEquipItem( item : SItemUniqueId, slot : int, quantity : int )
+{
+	if ( _currentInv != _containerInv && !_shopNpc && !_containerInv
+		&& _inv.IsIdValid( item ) && _inv.IsItemBolt( item ) && !_inv.ItemHasTag( item, 'gfg_ak47_ammo' )
+		&& GetWitcherPlayer() && GetWitcherPlayer().GfgAkEquipped() )
+	{
+		showNotification( GetLocStringByKeyExt( "menu_cannot_perform_action_now" ) );
+		OnPlaySoundEvent( "gui_global_denied" );
+		return false;
+	}
+	return wrappedMethod( item, slot, quantity );
+}
+
+// 物品欄的子彈格：原版的 Bodkin Bolt 沒有「卸下」（inventoryContext.ws:646、661）→ 子彈也拿掉（按了也卸不下來：inventoryMenu.ws:2562-2565）
+@wrapMethod(W3InventoryPaperdollContext)
+function updateInputFeedback()
+{
+	var i : int;
+	var removed : bool;
+
+	wrappedMethod();
+	if ( !invComponentRef || !invComponentRef.IsIdValid( currentItemId ) || !invComponentRef.ItemHasTag( currentItemId, 'gfg_ak47_ammo' ) )
+		return;
+	for ( i = m_inputBindings.Size() - 1; i >= 0; i -= 1 )
+	{
+		if ( m_inputBindings[i].LocalizationKey == "panel_button_inventory_unequip" )
+		{
+			m_inputBindings.Erase( i );
+			removed = true;
+		}
+	}
+	for ( i = m_contextBindings.Size() - 1; i >= 0; i -= 1 )
+	{
+		if ( m_contextBindings[i].LocalizationKey == "panel_button_inventory_unequip" )
+			m_contextBindings.Erase( i );
+	}
+	if ( removed )
+		m_managerRef.updateInputFeedback();
+}
+
+// 新物品清單（選單裡的「新物品」）：原版跳過 Bodkin、Harpoon（r4guimanager.ws:1636）→ 子彈也跳過（每次裝 AK 都重新加一次）
+@wrapMethod(CR4GuiManager)
+function RegisterNewItem( item : SItemUniqueId )
+{
+	var inv : CInventoryComponent;
+
+	if ( GetWitcherPlayer() )
+	{
+		inv = GetWitcherPlayer().GetInventory();
+		if ( inv && inv.IsIdValid( item ) && inv.ItemHasTag( item, 'gfg_ak47_ammo' ) )
+			return;
+	}
+	wrappedMethod( item );
 }
 
 // ===== 傷害（第 10 項：使用者 2026-10-16「傷害由 Claude 設計一個符合這遊戲的」）=====

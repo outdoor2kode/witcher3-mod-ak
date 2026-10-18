@@ -6,3 +6,6 @@ ID;RESOURCE;PROPERTY;VOICEOVER;KEY;BR;CZ;RU;AR;TR;CN;PL;IT;FR;DE;ZH;ESMX;EN;KR;E
 10000004;CUSTOM;All;;;;;;;;;;;;;;;;;;;
 10000005;CUSTOM;All;;;;;;;;;;;;;;;;;;;
 10000006;CUSTOM;All;;;;;;;;;;;;;;;;;;;
+10000007;"CEntityTemplate ""dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet.w2ent""";Entity display name;;;;;;;;;;;;;;;;;;;
+10000008;CUSTOM;All;;gfg_item_name_ak47_ammo;;;;;;;;;;;7.62x39mm 子彈;;7.62x39mm;;;;
+10000009;CUSTOM;All;;gfg_item_desc_ak47_ammo;;;;;;;;;;;AK-47 用的 7.62x39mm 鋼殼步槍子彈。用不完。;;Steel-cased 7.62x39mm rifle cartridges for the AK-47. Never runs out.;;;;

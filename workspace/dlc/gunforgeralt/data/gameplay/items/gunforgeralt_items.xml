@@ -38,6 +38,50 @@
 												<a>gfg_ak47 _Stats</a>
 				</base_abilities>
 			</item>
+
+			<!-- item 27 (2026-10-18): the AK's ammo (7.62x39mm), copied from "Bodkin Bolt" (def_item_bolts.xml:123-141) -->
+			<!-- scripts equip it instead of the vanilla infinite bolt while the AK is the ranged weapon (gfg_ak47.ws "AK 的子彈") -->
+			<!-- hold_template = gfg_ak47_bullet.w2ent (copy of bodkin_bolt.w2ent with the CS2 bullet head): the round loaded in the gun and the fired projectile -->
+			<!-- gfg_ak47_ammo tag: scripts use it to recognise both ammo items -->
+			<item
+				name							="gfg_ak47_ammo"
+				category						="bolt"
+				price							="0"
+				weight							="0.1"
+				stackable						="1"
+				grid_size						="2"
+				hold_template					="gfg_ak47_bullet"
+				localisation_key_name			="gfg_item_name_ak47_ammo"
+				localisation_key_description	="gfg_item_desc_ak47_ammo"
+				icon_path						="icons/inventory/weapons/gfg_ak47_ammo_64x128.png"
+			>
+				<tags>							WeaponTab, InfiniteAmmo, GroundAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo
+				</tags>
+				<base_abilities>				<a>bodkin_bolt _Stats</a>
+												<a>Default weapon _Stats</a>
+				</base_abilities>
+			</item>
+
+			<!-- underwater: vanilla switches to "Harpoon Bolt" when swimming or diving (playerWitcher.ws:5663-5676) → the AK switches to this one -->
+			<!-- copied from "Harpoon Bolt" (def_item_bolts.xml:143-161): stats, UnderwaterAmmo tag -->
+			<item
+				name							="gfg_ak47_ammo_water"
+				category						="bolt"
+				price							="134"
+				weight							="0.1"
+				stackable						="1"
+				grid_size						="2"
+				hold_template					="gfg_ak47_bullet"
+				localisation_key_name			="gfg_item_name_ak47_ammo"
+				localisation_key_description	="gfg_item_desc_ak47_ammo"
+				icon_path						="icons/inventory/weapons/gfg_ak47_ammo_64x128.png"
+			>
+				<tags>							WeaponTab, InfiniteAmmo, UnderwaterAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo
+				</tags>
+				<base_abilities>				<a>harpoon_bolt _Stats</a>
+												<a>Default weapon _Stats</a>
+				</base_abilities>
+			</item>
 		</items>
 	</definitions>
 </redxml>
