@@ -60,3 +60,6 @@ desktop.ini
 /workspace/gameplay/behaviors/pc/behaviorgraph/pc_gameplay.w2beh
 # AK 專用的動畫圖（tools/ak_graphs.py 產生；第 25 項）
 /workspace/dlc/gunforgeralt/data/behaviors/
+
+# CS2 的 AK 子彈模型、貼圖（Source 2 Viewer 匯出；不進 git）
+/assets/ak47/ammo/

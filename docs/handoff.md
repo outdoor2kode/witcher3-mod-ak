@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 16:3x（自主模式中）
+最後更新：2026-10-18 16:5x（自主模式中；context 42% 壓縮前）
 
 ---
 
@@ -21,7 +21,15 @@
 
 **背景程序**：保持清醒（`desk.ps1 awake`，背景工作 bti6jlddx）、看門狗（`claude_compact.ps1 … watch`，bfqd3uv04）、每小時第 13 分的續做排程（CronCreate a5f72a93）
 
-**現在在做**：#27（子彈）→ 再做 #24（物品欄預覽）
+**現在在做**：#27（子彈）計畫第 1 步（下面「#27 查到的」的**計畫**）→ 再做 #24（物品欄預覽）
+
+**#27 接續的步驟**（16:5x 寫；context 42% 先壓縮）：
+1. 寫 `tools\ammo_build.py`（Blender 背景模式；命令列照 `docs\m3.md:173`，Blender 5.2：`D:/Program Files/Blender Foundation/Blender 5.2/blender.exe --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- …`）
+   - 讀 `assets\ak47\ammo\weapons\models\shared\shells\ak47\ak47_bullet.gltf`（公尺；長軸 Z，底 −0.021、尖 0.042）
+   - 圖示：整顆子彈、尖朝上、透明背景，先渲染大張再縮成 64×128 → `workspace\dlc\gunforgeralt\data\gameplay\gui_new\icons\inventory\weapons\gfg_ak47_ammo_64x128.png`（風格比對原版 `bodkin_bolt_64x128.png`）
+   - 彈頭：只留 Z ≥ 約 0.02 的部分 → 長軸轉成 +Y（尖朝 +Y）、底在原點、Z 朝上 → FBX（照 `m3_build_ak.py:332-335`：`axis_up='Z', axis_forward='-Y'`，公尺）`assets\ak47\gfg_ak47_bullet.fbx` ＋ 材質 XML `assets\ak47\gfg_ak47_bullet.xml`（照 `gfg_ak47.xml`：`pbr_std`，Diffuse = `dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet_d01.xbm`）
+2. REDkit：Import > 2D Texture（`ak47_bullet_color.png` → `gfg_ak47_bullet_d01.xbm`，群組 `WorldDiffuse`）→ Import > Mesh（不是 skinned；對話框按 Cancel 保留 XML 材質：`docs\m3.md:290-296`）→ `bodkin_bolt.w2ent`（`items\weapons\projectiles\witcher_bolts\`；`W3BoltProjectile`、模型元件 `bolt` = `witcher_bolt_01.w2mesh`，外框 Y 0～0.308；slot `trail_point`、`fire_point` 在 `bolt`）Save as `workspace\dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_bullet.w2ent`、`bolt` 元件的模型換成彈頭（做法 findings §28）
+3. 之後照計畫 3～5
 
 **收尾要做**（全部做完時）：
 - 刪 `workspace\scripts\local\gfg_debug.ws`（暫時的測試指令：`gfgstack`、`gfggraphs`、`gfgdrawlog(秒)` 等；沒進 git）
@@ -49,7 +57,18 @@
 
 - 原版的箭：`def_item_bolts.xml`（`Bodkin Bolt`：無限、`hold_template="bodkin_bolt"`；`Harpoon Bolt`：水下）；箭的模型（裝在十字弩上、射出去的）都是 `hold_template`
 - 腳本已經有「子彈的樣子」（第 9 項：`gfg_ak47.ws`「子彈的樣子」一節：AK 射出的箭藏模型、拿掉軌跡）
-- 還沒開始做
+- 原版自動裝無限箭：`W3PlayerWitcher.AddAndEquipInfiniteBolt`（`playerWitcher.ws:5679`：先刪光 Bodkin、Harpoon，再加 `GetCurrentInfiniteBoltName()` 的那種、裝到 `EES_Bolt`）
+  - 呼叫的地方：裝上十字弩類且沒裝箭（`:6403-6406`；水中 `:6386-6400` 換 Harpoon）、卸下箭（`:6762-6772`：無限的刪掉、其他的補無限箭）、`r4Game.ws:1320`、`swimming.ws:137`（出水 Bodkin）、`:267`（入水 Harpoon）
+  - 輪盤（`hudModuleRadialMenu.ws:1036-1130`）：十字弩格列出所有 `bolt` 類（跳過目前的無限箭），可以選特殊箭
+  - 其他用到 Bodkin 名稱的：新物品通知跳過（`r4guimanager.ws:1636`）、物品欄右鍵選單（`inventoryContext.ws:297`、`:646`）、十字弩說明的傷害數字（`guiTooltipComponent.ws:931`、`CharacterStatsPopup.ws:919`）
+- CS2 有 AK 的子彈模型（16:4x 取出到 `assets\ak47\ammo\`，不進 git；CLI：`Source2Viewer-CLI.exe -i pak01_dir.vpk -f weapons/models/shared/shells/ak47/ -o assets/ak47/ammo -d --gltf_export_format gltf --gltf_export_materials --gltf_textures_adapt`）
+  - `ak47_bullet.gltf` = 整顆子彈（彈殼＋彈頭；長 0.063、直徑 0.010，長軸 Z：−0.021～0.042）；`ak47_casing.gltf` = 空彈殼（Z −0.021～0.021）；貼圖 `ak47_bullet_color`、`_normal`、`_ao`、粗糙度
+- **計畫**（16:4x 定）：
+  1. Blender 背景模式：`ak47_bullet` → 物品圖示 PNG（64×128 直的，同箭的圖示）；只留彈頭（Z ≥ 約 0.02）→ FBX（射出去的模型）
+  2. REDkit：Import > Mesh（彈頭）＋貼圖 → `gfg_ak47_bullet.w2mesh`；`bodkin_bolt.w2ent` Save as `gfg_ak47_bullet.w2ent`，模型換成彈頭
+  3. 物品 XML：`gfg_ak47_ammo`（照 `Bodkin Bolt`：bolt 類、無限、NoDrop、不能賣；`hold_template` = `gfg_ak47_bullet`；圖示；名稱、說明要加字串）
+  4. 腳本：`GetCurrentInfiniteBoltName` 包裝（裝 AK 時回傳 `gfg_ak47_ammo`）；`AddAndEquipInfiniteBolt` 包裝（也刪我們的子彈）；換武器時互換（AK 配 Bodkin → 換子彈；十字弩配子彈 → 換 Bodkin）；AK 時輪盤、物品欄不能選原版的箭；裝在槍上的那顆藏起來、射出去才顯示、打到東西藏起來
+  5. 遊戲驗證：物品欄（子彈格、物品格）、輪盤、HUD、射出去；換回十字弩 = 原版 Bodkin
 
 **自己做的決定**：
 - #25：AK 用自己的一套動畫圖（原版的複本＋改名），裝上 AK 時換 slot 的圖；不用在原版圖裡加切換節點（要解很多自訂資料格式，風險高）
@@ -165,7 +184,10 @@
 - `g.sh`（`source` 後用）：`game_start`＝開遊戲到拿出 AK（play、死了就復活、`setlevel(31)`＋`additem`＋`god()`、輪盤教學照紀錄按 Space、左鍵拔槍）；`reload_edit`＝REDkit 重新載入腳本；`restart_all`＝點遊戲畫面拿焦點 → F10 → 重載腳本 → 開遊戲（約 1.5 分鐘）
   - ⚠️ `game_start`、`horse_start`、`ak_select` 用 `[GFG] pose` 紀錄判斷 AK 拿出來了沒 → 這個紀錄 10-17 拿掉了，一定印「AK 沒拿出來」→ 用截圖確認
   - `side_reload2`（側面看換彈）用到已拿掉的 `gfgnoturn`、`gfgfree`
-  - 視窗 handle 每次重開 REDkit 都會變：g.sh 裡的主視窗（10-17 05:49 起 `0x13095E`）、`GAB`（AnimBrowser，現在沒開）要跟著換
+  - 視窗 handle 每次重開 REDkit 都會變：g.sh 裡的主視窗（10-18 15:3x 起 `0x9085C`）、`GAB`（AnimBrowser，現在沒開）要跟著換
+- **10-18 新加（g.sh 最後面）**：`game_start2`（play → 等 `INPUT CONTEXT CHANGED` → 死了就復活 → 等級、無敵、中午、拿 AK；舊的 `game_start` 等的字串已經不對）、`reload_edit2`（F10 結束遊戲 → Tools → Debuggers → Reload scripts；遊戲中選單點不到）、`radial_select`（輪盤選弓弩格、不拔出）、`cb_aim 檔名 秒數`（中鍵瞄準截圖）
+  - 空地：`con "xy(100, -40)"`（White Orchard 村外）；接著 `radial_select` 選 AK
+  - 量拿出：`con "gfgdrawlog(秒)"`（`gfg_debug.ws`：每格印狀態、槍管夾角、兩手距離 d、發數 sh、衝刺 spr、握好多久 grip）＋ `desk.ps1 burst 前綴 張數 間隔 … mouse=left`
 - 騎馬：`game_start` 之後 `horse_start`（白天、C 收槍、X 叫馬、`instantMount('playerHorse')`、左鍵拿出）
 - 動畫組操作：`import_one plain|local 檔名`、`add_ev 篩選字 事件 秒`、`add_dur 篩選字 事件 起點 長度`、`rm_anim 完整名稱`、`save_gab`（座標和注意事項寫在 g.sh 的註解；AnimBrowser 右鍵選單跟著選取中的項目）
 - 開遊戲前先把編輯器鏡頭移到地面（滑鼠指地面按 J）：10-17 00:40 從高處摔死、死亡選單選錯 → 遊戲直接結束
