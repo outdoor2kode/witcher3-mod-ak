@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 02:2x（自主模式：交辦的 8 項＋收尾都做完；接著使用者 02:0x 的新指示：開發流程圖 → REDkit 專家訓練）
+最後更新：2026-10-19 02:2x（自主模式：交辦的 8 項＋收尾、流程圖都做完；接著 REDkit 專家訓練）
 
 ---
 
@@ -14,8 +14,8 @@
 
 | # | 任務 | 狀態 |
 |---|---|---|
-| A | 開發流程圖：每件事用什麼工具、做什麼、匯出到哪；標出工具是自己寫的還是別人的；簡單好讀 | 進行中 |
-| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | 還沒開始 |
+| A | 開發流程圖：每件事用什麼工具、做什麼、匯出到哪；標出工具是自己寫的還是別人的；簡單好讀 | **完成**（02:2x）：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（「AK 模組工具鏈」；原始檔在 session 暫存 `flow\ak_pipeline.html`，要改：Artifact read 這個網址） |
+| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | **進行中**（下面「B 的計畫」） |
 
 **決定**
 - 流程圖：發布成網頁（Artifact），連結寫在這裡和最後的回覆；內容來源 = `CLAUDE.md`、`docs\m3.md`、`docs\findings.md`、`tools\`
@@ -25,6 +25,27 @@
   - 「你現在是 redkit 開發專家」→ 技能 `redkit-expert`：讀知識庫的索引、照裡面的做法工作
   - 「開啟自主模式」→ 技能（做 `CLAUDE.md` §14「開始時」那幾步）
 - 自主模式**不跑結束程序**（使用者：「直到我接收前，不斷訓練自己」）：保持清醒、看門狗、每小時續做排程都繼續；排程 7 天過期（10-18 22:3x 建立 → 10-24 重排）
+
+**B 的計畫**（02:2x 定；做完一步就在這裡打勾、commit 到訓練資料夾的 git）
+1. 建資料夾 `D:\OneDrive\Desktop\redkit_expert\`（`git init`；不放 CS2 素材、不放遊戲檔）
+   - `CLAUDE.md`：這個資料夾的規則（唯讀的資料夾同 mod 的 §11、不動 mod 專案、回覆繁體中文、自主模式照 mod 的 §14）
+   - `knowledge\INDEX.md`：主題索引（每個主題一個檔 `knowledge\topics\NN-名稱.md`：是什麼、在 REDkit 哪裡（選單、快捷鍵）、做法步驟、查證過的事實（出處：Wiki 頁面 ID、原版檔案路徑行號、實測日期）、常見問題）
+   - `sources\wiki_pages.md`：官方 Wiki（Atlassian 空間 W3REDkit）的頁面清單（標題、ID、讀過沒、重點）
+   - `labs\LOG.md`：每個練習（目標、步驟、結果、截圖路徑）；練習用的 REDkit 專案放 `labs\`（REDkit 的 New project 建）
+2. 技能（使用者層級，`C:\Users\beyon\.claude\skills\`）
+   - `redkit-expert\SKILL.md`：使用者說「你現在是 redkit 開發專家」或問 REDkit／巫師3 模組開發 → 讀 `knowledge\INDEX.md` 和相關主題，照裡面的做法、規則工作（工具：mod 專案的 `tools\desk.ps1`、`cr2w_dump.py` 等）
+   - `autonomous-mode\SKILL.md`：使用者說「開啟自主模式」→ 做 mod 的 `CLAUDE.md` §14「開始時」（保持清醒、每小時續做排程、看門狗、交接檔寫「自主模式」）
+3. 先把 mod 已經查證過的 REDkit 知識整理進知識庫（`CLAUDE.md` §3、§6、§12，`docs\findings.md`，`docs\m3.md`）：寫成通用的（不只 AK）
+4. 讀官方 Wiki：先抓頁面清單（Confluence REST：`https://cdprojektred.atlassian.net/wiki/rest/api/content?spaceKey=W3REDkit&limit=100&start=N`，或搜尋），一頁一頁讀、記重點
+5. 社群：Nexus 的 REDkit 文章、GitHub（REDkit 範例、工具）、Reddit r/witcher3mods 等（WebSearch）；只記有來源的
+6. 實際操作 REDkit（練習專案，**不開 mod 的專案做實驗**）：世界和圖層、放實體、物品＋DLC、任務（quest）、對話（scene）、NPC 生成（community、encounter）、日誌、字串、動畫圖編輯器、材質、環境、Script Studio 除錯（中斷點）、遊戲裡 F8／F9 的除錯視窗、Publish
+   - 每個練習：照 Wiki 做 → 截圖驗證 → 寫進主題檔＋`labs\LOG.md`
+   - 切換專案前：mod 的 REDkit 要先存好（AnimBrowser 沒有未存的變更）；練完切回 mod 的專案（使用者回來時 REDkit 開著 mod 的專案最方便）
+7. 一直做到使用者回來；每完成一個主題 commit；context 到 45% 照 §14 壓縮
+
+**接續的步驟**（02:2x）
+- 下一步：B-1 建資料夾、`CLAUDE.md`、`knowledge\INDEX.md` 骨架 → B-2 兩個技能 → B-3 整理既有知識
+- REDkit 還開著 mod 的專案（遊戲已 F10 結束）；mod 的 git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
 
 **8 項之後的收尾（02:2x 做完）**
 - 收尾測試發現：按 R 換完彈後跑步變回原版十字弩的拿法 → 修好（`docs\findings.md` §36.2「修正」；commit `d96b4b8`）
@@ -65,7 +86,7 @@
 - #28：一顆、往右斜 25°（同原版魚叉箭的方向）、淡淡的暗影
 - #34：原版沒有槍的換彈動畫可借 → 自己的關鍵格：上半身右轉、槍移到身體右前方、槍口上翹；最後右手拉槍機（手肘抬高）；從背後的鏡頭看得到
 
-**現在在做**：上面「新指示」的 A（流程圖）
+**現在在做**：上面「新指示」的 B（REDkit 專家訓練）
 
 **#24 結果**（23:1x，reference_level 遊戲裡驗證）
 - 動畫：`tools\inv_pose.py` → `assets\anims\gfg\gfg_akinv_*.re` 5 段（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）→ 匯入我們的動畫組（89 段＝原本 84＋5；原本 84 段的資料、事件一個 byte 都沒變：`scratchpad\s31\cmp_anims.py` 比對 HEAD）
