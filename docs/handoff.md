@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 02:4x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-2 做完，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+最後更新：2026-10-19 02:5x（自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-4 進行中，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 ---
 
@@ -43,10 +43,11 @@
    - 切換專案前：mod 的 REDkit 要先存好（AnimBrowser 沒有未存的變更）；練完切回 mod 的專案（使用者回來時 REDkit 開著 mod 的專案最方便）
 7. 一直做到使用者回來；每完成一個主題 commit；context 到 45% 照 §14 壓縮
 
-**接續的步驟**（02:4x 起）
+**接續的步驟**（02:5x，壓縮前）
 - **訓練的進度、決定、接續的步驟都改寫在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`** → 壓縮後先讀那份（這裡只留指標，免得 mod 的交接檔塞滿訓練的東西）
 - B-1 ✓（`ec318b3`）、B-2 ✓（02:4x：技能 `redkit-expert`、`autonomous-mode` 在 `C:\Users\beyon\.claude\skills\`，技能清單已出現）
-- 下一步 B-3：mod 已查證的知識整理成訓練資料夾的主題檔
+- B-3 ✓（02:4x：mod 做過的主題都整理成訓練資料夾的主題檔）；B-4 進行中（02:5x：官方 Wiki 85 頁讀了 32 頁）
+- **下一步看 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md` 的「接續的步驟」**
 - REDkit 還開著 mod 的專案（遊戲已 F10 結束）；mod 的 git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
 - 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（最後的回覆要給使用者）
 
