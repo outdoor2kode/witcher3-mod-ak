@@ -53,6 +53,17 @@
 - 預覽人物：`GeraltForUI` = `characters\player_entities\geralt\geralt_player.w2ent`（`gameplay.xml:162`），`OnGuiSceneEntitySpawned( entity )`（`inventoryMenu.ws:399-409`）拿得到實體、自己的 slot（換圖的做法同 #25）
 - 打算：預覽人物也換一張改名的 `pc_inventory` 複本，5 段十字弩展示動畫換成 AK 版（雙手、自然的拿法），要自己做動畫；或其他較便宜的做法（還沒決定）
 - 物品欄的預覽（X）只對衣服、染色有用，十字弩沒有
+- 17:5x 再查（`cr2w_dump`）：`pc_inventory.w2beh` 用到 5 段十字弩展示動畫 `inventory_unsheathe_crossbow`、`inventory_crossbow_idle`、`inventory_crossbow_check1`、`inventory_crossbow_to_noequipment`、`inventory_sheathe_crossbow`（事件 `DrawCrossbow_Inv`、`HideCrossbow_Inv`、`RemoveCrossbow_Inv`）
+  - 動畫在 `animations{B}man{B}inventory{B}geralt_inventory_gui_animation.w2anims`（26 段；dump 裡沒有動畫事件）；unsheathe 4.73 秒
+  - 預覽人物的道具由 C++ 放（`CR4GuiSceneController.SetEntityItems`：`inventoryMenu.ws:3981-3996`）；`PlayPaperdollAnimation`（`:2415-2443`）只送事件
+  - 物品欄裡裝上 AK（選取格子 → Space）就重現：預覽左手拿 AK、槍口朝下（截圖 `scratchpad{B}desk{B}inv14g.png`）
+- **#24 的做法（17:5x 決定）**：照 #25 的換圖做法，只在裝著 AK 時換預覽人物的 `Inventory` slot
+  1. REDkit AnimBrowser 開 `geralt_inventory_gui_animation.w2anims`，5 段匯出成 .re（`g.sh` 的 `export_anim`，要先改 `AB` 成 AnimBrowser 的 handle）
+  2. 新工具 `tools{B}inv_pose.py`（Blender 內建 Python，照 `square_pose.py`、`two_hand_pose.py` 的 FK、兩節手臂 IK）：每一格保留原版的身體（腿、脊椎、頭），AK（`l_weapon`）放在胸前「低持」（槍口朝前下、斜過身體，跟著 torso3），兩手 IK 握槍（右手握把、左手護木）；格數、長度照原版 → 輸出 `gfg_akinv_*.re`（名稱：`inventory_` 換成同長度的 `gfg_akinv_`）
+  3. 匯入我們的動畫組（`import_one plain`）、存檔
+  4. `tools{B}ak_graphs.py` 加一張：`pc_inventory.w2beh` 複本，5 個名稱同長度改名 → `workspace{B}dlc{B}gunforgeralt{B}data{B}behaviors{B}gfg_pc_inventory.w2beh`（新檔 → 重開 REDkit）
+  5. 腳本：包 `CR4InventoryMenu.PlayPaperdollAnimation`：類別 crossbow 時，依遠程武器格是不是 AK 換預覽人物（`m_player`）`Inventory` slot 的圖（`GfgSetSlotGraph` 的做法 ＋ `DetachBehavior`／`AttachBehaviorSync` 重建），再送原版的事件
+  6. 遊戲驗證：物品欄裡裝 AK → 預覽兩手握槍；裝原版十字弩 → 原版的左手展示；開關物品欄、換來換去都對
 
 ### #27 查到的
 
