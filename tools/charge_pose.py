@@ -3,7 +3,7 @@
 
 用法（Blender 內建的 Python，h5py 在 tools\\_vendor\\pylib）：
     "D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/charge_pose.py
-        底層.re 輸出.re [--lean 16] [--down 25] [--head 12] [--gun 0 0 0]
+        底層.re 輸出.re [--lean 16] [--down 8] [--head 16] [--gun 0 0 0]
 
 - 底層：正面持槍 assets\\anims\\gfg\\square\\man_geralt_gabriel_aim_idle_square.re，用第 0 格；輸出每格都一樣
   （結構照底層）→ 給 tools/move_pose.py 當「第 1 步」（--full 只用第 0 格）重做沒開槍時的走跑
@@ -36,8 +36,8 @@ def main() -> int:
     p.add_argument('base', type=Path)
     p.add_argument('out', type=Path)
     p.add_argument('--lean', type=float, default=16.0, help='上半身往前彎（度）')
-    p.add_argument('--down', type=float, default=25.0, help='槍口往下（度，以槍托後端為軸）')
-    p.add_argument('--head', type=float, default=12.0, help='頭抬回（度）')
+    p.add_argument('--down', type=float, default=8.0, help='槍口往下（度，以槍托後端為軸）')
+    p.add_argument('--head', type=float, default=16.0, help='頭抬回（度）')
     p.add_argument('--gun', type=float, nargs=3, default=(0.0, 0.0, 0.0), metavar=('右', '前', '上'), help='槍再移（公尺）')
     a = p.parse_args()
 

@@ -55,7 +55,7 @@
   - 拿 AK 往左跑前先轉鏡頭離開牆（`d rmove 900 0 10 15`），不然貼著牆跑不動、鏡頭被擠近
 - `gfg_debug.ws`（不進 git）：`gfgshots(n)` 設定已射發數；`gfgakstate()` 印 `magOut`
 - F10 有一次沒結束遊戲（用過 AnimBrowser 之後）→ 先點一下遊戲畫面再按
-- `tools\charge_pose.py`（新，commit 了）：試跑 `--lean 16 --down 25 --head 12` → 槍管往下 41°（太陡，像巡邏不像衝鋒；預覽 `scratchpad\s34\pv_q2.png`）、左臂伸直 0.96
+- `tools\charge_pose.py`（新，commit 了）：試跑 `--lean 16 --down 25 --head 12` → 槍管往下 41°（太陡，像巡邏不像衝鋒）→ **選定 `--lean 16 --down 8 --head 16`（已設成預設值）**：槍管往下 24°、左臂伸直 0.90（預覽 `scratchpad\s34\pv_dd.png` 第 1 列）；走路用 `--lean 8 --head 8`（還沒試）
 1. #30：
    1. 調 `charge_pose.py` 的參數（`--down` 10 左右、看預覽 `bash scratchpad\s34\pv.sh 檔.re 輸出.png 0.0`）→ 輸出 Q2（例：`assets\anims\gfg\square\man_geralt_gabriel_charge.re`，只當輸入、不匯入）
    2. `move_pose.py Q2 …` 重做跑步 4 段（`docs\m3.md` 第 1365 行附近的指令，`Q` 換成 Q2、`SP` = `--spread 0.2 0.4 0.4`）；走路 2 段用前傾小一點的 Q2'（或照舊）
