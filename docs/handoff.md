@@ -47,7 +47,7 @@
 - `@addMethod(Crossbow) GfgManualReload`：`GfgIsAk()`、`deployedEnt` 有、`shotCount > 0`（彈匣沒滿）、狀態 `State_WeaponAim`/`State_WeaponShoot`、`GfgGripReady()`、沒衝刺沒在空中 → `deployedEnt.Destroy(); deployedEnt = NULL;`、`SetBehaviorGraphVariables('isWeaponLoaded', false)`、`RaiseOwnerGraphEvents('Crossbow_Reload', true)`（＝打空時 `GfgTryFire` 最後那段；之後原版：`OnWeaponReloadStart` → `State_WeaponReload`，動畫中段 `OnWeaponReload` 裝新的一發，結束 `ResetShotCount`：`rangedWeapon.ws:75-94`、`338-363`、`697-703`）
   - `ClearDeployedEntity` 只在 `IsStopped()` 才 Destroy（`:532-539`）→ 自己 Destroy
 
-**#32 右下角提示**（決定，還沒寫）
+**#32 右下角提示**（程式寫好了：搜「第 32、33 項」；**沒編譯、沒測；字串還沒加**）
 - 原版 `CR4HudModuleControlsFeedback.SendInputContextActions`（`hudModuleControlsFeedback.ws:216-769`，private）依情境列動作：探索＝衝刺（按住）、跳躍、獵魔感官（按住）、叫馬；戰鬥＝輕擊、重擊、閃躲、法印；每項 `KeyBindingData`（`gamepad_keyCode`、`keyboard_keyCode`、`altKeyCode`、`label`）→ `m_flashValueStorage.SetFlashArray("hud.module.controlsfeedback", 陣列)`；值存放區沒有讀回的函式
 - 寫法：包 `SendInputContextActions`：呼叫前先算原版會不會重做（`isForced` 或情境變了，同 :249-252）；之後 AK 拿在手上（`rangedWeapon.GfgIsAkDrawn()`）、情境是 `Exploration`／`Combat` → 自己整份重做再 `SetFlashArray` 蓋掉
   - 探索：照原版那 4 項（條件用原版剛設好的 `m_displaySprint`、`m_displayJump`、`m_displayFocus`、`m_displayCallHorse`、`m_lastUsedPCInput`；標籤 `panel_input_action_sprint`／`panel_button_common_jump`／`panel_input_action_focus`／`ControlLayout_SummonHorse`；按住的前綴同 :594-624，`GetBracketSymbols`：`localizedContent.ws:673`）＋**收槍**（`SwordSheathe` 的鍵 C）＋**換彈**（`AttackWithAlternateHeavy` 的鍵 R）
@@ -62,10 +62,10 @@
 - 下一步：讀 `playerInput.ws:2649` `OnCbtDodge`、`:2714` `OnCbtRoll` 的條件（拿著十字弩時走哪條）；我們的「不准拿劍」「戰鬥中舉 AK」有沒有擋到；進遊戲拿 AK 在戰鬥中按 Ctrl／空白鍵看紀錄
 
 **接續的步驟**（23:5x；context 45% 壓縮前寫的）
-- 沒 commit 的：`gfg_ak47.ws`（#31、#33，沒編譯）；`gfg_debug.ws` 多了 `gfgakstate()`、`gfgakshow(n)`（不進 git）
+- 沒 commit 的：`gfg_ak47.ws`（#31、#32、#33，沒編譯）；`gfg_debug.ws` 多了 `gfgakstate()`、`gfgakshow(n)`（不進 git）
 - #33 測：拿 AK 射幾發 → 按 R → 換彈動畫、紀錄 `Equipped bullet item gfg_ak47_ammo`、之後 `gfgammo()`／`GfgDbgShots` 歸零；彈匣滿時按 R 沒反應；AK 在背上按 R 沒反應（不重擊、不拔劍）
 - REDkit 開著、遊戲在跑（reference_level；主視窗 `0x6D043E`；`scratchpad\desk\g.sh` 的 `MW`、`GAB` 已更新；`ak_select` 檢查的 `pose` 紀錄已經沒有了，別信它的「沒拿出來」）
-1. 寫 #32（照上面；#33 已寫）
+1. （#31～#33 程式都寫了）
 2. F10 → 關 REDkit → 加 3 個字串 → 重開 REDkit（Welcome → Browse (1238,814) → `typepath` 專案檔 → Enter；新的主視窗 handle 改進 `g.sh` 的 `MW`）→ File (20,32) → reference_level (150,245) → `game_start2` → 看編譯 → 測 #31、#33、#32（截圖右下角）
 3. #29：查、寫、測
 4. 過了就 commit，接著 #34、#30、#28
