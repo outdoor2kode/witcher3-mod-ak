@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-18 22:4x（自主模式開始）
+最後更新：2026-10-18 23:3x（自主模式：#24 完成）
 
 ---
 
@@ -15,7 +15,7 @@
 
 | # | 任務（使用者的描述） | 狀態 |
 |---|---|---|
-| 24 | 物品欄預覽的握槍方式（左手拿、槍口朝下） | 做到第 2 步（下面「#24 接續」） |
+| 24 | 物品欄預覽的握槍方式（左手拿、槍口朝下） | **完成**（23:1x 遊戲驗證：下面「#24 結果」） |
 | 28 | 物品欄子彈圖示：一顆子彈、不要死死的垂直 | 還沒做 |
 | 29 | 戰鬥時要能翻滾、閃避（和持劍時一樣的戰鬥動作） | 還沒做 |
 | 30 | 沒進戰鬥、按 A／D 往左右跑（走）時上半身太挺、很滑稽 → 參考持劍未戰鬥時的左右走跑，做成持槍衝鋒的姿勢 | 還沒做 |
@@ -31,24 +31,18 @@
   - 不用「斜放胸前、槍口往左上」：握法是瞄準時的握法，斜放時右手腕一定多扭 130° 左右（idle 第 0 格試了幾千組，暫存 `scratchpad\s30\inv_search*.py`）
   - 拿出／收回時甩的那段：AK 跟著原版的左手（左手握護木），再混到兩手低持
 
-**現在在做**：#24 第 3 步（REDkit 匯入、加物品事件）→ 第 6 步（遊戲驗證）
+**現在在做**：#31（中鍵：AK 沒有行為；先查原版中鍵的路線）
 
-**#24 這一輪做完的**（23:0x）
-- 第 2 步：`tools\inv_pose.py`（新）→ `assets\anims\gfg\gfg_akinv_{unsheathe_crossbow,crossbow_idle,crossbow_check1,crossbow_to_noequipment,sheathe_crossbow}.re`（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）
-  - 每格只換兩手臂、`l_weapon`，其他骨頭和原版一樣（工具讀回檢查）；展示時兩手搆得到（差 0）、手腕比正面持槍底層多彎 右 21°、左 9°（check1 翻看時 28°、30°）
-  - IK 從「原版手臂和底層手臂照權重混」出發，再選手肘朝向（手腕彎最少）：不然前臂的扭轉跟不上手
-  - 還沒處理：拿出 2.2 秒、收回 0.3 秒附近槍托會掃過身體中線（混的途中；短，等遊戲裡看）
-- 第 4 步：`tools\ak_graphs.py` 加 `gfg_inventory.w2beh`（`pc_inventory.w2beh` 的複本，5 個名稱 `inventory_` → `gfg_akinv_`）；22:53 寫出（REDkit 關著時新建 → 不用為它重開）
-- 第 5 步：`gfg_ak47.ws`「物品欄預覽人物」一節（`OnSpawned` 包裝後面）：預覽人物生成時（實例建立前）、送十字弩事件前照遠程武器格換 `Inventory` slot 的圖；物品欄、外觀選單（`CR4TransmogMenu`）都包；換圖時紀錄 `[GFG] preview graph AK true/false`
-  - **還沒編譯**（wcc_lite 的 EULA 要使用者按 → 用 REDkit 的 Reload scripts 編）
-
-**接續的步驟**（23:0x REDkit 剛開、停在 Welcome；PID 164）
-1. 開專案：Welcome → Browse (1238,814) → `typepath D:/OneDrive/Desktop/gunforgeralt/gunforgeralt.w3edit` → Enter → 主視窗（handle 用 `$D windows` 找）
-2. 先看原版 `animations\man\inventory\geralt_inventory_gui_animation.w2anims` 的物品事件（unsheathe 1.58054 秒的 `CExtAnimItemEvent` 各欄位；sheathe 約 2.0 秒那個）
-3. 開我們的動畫組 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`（問預覽角色按 No）→ 匯入 5 個 `gfg_akinv_*.re`（Import simple/plain animations；檔案在 `assets\anims\gfg\`）→ 照原版加物品事件（時間軸右鍵選單找 item event；找不到再試「Copy 原版那筆 → Paste → Rename → 同名 Import」，注意 `CLAUDE.md` §6.11 的 fully streamable 錯誤）→ Ctrl+S
-4. 開世界（File → 最近的 reference_level (150,245)）→ play game → 死了就 DEBUG RESURRECT → `setlevel(31)`、`additem('gfg_ak47', 1, true)` → 看編譯有沒有錯（`editor.log`）
-5. C 收槍 → I 開物品欄 → 物品欄裡在 AK 的格子按 Space 裝上 → 預覽人物：兩手低持（截圖）；紀錄有 `preview graph AK true`；再裝原版十字弩 → 原版左手展示
-6. 過了就 commit（`gfg_ak47.ws`），接著做 #31～#33、#29
+**#24 結果**（23:1x，reference_level 遊戲裡驗證）
+- 動畫：`tools\inv_pose.py` → `assets\anims\gfg\gfg_akinv_*.re` 5 段（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）→ 匯入我們的動畫組（89 段＝原本 84＋5；原本 84 段的資料、事件一個 byte 都沒變：`scratchpad\s31\cmp_anims.py` 比對 HEAD）
+  - 物品事件照原版（`scratchpad\s31\entry_events.py` 解析原版動畫組）：拿出 1.58054 秒 `CExtAnimItemEvent`（crossbow、`IA_MountToLeftHand`、`GI_ByName`）；收回 2.00114 秒（crossbow、`IA_Mount` 預設值）
+  - AnimBrowser 加物品事件：時間軸右鍵 → **Items → Add item event** → 雙擊事件 → category 按右邊的小按鈕開 Inventory Category 清單（打字沒用）、action 是下拉選單
+- 圖：`tools\ak_graphs.py` 的 `gfg_inventory.w2beh`；腳本：`gfg_ak47.ws`「物品欄預覽人物」一節
+- 遊戲裡：預覽人物生成時紀錄 `preview graph AK true`；物品欄裝 AK → 背後拿出、兩手低持在胸前（右手握把、左手護木、槍口朝前下）、翻看、約 10 秒收回 → 空手（原版十字弩也是：收起來的弩在預覽裡不顯示）
+- 裝原版十字弩 → 紀錄 `preview graph AK false`、原版的左手展示（截圖比對過）
+- 外觀選單（`CR4TransmogMenu`）：包了同樣兩個函式，沒進遊戲測（要找得到外觀選單的地方）
+- 拿出、收回途中槍托掃過身體中線（拿出 2.2 秒、收回 0.3 秒附近）：連拍看不出穿模，先不處理
+- **誤判紀錄**：AK 拿在手上、從預設鏡頭（背後偏左）看不到槍 → 以為槍不見了，查了 20 分鐘；其實是正常的側身持槍（左肩朝前）被身體擋住（下午白果園的截圖也一樣）；確認槍在不在：中鍵瞄準（鏡頭拉近）或 `gfgakstate()`（暫時的指令，`gfg_debug.ws`：held、掛在哪、實體位置）
 
 ---
 

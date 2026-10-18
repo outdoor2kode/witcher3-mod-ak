@@ -164,6 +164,109 @@ function OnSpawned( spawnData : SEntitySpawnData )
 	return wrappedMethod( spawnData );
 }
 
+// ===== 物品欄預覽人物：AK 用自己的展示動畫（第 24 項；2026-10-18）=====
+// 原版：物品欄裡裝上十字弩類時送 DrawCrossbow_Inv（inventoryMenu.ws:2441-2442；外觀選單 transmogMenu.ws:311-312），
+// 預覽人物 Inventory slot 的圖（pc_inventory.w2beh）播左手單手拿十字弩的 5 段展示動畫 → AK 的擺法是雙手持槍的：槍口朝下、槍托穿過前臂。
+// AK：Inventory slot 換成 gfg_inventory.w2beh（tools/ak_graphs.py：同一張圖，5 段換成 tools/inv_pose.py 做的雙手低持）。
+// 預覽人物生成時（實例建立前：inventoryMenu.ws:399-409）和送十字弩的事件前，照玩家遠程武器格是不是 AK 換圖；送事件前換了圖就重建實例。
+
+// 讀 slot 的圖（不換）
+@addMethod(CAnimatedComponent)
+function GfgSlotGraph( slotName : name ) : CBehaviorGraph
+{
+	var i : int;
+
+	for ( i = 0; i < runtimeBehaviorInstanceSlots.Size(); i += 1 )
+	{
+		if ( runtimeBehaviorInstanceSlots[i].instanceName == slotName )
+			return runtimeBehaviorInstanceSlots[i].graph;
+	}
+	return NULL;
+}
+
+@addField(CR4Player)
+var gfgInvGraphs : array< CBehaviorGraph >;	// 0 原版 pc_inventory（看到時記下）、1 AK 的 gfg_inventory
+
+// 預覽人物 Inventory slot 的圖照遠程武器格換；換了回傳 true
+@addMethod(CR4Player)
+function GfgPreviewGraph( preview : CEntity ) : bool
+{
+	var comp : CAnimatedComponent;
+	var cur, want : CBehaviorGraph;
+
+	if ( !preview )
+		return false;
+	comp = preview.GetRootAnimatedComponent();
+	if ( !comp )
+		return false;
+	cur = comp.GfgSlotGraph( 'Inventory' );
+	if ( !cur )
+		return false;
+	if ( gfgInvGraphs.Size() == 0 )
+	{
+		gfgInvGraphs.PushBack( NULL );
+		gfgInvGraphs.PushBack( (CBehaviorGraph)LoadResource( "dlc\gunforgeralt\data\behaviors\gfg_inventory.w2beh", true ) );
+		if ( !gfgInvGraphs[1] )
+			LogChannel( 'GFG', "inventory graph not found" );
+	}
+	if ( !gfgInvGraphs[1] )
+		return false;
+	if ( cur != gfgInvGraphs[1] )
+		gfgInvGraphs[0] = cur;
+	if ( GfgAkGraphsWanted() )
+		want = gfgInvGraphs[1];
+	else
+		want = gfgInvGraphs[0];
+	if ( !want || want == cur )
+		return false;
+	comp.GfgSwapSlotGraph( 'Inventory', want );
+	LogChannel( 'GFG', "preview graph AK " + ( want == gfgInvGraphs[1] ) );
+	return true;
+}
+
+// 送十字弩的事件前：換了圖就重建 Inventory 的實例（同 OnGuiSceneEntitySpawned 的寫法）
+function GfgRebuildPreview( preview : CEntity )
+{
+	var arr : array< name >;
+
+	if ( !thePlayer.GfgPreviewGraph( preview ) )
+		return;
+	preview.DetachBehavior( 'Inventory' );
+	arr.PushBack( 'Inventory' );
+	preview.ActivateBehaviorsSync( arr );
+	((CActor)preview).SetBehaviorMimicVariable( 'gameplayMimicsMode', (float)(int)PGMM_Inventory );
+}
+
+@wrapMethod(CR4InventoryMenu)
+function OnGuiSceneEntitySpawned( entity : CEntity )
+{
+	thePlayer.GfgPreviewGraph( entity );
+	return wrappedMethod( entity );
+}
+
+@wrapMethod(CR4InventoryMenu)
+function PlayPaperdollAnimation( category : name )
+{
+	if ( category == 'crossbow' )
+		GfgRebuildPreview( m_player );
+	wrappedMethod( category );
+}
+
+@wrapMethod(CR4TransmogMenu)
+function OnGuiSceneEntitySpawned( entity : CEntity )
+{
+	thePlayer.GfgPreviewGraph( entity );
+	return wrappedMethod( entity );
+}
+
+@wrapMethod(CR4TransmogMenu)
+function PlayPaperdollAnimation( category : name )
+{
+	if ( category == 'crossbow' )
+		GfgRebuildPreview( m_player );
+	wrappedMethod( category );
+}
+
 // 彈匣：原版射滿 shotCountLimit（預設 1）就播換彈動畫（rangedWeapon.ws:830-852），
 // AK 改成射滿彈匣才播；沒播動畫時，原版會立刻裝上下一支箭（rangedWeapon.ws:276-297）。
 // 不採用原版 S_Perk_17 多一發的規則。
