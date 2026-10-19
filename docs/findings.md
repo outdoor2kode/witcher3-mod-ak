@@ -2760,3 +2760,20 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - REDkit 的 Tools 選單在遊戲中點不到（滑鼠鎖在遊戲畫面）→ 先 F10；下拉選單是另一個視窗：`wshot mode=print` 截不到 → 用全螢幕的 `shot`
 - F10 結束遊戲的紀錄（`EndSession force fade off`）有時晚十幾秒才寫進 `editor.log` → 等不到時先截圖
 - 換彈 2.22 秒：`slow(0.04)`＝55 秒、`slow(0.02)`＝111 秒；`con` 一次（開主控台、打字、關）約 2～7 秒
+
+## 39. 第二把槍 M4A1（2026-10-20 第 48、49 項；離線＋遊戲實測）
+
+- 重構（第 48 項）：每把槍的數值、模板、聲音、後座力表放 `gfg_gun_<名稱>.ws` 的 `GfgSpec…()`；`gfg_core.ws` 的 `GfgGunIds`、`GfgGunSpecOf` 各一行登記；判斷「我們的槍」用標籤 `gfg_gun`、子彈 `gfg_gun_ammo`
+- 換槍時：規格快取照物品名稱重查；替身、換彈的兩個實體記下是哪把槍的，不同就刪掉重生（`GfgCarryUseGun`、`GfgMagUseGun`）
+- M4A1＝CS2 `weapon_m4a1`（模型 `weapons/models/m4a4/weapon_rif_m4a4.vmdl`）；Source2Viewer-CLI 匯出要加 `--gltf_export_animations --gltf_animation_list gfg_none` 才有骨架
+- CS2 兩把步槍的 `weapon` 骨頭相對 `ag1_hand_r` 完全相同 → 握把對齊用同一組 `--place`，AK 的 89 段動畫直接能用
+- 遊戲實測（reference_level、Novigrad；`docs\handoff.md` 計畫第 4 步）：
+  - 射速：`gfgdrawlog` 每格記發數，29 個間隔平均 0.0903 秒（目標 0.09；每格 18.3 毫秒 → 多數 5 格、偶爾 4 格追回）
+  - 傷害：每發 27.42（27.5×0.97^(距離/12.7)）
+  - 換彈：左手抓的點沿用 AK 的（M4 彈匣近握把 3.8 公分、高 1.7 公分）→ 彈匣在手裡偏一點，裝回時剛好對上（抓的時候記下相對位置）
+  - AK ↔ M4 互換：子彈物品、槍聲 bank、替身、換彈實體都跟著換；身上不會留另一把的子彈
+  - 水裡、掌舵不開槍，站在船上能開；子彈在水裡換成 `gfg_m4a1_ammo_water`；戰鬥自動舉槍、閃躲、翻滾後回到瞄準
+- 引擎替生成的實體取名：模板名結尾的數字拿掉再加流水號（`gfg_ak47` → `gfg_ak48`、`gfg_m4a1` → `gfg_m4a2`、`gfg_ak47_nomag` → `gfg_ak47_nomag48`）
+- 鏡頭（AK 原本就這樣）：滑鼠不動時俯仰被拉回預設的 −10°；30 發連射前段照彈道往上（第 7 發約 +4.5～5.8°），後段被拉回，結束時比起點低 2.3～2.5°；偏航的正負和表相反（兩把一樣）
+- 輪盤開的時候，介面對每個 gui 資料夾（原版、每個 DLC）找 `null.tga`，紀錄 `Path string '…\gui_new\null' does not end with path separator`：原版的查找，不是 mod 的錯
+- REDkit：在 reference_level 玩過再開 Novigrad，載入中當掉（`[GpuApiDX12] Breadcrumbs: Could not allocate context ID for command list with type 3` 之後 ACCESS_VIOLATION；1 次）→ 重開 REDkit 再開就好
