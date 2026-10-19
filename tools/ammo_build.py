@@ -58,7 +58,19 @@ def parse_args():
     p.add_argument('--pitch', type=float, default=8.0, help='鏡頭往下看幾度')
     p.add_argument('--tilt', type=float, default=25.0, help='畫面上往右斜幾度（尖朝右上）')
     p.add_argument('--shadow', type=float, default=0.6, help='暗影的不透明度（0 = 不加）')
-    p.add_argument('--margin', type=float, default=0.1, help='上下左右留白（比例）')
+    p.add_argument('--margin', type=float, default=0.22, help='上下左右留白（比例）')
+    # 第 36 項（2026-10-19，使用者：「子彈在物品欄裝備時的圖示還是太滿太大沒有質感。沒有專業殺手或者說專家的感覺」）：
+    # 材質、打光的選項；預設＝第 36 項選定的（黃銅彈殼＋銅彈頭、暗一點的環境＋主光＋輪廓光、留白 22%）
+    # 第 28 項的樣子：--margin 0.1 --style cs2 --env-strength 1 --key 0 --rim 0
+    p.add_argument('--style', choices=('cs2', 'brass', 'steel'), default='brass',
+                   help='cs2：CS2 的貼圖；brass：黃銅彈殼＋銅彈頭；steel：深色鋼殼＋銅彈頭（金屬，保留 CS2 的法線貼圖）')
+    p.add_argument('--rough', type=float, nargs=2, default=(0.18, 0.25), metavar=('彈殼', '彈頭'), help='brass、steel 的粗糙度')
+    p.add_argument('--env', default='studio.exr', help='Blender 內建的環境圖（datafiles/studiolights/world）')
+    p.add_argument('--env-strength', type=float, default=0.5)
+    p.add_argument('--view', default='Standard', help='色彩轉換（Standard、AgX…）')
+    p.add_argument('--look', default='None', help='色彩轉換的 look（例：AgX - Punchy）')
+    p.add_argument('--key', type=float, default=2.0, help='左上前方面光的強度（W；0 = 不加）')
+    p.add_argument('--rim', type=float, default=3.0, help='右後方輪廓光的強度（W；0 = 不加）')
     a = p.parse_args(argv)
     # Blender 的相對路徑是相對於 .blend 檔 → 一律換成絕對路徑
     for k in ('gltf', 'color', 'icon', 'out_dir', 'preview'):
@@ -111,10 +123,10 @@ def check_source(obj) -> tuple[Vector, Vector]:
 
 # ---------- 圖示 ----------
 
-def setup_render(scene, samples: int):
+def setup_render(scene, a):
     scene.render.engine = 'CYCLES'
     scene.cycles.device = 'CPU'
-    scene.cycles.samples = samples
+    scene.cycles.samples = a.samples
     scene.cycles.use_denoising = True
     scene.render.film_transparent = True
     scene.render.resolution_x = ICON_W * SS
@@ -123,17 +135,80 @@ def setup_render(scene, samples: int):
     scene.render.image_settings.file_format = 'PNG'
     scene.render.image_settings.color_mode = 'RGBA'
     scene.render.image_settings.color_depth = '8'
-    scene.view_settings.view_transform = 'Standard'
-    scene.view_settings.look = 'None'
+    scene.view_settings.view_transform = a.view
+    scene.view_settings.look = a.look
     world = bpy.data.worlds.new('gfg_world')
     world.use_nodes = True
     nodes, links = world.node_tree.nodes, world.node_tree.links
     env = nodes.new('ShaderNodeTexEnvironment')
     # system_resource 只找得到資料夾（給檔案路徑會回傳空字串）
-    env.image = bpy.data.images.load(str(Path(bpy.utils.system_resource('DATAFILES', path='studiolights/world')) / 'studio.exr'))
+    env.image = bpy.data.images.load(str(Path(bpy.utils.system_resource('DATAFILES', path='studiolights/world')) / a.env))
     links.new(env.outputs['Color'], nodes['Background'].inputs['Color'])
-    nodes['Background'].inputs['Strength'].default_value = 1.0
+    nodes['Background'].inputs['Strength'].default_value = a.env_strength
     scene.world = world
+    print(f'打光：環境圖 {a.env} ×{a.env_strength}、色彩轉換 {a.view}／{a.look}、主光 {a.key} W、輪廓光 {a.rim} W')
+
+
+BRASS = (0.910, 0.778, 0.423)  # 黃銅、銅的 F0（線性；常用的 PBR 參考值）：金屬的底色＝反射的顏色
+COPPER = (0.955, 0.638, 0.538)
+STEEL = (0.12, 0.13, 0.12)  # 塗漆的鋼殼（深灰綠；自己定的）
+
+
+def vertex_islands(me) -> list[set]:
+    """面相連的頂點分成一塊一塊（同 clean_for_render 的找法）。"""
+    parent = list(range(len(me.vertices)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for p in me.polygons:
+        r0 = find(p.vertices[0])
+        for v in p.vertices[1:]:
+            parent[find(v)] = r0
+    groups = {}
+    for v in me.vertices:
+        groups.setdefault(find(v.index), set()).add(v.index)
+    return list(groups.values())
+
+
+def apply_metal(obj, case_color, case_rough: float, head_rough: float) -> None:
+    """彈殼（case_color）、彈頭銅：複製匯入的材質（保留法線貼圖），底色、金屬度、粗糙度改成固定值。
+    彈頭 = 有尖端（世界座標 Y 最小的頂點）的那塊，同 build_head 的找法。"""
+    me = obj.data
+    src = me.materials[0]
+    mats = []
+    for name, color, rough in (('gfg_case', case_color, case_rough), ('gfg_head', COPPER, head_rough)):
+        m = src.copy()
+        m.name = name
+        bsdf = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+        for key, value in (('Base Color', (*color, 1.0)), ('Metallic', 1.0), ('Roughness', rough)):
+            sock = bsdf.inputs[key]
+            for link in list(sock.links):
+                m.node_tree.links.remove(link)
+            sock.default_value = value
+        mats.append(m)
+    me.materials.clear()
+    for m in mats:
+        me.materials.append(m)
+    tip = min(me.vertices, key=lambda v: (obj.matrix_world @ v.co).y).index
+    head = next(s for s in vertex_islands(me) if tip in s)
+    n_head = 0
+    for p in me.polygons:
+        p.material_index = 1 if p.vertices[0] in head else 0
+        n_head += p.material_index
+    print(f'材質：彈殼 {case_color}（粗糙度 {case_rough}）＋銅彈頭（{head_rough}）；彈頭 {len(head)} 個頂點、{n_head} 個面')
+
+
+def add_light(scene, name: str, power: float, pos: Vector, target: Vector, size: float) -> None:
+    data = bpy.data.lights.new(name, 'AREA')
+    data.energy = power
+    data.size = size
+    ob = bpy.data.objects.new(name, data)
+    scene.collection.objects.link(ob)
+    ob.location = pos
+    ob.rotation_euler = (target - pos).to_track_quat('-Z', 'Y').to_euler()  # 面光朝自己的 -Z 發光
 
 
 def clean_for_render(obj) -> None:
@@ -179,8 +254,10 @@ def clean_for_render(obj) -> None:
 
 def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
     scene = bpy.context.scene
-    setup_render(scene, a.samples)
+    setup_render(scene, a)
     clean_for_render(obj)
+    if a.style != 'cs2':
+        apply_metal(obj, BRASS if a.style == 'brass' else STEEL, *a.rough)
     length = hi.y - lo.y
     diameter = max(hi.x - lo.x, hi.z - lo.z)
     # 直立：繞 X 轉 -90°（-Y → +Z），底放在 Z = 0；每顆再繞自己的長軸轉不同角度（貼圖的細節不一樣）
@@ -218,6 +295,13 @@ def render_icon(obj, lo: Vector, hi: Vector, a) -> None:
     need_w = (u1 - u0) / (1 - 2 * a.margin)
     cam.data.ortho_scale = max(need_h, need_w * ICON_H / ICON_W)
     scene.camera = cam
+    # 光放在子彈長度的幾倍遠（子彈約 6 公分）：主光在鏡頭這側的左上，輪廓光在後面的右上
+    reach = 4 * length
+    right, up, back = cam_x, cam_y, -rot.col[2].xyz  # 畫面的右、上；離開鏡頭的方向
+    if a.key > 0:
+        add_light(scene, 'gfg_key', a.key, center + reach * (-0.6 * right + 0.6 * up - 0.5 * back), center, length)
+    if a.rim > 0:
+        add_light(scene, 'gfg_rim', a.rim, center + reach * (0.7 * right + 0.3 * up + 0.6 * back), center, length * 0.6)
     print(f'圖示：{a.count} 顆、往右斜 {a.tilt}°，長 {length:.4f}、直徑 {diameter:.4f}；畫面上寬 {u1 - u0:.4f}、高 {v1 - v0:.4f}；ortho_scale {cam.data.ortho_scale:.4f}')
 
     with tempfile.TemporaryDirectory() as tmp:

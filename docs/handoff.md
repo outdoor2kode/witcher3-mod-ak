@@ -16,7 +16,7 @@
 | # | 任務（使用者的描述） | 狀態 |
 |---|---|---|
 | 35 | 在畫面中找合適的地方顯示子彈剩餘數量；呈現方式符合遊戲的設計脈絡 | 程式寫好、**沒編譯、沒測**（`gfg_ak47.ws`「子彈數」一節） |
-| 36 | 物品欄裝備子彈時的圖示還是太滿太大、沒有質感，沒有「專業殺手／專家」的感覺 | 還沒動（下面「#36 計畫」） |
+| 36 | 物品欄裝備子彈時的圖示還是太滿太大、沒有質感，沒有「專業殺手／專家」的感覺 | 圖做好、換上了（`gfg_ak47_ammo_64x128.png`）、**沒進遊戲看**（下面「#36 結果」） |
 | 37 | 子彈名稱太長（左下角、物品欄）：要寫數字可以，簡單的像「3.5mm」就好 | 字串改好（EN、ZH 都是 `7.62mm`）、**沒進遊戲看** |
 | 38 | 船上禁止滾輪（中鍵）射擊、也禁止左鍵開槍；水裡也禁止中鍵、左鍵 | 程式寫好、**沒編譯、沒測**（`GfgNoFireHere`） |
 
@@ -27,7 +27,13 @@
 - #38：拿 AK 時船上、水裡左鍵、中鍵都不開槍、不跳提示；原版十字弩照舊（取代 #31 留給使用者決定的那條）
 - 做完要不要裝進 Steam 版：問了使用者；沒回覆就不裝（寫遊戲資料夾要同意：`CLAUDE.md` §6.3）
 
-**現在在做**：#36 改 `tools\ammo_build.py`（下面「#36 計畫」）；之後開 REDkit 編譯、一次進遊戲驗證 4 項
+**現在在做**：開 REDkit 的 mod 專案編譯（Reload scripts／開遊戲時編譯）、一次進遊戲驗證 4 項（下面「驗證計畫」）
+
+**#36 結果**（14:3x）
+- `tools\ammo_build.py` 加 `--style brass|steel|cs2`、`--rough`、`--env`、`--env-strength`、`--view`、`--look`、`--key`、`--rim`；**預設改成選定的**：黃銅彈殼＋銅彈頭（PBR F0）、studio.exr ×0.5、主光 2 W、輪廓光 3 W、留白 22%（子彈約佔 6 成高）
+- 試過 7 種（`scratchpad\icon36\sheet1.png`、`sheet2.png`）：CS2 原貼圖縮小（還是淡、塑膠感）、黃銅＋AgX（偏暗沉）、亮黃銅（太亮）、深色鋼殼（暗背景上看不清、而且真的鋼殼彈是便宜的軍用彈）→ 選「暗一點的環境＋清楚亮點的黃銅」（精品彈的樣子、接近原版箭的暗調）
+- 重做：`blender --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- <gltf> <color> <icon> <暫存資料夾>`（不加選項＝現在這張；和選定那張 byte 一樣）；舊圖備份 `scratchpad\icon36\old_gfg_ak47_ammo_64x128.png`
+- 圖示不進 git（workspace 的 PNG 本來就沒進）
 
 **做好的（14:2x～14:5x）**
 - #37：字串庫 10000008 `gfg_item_name_ak47_ammo` 加新版本（EN v3、ZH v4 = `7.62mm`）＋CSV（腳本 session 暫存 `scratchpad\set_ammo_name.py`；備份 `strings_backup_before_ammo_name.db`）；REDkit 關著時改的
