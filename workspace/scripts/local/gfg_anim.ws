@@ -572,24 +572,26 @@ var gfgCarryPrevZ : Vector;
 @addField(CR4Player)
 var gfgCarryPrevOk : bool;
 @addField(CR4Player)
-var gfgDummy : CEntity;		// 替身 AK（不存檔；換關卡後會不見 → 再生成）
+var gfgDummy : CEntity;		// 替身（不存檔；換關卡後會不見 → 再生成）
 @addField(CR4Player)
 var gfgDummyFailed : bool;	// 替身的模板載入失敗：不再每格重試
+@addField(CR4Player)
+var gfgDummyFor : name;		// 替身是哪把槍的（物品名稱）
 
-// 替身：同一個模板（gfg_ak47.w2ent），標籤 gfg_carry_dummy → OnSpawned 不初始化十字弩（下面的包裝）
+// 替身：槍自己的模板（規格表的 tmplGun，AK 是 gfg_ak47.w2ent），標籤 gfg_carry_dummy → OnSpawned 不初始化十字弩（下面的包裝）
 @addMethod(CR4Player)
-function GfgCarrySpawnDummy()
+function GfgCarrySpawnDummy( path : string )
 {
 	var tmpl : CEntityTemplate;
 	var tags : array< name >;
 
 	if ( gfgDummyFailed )
 		return;
-	tmpl = (CEntityTemplate)LoadResource( "dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47.w2ent", true );
+	tmpl = (CEntityTemplate)LoadResource( path, true );
 	if ( !tmpl )
 	{
 		gfgDummyFailed = true;
-		LogChannel( 'GFG', "carry dummy template not found" );
+		LogChannel( 'GFG', "carry dummy template not found: " + path );
 		return;
 	}
 	tags.PushBack( 'gfg_carry_dummy' );
@@ -646,6 +648,20 @@ function GfgCarryReset()
 	gfgCarryOn = false;
 }
 
+// 換了槍：刪掉上一把的替身（GfgCarryTick 接著照這把的模板重生）
+@addMethod(CR4Player)
+function GfgCarryUseGun( id : name )
+{
+	if ( id == gfgDummyFor )
+		return;
+	GfgCarryReset();
+	if ( gfgDummy )
+		gfgDummy.Destroy();
+	gfgDummy = NULL;
+	gfgDummyFailed = false;
+	gfgDummyFor = id;
+}
+
 @addMethod(CR4Player)
 function GfgCarryTick( gunDrawn : bool, dt : float )
 {
@@ -653,15 +669,18 @@ function GfgCarryTick( gunDrawn : bool, dt : float )
 	var lw, pm, m : Matrix;
 	var lx, ly, lz, px, py, pz, qx, qy, qz : Vector;
 	var f0, u0, r0, fw, uw, gf, gu, ft, ut, rt, fl, ul, rl, piv, t : Vector;
+	var gun : SGfgGunSpec;
 
 	if ( !rangedWeapon || !gunDrawn )
 	{
 		GfgCarryReset();
 		return;
 	}
+	gun = rangedWeapon.GfgSpec();
+	GfgCarryUseGun( gun.id );
 	if ( !gfgDummy )
 	{
-		GfgCarrySpawnDummy();	// 拔槍時先生成（藏著）；這一格不提槍
+		GfgCarrySpawnDummy( gun.tmplGun );	// 拔槍時先生成（藏著）；這一格不提槍
 		return;
 	}
 	want = !IsUsingVehicle() && GetIsSprinting() && !IsInAir() && substateManager.GetStateCur() != 'Land';

@@ -1,15 +1,18 @@
 ﻿// ===== 換彈：彈匣真的拿下來（第一批第 8 項 B；2026-10-17）=====
 // 換彈動畫（tools/reload_pose.py；docs/m3.md「換彈動畫」）：左手 0.30 秒握住彈匣 → 拉出 → 左腰 → 1.50 秒裝上（動畫事件 OnWeaponReload）
 // - 抓：換彈開始 0.9 秒內，左手腕到了握彈匣的位置（槍座標 F 0.1447、U −0.0401、R −0.0480：reload_pose.py 印的；第 39 項握法改了，原本 F 0.1875、U −0.1042、R −0.0378）3 公分內、而且不再變近 →
-//   真的 AK 藏起來、改顯示沒彈匣的替身（gfg_ak47_nomag.w2ent：掛 l_weapon 不帶偏移 = 真的 AK 的位置，同衝刺的替身）；
-//   彈匣（gfg_ak47_mag.w2ent：模型在槍上的位置）用現在的世界姿勢掛到左手（CreateAttachmentAtBoneWS：原版插在敵人身上的箭也這樣掛，arrowProjectile.ws:554）
+//   真的槍藏起來、改顯示沒彈匣的替身（規格表的 tmplNoMag，AK 是 gfg_ak47_nomag.w2ent：掛 l_weapon 不帶偏移 = 真的槍的位置，同衝刺的替身）；
+//   彈匣（規格表的 tmplMag，AK 是 gfg_ak47_mag.w2ent：模型在槍上的位置）用現在的世界姿勢掛到左手（CreateAttachmentAtBoneWS：原版插在敵人身上的箭也這樣掛，arrowProjectile.ws:554）
+// - 換了槍：上一把的替身、彈匣刪掉，照新的槍重生（GfgMagUseGun）
 // - 裝上：OnWeaponReload 換回真的 AK；換彈中斷（離開換彈狀態、衝刺提槍、收槍）也換回
 // - 動畫裡左手相對槍的方向不變、裝上時的位置和抓的時候相同 → 彈匣回到彈匣口時剛好對上
 // - 槍座標：原點 = 握把（l_weapon 座標 (-0.3032, -0.0115, -0.2320)）、F 槍管、U 上、R = F×U（同 GfgCarryTick 的 f0、u0）
 @addField(CR4Player)
-var gfgMagNoMag : CEntity;	// 沒彈匣的 AK（不存檔；換關卡後會不見 → 再生成）
+var gfgMagNoMag : CEntity;	// 沒彈匣的槍（不存檔；換關卡後會不見 → 再生成）
 @addField(CR4Player)
 var gfgMagEnt : CEntity;	// 彈匣
+@addField(CR4Player)
+var gfgMagFor : name;		// 上面兩個是哪把槍的（物品名稱）
 @addField(CR4Player)
 var gfgMagOut : bool;		// 彈匣在左手上（真的 AK 藏著）
 @addField(CR4Player)
@@ -47,6 +50,24 @@ function GfgMagSpawn( path : string ) : CEntity
 	return ent;
 }
 
+// 換了槍：刪掉上一把的沒彈匣替身、彈匣（GfgMagTick 接著照這把的模板重生）
+@addMethod(CR4Player)
+function GfgMagUseGun( id : name )
+{
+	if ( id == gfgMagFor )
+		return;
+	GfgMagRestore();
+	if ( gfgMagNoMag )
+		gfgMagNoMag.Destroy();
+	if ( gfgMagEnt )
+		gfgMagEnt.Destroy();
+	gfgMagNoMag = NULL;
+	gfgMagEnt = NULL;
+	gfgMagFailed = false;
+	gfgMagReloading = false;
+	gfgMagFor = id;
+}
+
 @addMethod(CR4Player)
 function GfgMagTick( gunDrawn : bool )
 {
@@ -54,21 +75,27 @@ function GfgMagTick( gunDrawn : bool )
 	var lw : Matrix;
 	var lx, ly, lz, d, g, f0, u0, r0 : Vector;
 	var dist, now, prev : float;
+	var gun : SGfgGunSpec;
 
+	if ( gunDrawn )
+	{
+		gun = rangedWeapon.GfgSpec();
+		GfgMagUseGun( gun.id );
+	}
 	if ( !gunDrawn || gfgMagFailed )
 	{
 		GfgMagRestore();
 		gfgMagReloading = false;
 		return;
 	}
-	// 拿出 AK 時先生成（藏著），第一次換彈時模型已經載入
+	// 拿出槍時先生成（藏著），第一次換彈時模型已經載入
 	if ( !gfgMagNoMag )
 	{
-		gfgMagNoMag = GfgMagSpawn( "dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_nomag.w2ent" );
+		gfgMagNoMag = GfgMagSpawn( gun.tmplNoMag );
 		return;	// 彈匣下一格才生成：同一格生成兩個時，後生成的彈匣之後顯示不出來（03:5x 實測；原因是推論）
 	}
 	if ( !gfgMagEnt && !gfgMagFailed )
-		gfgMagEnt = GfgMagSpawn( "dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_mag.w2ent" );
+		gfgMagEnt = GfgMagSpawn( gun.tmplMag );
 	if ( !gfgMagNoMag || !gfgMagEnt )
 		return;
 
