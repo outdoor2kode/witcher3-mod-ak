@@ -48,14 +48,14 @@ function GfgMagSpawn( path : string ) : CEntity
 }
 
 @addMethod(CR4Player)
-function GfgMagTick( akDrawn : bool )
+function GfgMagTick( gunDrawn : bool )
 {
 	var reloading : bool;
 	var lw : Matrix;
 	var lx, ly, lz, d, g, f0, u0, r0 : Vector;
 	var dist, now, prev : float;
 
-	if ( !akDrawn || gfgMagFailed )
+	if ( !gunDrawn || gfgMagFailed )
 	{
 		GfgMagRestore();
 		gfgMagReloading = false;

@@ -112,9 +112,9 @@ function GfgUpdateRecoil( dt : float, out stepUp : float, out stepRight : float 
 
 // AK 是不是拿在手上（裝備中，而且不是收起、收槍中）
 @addMethod(Crossbow)
-function GfgIsAkDrawn() : bool
+function GfgIsGunDrawn() : bool
 {
-	return GfgIsAk() && GetCurrentStateName() != 'State_WeaponWait' && GetCurrentStateName() != 'State_WeaponHolster';
+	return GfgIsGun() && GetCurrentStateName() != 'State_WeaponWait' && GetCurrentStateName() != 'State_WeaponHolster';
 }
 
 // 畫面上正在用的鏡頭：取法同原版拍照模式（photomodeManager.ws:96-99：GetTopmostCamera，位置加上 GetCameraWorldOffset；customCamera.ws:110-112）
@@ -430,18 +430,18 @@ function GfgUpdateCrosshair( drawn : bool )
 @addMethod(CR4Player)
 function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 {
-	var akDrawn : bool;
+	var gunDrawn : bool;
 	var up, right : float;
 
 	GfgHudTick();
-	akDrawn = false;
+	gunDrawn = false;
 	if ( rangedWeapon )
 	{
 		rangedWeapon.GfgUpdateRecoil( dt, up, right );
 		moveData.pivotRotationValue.Pitch += up;
 		moveData.pivotRotationValue.Yaw -= right;
-		akDrawn = rangedWeapon.GfgIsAkDrawn();
-		if ( akDrawn )
+		gunDrawn = rangedWeapon.GfgIsGunDrawn();
+		if ( gunDrawn )
 		{
 			rangedWeapon.GfgCancelAutoHolster();
 			// Z 鎖定（硬鎖定）：十字弩瞄準狀態的 Lock() 會鎖住 EIAB_HardLock（rangedWeapon.ws:374-423；按 Z 時檢查：playerInput.ws:3510），
@@ -459,16 +459,16 @@ function GfgCameraTick( out moveData : SCameraMovementData, dt : float )
 		}
 	}
 	if ( rangedWeapon )
-		rangedWeapon.GfgGripUpdate( akDrawn );	// 兩手握好槍才開火（第 26 項）
-	if ( akDrawn && !IsUsingVehicle() )
-		GfgAkTurnTick();
+		rangedWeapon.GfgGripUpdate( gunDrawn );	// 兩手握好槍才開火（第 26 項）
+	if ( gunDrawn && !IsUsingVehicle() )
+		GfgGunTurnTick();
 	else
-		GfgAkTurnReset();
-	GfgArmsHoldTick( akDrawn );
-	GfgCarryTick( akDrawn, dt );
-	GfgMagTick( akDrawn );		// 換彈時彈匣拿下來（第 8 項 B）
+		GfgGunTurnReset();
+	GfgArmsHoldTick( gunDrawn );
+	GfgCarryTick( gunDrawn, dt );
+	GfgMagTick( gunDrawn );		// 換彈時彈匣拿下來（第 8 項 B）
 	GfgNoSwordTick();			// 不准拿劍、自動舉 AK（第 19 項）
-	GfgUpdateCrosshair( akDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
-	GfgEvadeTick( akDrawn );	// 戰鬥中閃躲、翻滾（第 29 項）
-	GfgReloadAimTick( akDrawn );	// R 換彈時上半身圖當作瞄準中（第 33 項的修正）
+	GfgUpdateCrosshair( gunDrawn && !( IsUsingVehicle() && gfgHorseAimOut ) );		// 騎馬瞄準超出左右範圍時藏起來（第 18 項）
+	GfgEvadeTick( gunDrawn );	// 戰鬥中閃躲、翻滾（第 29 項）
+	GfgReloadAimTick( gunDrawn );	// R 換彈時上半身圖當作瞄準中（第 33 項的修正）
 }

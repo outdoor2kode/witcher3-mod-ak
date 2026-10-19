@@ -16,7 +16,7 @@ function StartAttackAction()
 	var ak : Crossbow;
 
 	itemId = rider.GetSelectedItemId();
-	if ( !GfgIsAkSelected( rider ) )
+	if ( !GfgIsGunSelected( rider ) )
 	{
 		wrappedMethod();
 		return;
@@ -30,7 +30,7 @@ function StartAttackAction()
 	// 手上有劍：先收劍、收好再拿出 AK（GfgNoSwordTick；第 19 項）
 	if ( rider.GfgSwordInHand() && !rider.IsCrossbowHeld() )
 	{
-		rider.GfgRequestAkRaise( true );
+		rider.GfgRequestGunRaise( true );
 		return;
 	}
 	// 還沒拿出來：照原版 StartItemAction 的十字弩分支拿出（:750-756），但不進入 ShootCrossbow、不另外鎖下馬
@@ -50,7 +50,7 @@ function StartAttackAction()
 @wrapMethod(W3VehicleCombatManagerStateNull)
 function StartItemAction()
 {
-	if ( GfgIsAkSelected( rider ) )
+	if ( GfgIsGunSelected( rider ) )
 		return;
 	wrappedMethod();
 }
@@ -76,7 +76,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 @addMethod(CR4Player)
 function GfgHolsterForVehicle()
 {
-	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+	if ( rangedWeapon && rangedWeapon.GfgIsGunDrawn() )
 		OnRangedForceHolster( true, true );
 }
 
@@ -89,7 +89,7 @@ function GfgHolsterForVehicle()
 function OnInteraction( actionName : string, activator : CEntity )
 {
 	if ( GetActionName() == "MountHorse" && theGame.GetInteractionsManager().GetActiveInteraction() == this
-		&& thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack()
+		&& thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() && !thePlayer.IsInCombatAction_Attack()
 		&& !( thePlayer.IsInCombat() && !thePlayer.IsSwimming() ) )
 		return false;
 	return wrappedMethod( actionName, activator );
@@ -99,7 +99,7 @@ function OnInteraction( actionName : string, activator : CEntity )
 function GetBlockedActions( out blockedActions : array< string > )
 {
 	wrappedMethod( blockedActions );
-	if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack() )
+	if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() && !thePlayer.IsInCombatAction_Attack() )
 		blockedActions.Remove( "MountHorse" );
 }
 
@@ -146,7 +146,7 @@ function OnGameCameraPostTick( out moveData : SCameraMovementData, dt : float )
 	var result : bool;
 
 	result = wrappedMethod( moveData, dt );
-	if ( parent.rangedWeapon && parent.rangedWeapon.GfgIsAkDrawn() && !parent.IsHardLockEnabled() )
+	if ( parent.rangedWeapon && parent.rangedWeapon.GfgIsGunDrawn() && !parent.IsHardLockEnabled() )
 	{
 		moveData.pivotRotationController.SetDesiredHeading( moveData.pivotRotationValue.Yaw );
 		moveData.pivotRotationController.SetDesiredPitch( moveData.pivotRotationValue.Pitch );
@@ -182,7 +182,7 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 	var pressed : bool;
 	var localOffset : Vector;
 
-	if ( !rangedWeapon || !rangedWeapon.GfgIsAk() )
+	if ( !rangedWeapon || !rangedWeapon.GfgIsGun() )
 	{
 		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false );
@@ -191,16 +191,16 @@ function GfgHorseTick( mgr : W3VehicleCombatManager, out moveData : SCameraMovem
 
 	// 扳機：閒置以外的狀態收不到左鍵的事件（只有 Null、SwordAttack 有 OnAttack：useVehicle.ws:706、:1123），
 	// 所以每格直接讀左鍵（原版也這樣讀：:601）。放開一律放開扳機；按著時要 AK 拿在手上才扣（還沒拿出來時由 StartAttackAction 的包裝拿出）
-	pressed = theInput.IsActionPressed( 'VehicleAttack' ) && GfgIsAkSelected( this );
+	pressed = theInput.IsActionPressed( 'VehicleAttack' ) && GfgIsGunSelected( this );
 	if ( rangedWeapon.gfgTriggerHeld && !pressed )
 		rangedWeapon.GfgSetTrigger( false );
-	else if ( !rangedWeapon.gfgTriggerHeld && pressed && rangedWeapon.GfgIsAkDrawn() )
+	else if ( !rangedWeapon.gfgTriggerHeld && pressed && rangedWeapon.GfgIsGunDrawn() )
 		rangedWeapon.GfgSetTrigger( true );
 
 	// 騎馬動畫圖一直當作瞄準中，不自動收槍（GfgKeepRiderAiming；原版射擊等也會把它設成 0，所以每格設）
 	rangedWeapon.GfgKeepRiderAiming();
 
-	if ( !rangedWeapon.GfgIsAkDrawn() )
+	if ( !rangedWeapon.GfgIsGunDrawn() )
 	{
 		gfgHorseAimOut = false;
 		GfgSetHorseAimCam( false );
@@ -345,7 +345,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, timeDelta : float
 
 	result = wrappedMethod( moveData, timeDelta );
 	if ( parent.GetCurrentStateName() == 'ShootCrossbow' && rider.GetCurrentStateName() == 'HorseRiding'
-		&& rider.rangedWeapon && rider.rangedWeapon.GfgIsAk() )
+		&& rider.rangedWeapon && rider.rangedWeapon.GfgIsGun() )
 	{
 		horizontalVal = rider.GfgClampHorseAim( horizontalVal, timeDelta );
 		rider.SetBehaviorVariable( 'aimHorizontal', horizontalVal );
@@ -361,7 +361,7 @@ function OnAnimEvent_Throwable( animEventName : name, animEventType : EAnimation
 	var result : bool;
 
 	result = wrappedMethod( animEventName, animEventType, animInfo );
-	if ( vehicleCombatMgr.GetCurrentStateName() != 'ShootCrossbow' && parent.rangedWeapon && parent.rangedWeapon.GfgIsAk()
+	if ( vehicleCombatMgr.GetCurrentStateName() != 'ShootCrossbow' && parent.rangedWeapon && parent.rangedWeapon.GfgIsGun()
 		&& parent.inv.IsItemCrossbow( parent.inv.GetItemFromSlot( 'l_weapon' ) ) )
 		parent.rangedWeapon.OnProcessThrowEvent( animEventName );
 	return result;

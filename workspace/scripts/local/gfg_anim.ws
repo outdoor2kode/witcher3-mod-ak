@@ -6,7 +6,7 @@
 // 腳本改了 slot 的圖，實例重新建立時就用新的圖（2026-10-18 遊戲實測：docs/findings.md §34）
 
 // i：0 上半身（一直在堆疊最上面）、1 主動畫圖、2 騎馬、3 游泳
-function GfgAkGraphSlot( i : int ) : name
+function GfgGunGraphSlot( i : int ) : name
 {
 	switch ( i )
 	{
@@ -18,7 +18,7 @@ function GfgAkGraphSlot( i : int ) : name
 }
 
 // 同 tools/ak_graphs.py 的 GRAPHS
-function GfgAkGraphPath( i : int ) : string
+function GfgGunGraphPath( i : int ) : string
 {
 	switch ( i )
 	{
@@ -49,16 +49,16 @@ function GfgSwapSlotGraph( slotName : name, graph : CBehaviorGraph ) : CBehavior
 }
 
 @addField(CR4Player)
-var gfgAkGraphsOn : bool;			// slot 現在是 AK 的圖
+var gfgGunGraphsOn : bool;			// slot 現在是 AK 的圖
 
 @addField(CR4Player)
-var gfgAkGraphs : array< CBehaviorGraph >;		// GfgAkGraphPath 的 4 張
+var gfgGunGraphs : array< CBehaviorGraph >;		// GfgGunGraphPath 的 4 張
 
 @addField(CR4Player)
 var gfgVanillaGraphs : array< CBehaviorGraph >;	// 第一次換掉時記下的原版
 
 @addMethod(CR4Player)
-function GfgAkGraphsWanted() : bool
+function GfgGunGraphsWanted() : bool
 {
 	var witcher : W3PlayerWitcher;
 	var id : SItemUniqueId;
@@ -70,7 +70,7 @@ function GfgAkGraphsWanted() : bool
 }
 
 @addMethod(CR4Player)
-function GfgApplyAkGraphs( on : bool )
+function GfgApplyGunGraphs( on : bool )
 {
 	var comp : CAnimatedComponent;
 	var i : int;
@@ -81,35 +81,35 @@ function GfgApplyAkGraphs( on : bool )
 	comp = GetRootAnimatedComponent();
 	if ( !comp )
 		return;
-	if ( gfgAkGraphs.Size() == 0 )
+	if ( gfgGunGraphs.Size() == 0 )
 	{
 		for ( i = 0; i < 4; i += 1 )
 		{
-			gfgAkGraphs.PushBack( (CBehaviorGraph)LoadResource( GfgAkGraphPath( i ), true ) );
+			gfgGunGraphs.PushBack( (CBehaviorGraph)LoadResource( GfgGunGraphPath( i ), true ) );
 			gfgVanillaGraphs.PushBack( NULL );
-			if ( !gfgAkGraphs[i] )
-				LogChannel( 'GFG', "AK graph not found: " + GfgAkGraphPath( i ) );
+			if ( !gfgGunGraphs[i] )
+				LogChannel( 'GFG', "AK graph not found: " + GfgGunGraphPath( i ) );
 		}
 	}
 	base = GetBehaviorGraphInstanceName( 0 );
 	rebuildBase = false;
 	for ( i = 0; i < 4; i += 1 )
 	{
-		if ( !gfgAkGraphs[i] )
+		if ( !gfgGunGraphs[i] )
 			continue;
 		if ( on )
-			want = gfgAkGraphs[i];
+			want = gfgGunGraphs[i];
 		else
 			want = gfgVanillaGraphs[i];
 		if ( !want )
 			continue;
-		old = comp.GfgSwapSlotGraph( GfgAkGraphSlot( i ), want );
-		if ( on && old && old != gfgAkGraphs[i] )
+		old = comp.GfgSwapSlotGraph( GfgGunGraphSlot( i ), want );
+		if ( on && old && old != gfgGunGraphs[i] )
 			gfgVanillaGraphs[i] = old;
-		if ( i > 0 && old != want && base == GfgAkGraphSlot( i ) )
+		if ( i > 0 && old != want && base == GfgGunGraphSlot( i ) )
 			rebuildBase = true;
 	}
-	gfgAkGraphsOn = on;
+	gfgGunGraphsOn = on;
 
 	// 重新建立用到的實例：上半身一直都在；底層是主動畫圖、騎馬、游泳的其中一個時也重建（劇情等其他圖不動）。
 	// 同名的實例已經在堆疊裡時，ActivateBehaviorsSync 不會重建（實測）→ 先拆再掛；底層先掛、上半身後掛，順序同原本
@@ -125,16 +125,16 @@ function GfgApplyAkGraphs( on : bool )
 
 // 每 0.1 秒檢查裝的是不是 AK（物品欄換裝備時遊戲暫停，關掉後第一次檢查就換）
 @addMethod(CR4Player)
-timer function GfgAkGraphTimer( dt : float, id : int )
+timer function GfgGunGraphTimer( dt : float, id : int )
 {
-	if ( gfgAkGraphsOn != GfgAkGraphsWanted() )
-		GfgApplyAkGraphs( !gfgAkGraphsOn );
+	if ( gfgGunGraphsOn != GfgGunGraphsWanted() )
+		GfgApplyGunGraphs( !gfgGunGraphsOn );
 }
 
 @wrapMethod(W3PlayerWitcher)
 function OnSpawned( spawnData : SEntitySpawnData )
 {
-	AddTimer( 'GfgAkGraphTimer', 0.1f, true );
+	AddTimer( 'GfgGunGraphTimer', 0.1f, true );
 	return wrappedMethod( spawnData );
 }
 
@@ -187,7 +187,7 @@ function GfgPreviewGraph( preview : CEntity ) : bool
 		return false;
 	if ( cur != gfgInvGraphs[1] )
 		gfgInvGraphs[0] = cur;
-	if ( GfgAkGraphsWanted() )
+	if ( GfgGunGraphsWanted() )
 		want = gfgInvGraphs[1];
 	else
 		want = gfgInvGraphs[0];
@@ -250,7 +250,7 @@ function PlayOwnerReloadAnim() : bool
 	var magazine : int;
 	var shouldPlayAnim : bool;
 
-	if ( !GfgIsAk() )
+	if ( !GfgIsGun() )
 		return wrappedMethod();
 
 	magazine = GfgMagazineSize();
@@ -259,7 +259,7 @@ function PlayOwnerReloadAnim() : bool
 		shouldPlayAnim = true;
 	// 以下兩個條件照抄原版（rangedWeapon.ws:838-841）：特殊箭用完、第一次裝填
 	// AK 的子彈（第 27 項）和原版的無限箭一樣不算特殊箭；不加的話每發都換彈（GetSpecialAmmoCount 不算無限的：rangedWeapon.ws:854-869）
-	else if ( previousAmmoItemName != 'Bodkin Bolt' && previousAmmoItemName != 'Harpoon Bolt' && !GfgIsAkAmmoName( previousAmmoItemName ) && GetSpecialAmmoCount() <= 0 )
+	else if ( previousAmmoItemName != 'Bodkin Bolt' && previousAmmoItemName != 'Harpoon Bolt' && !GfgIsGunAmmoName( previousAmmoItemName ) && GetSpecialAmmoCount() <= 0 )
 		shouldPlayAnim = true;
 	else if ( previousAmmoItemName == '' )
 		shouldPlayAnim = true;
@@ -281,7 +281,7 @@ function PlayOwnerReloadAnim() : bool
 @addMethod(Crossbow)
 function GfgManualReload() : bool
 {
-	if ( !GfgIsAk() || !deployedEnt || shotCount <= 0 )
+	if ( !GfgIsGun() || !deployedEnt || shotCount <= 0 )
 		return false;
 	if ( GetCurrentStateName() != 'State_WeaponAim' && GetCurrentStateName() != 'State_WeaponShoot' )
 		return false;
@@ -302,7 +302,7 @@ function GfgManualReload() : bool
 // 附近有敵人時是 OT_Actor（朝滑動目標：:2822-2868）→ 拿 AK 移動時上半身一直朝鏡頭或狼，往鏡頭跑時扭到背後（docs/findings.md §21 只限制了角度）。
 // AK 改成：
 // - 移動、沒在開槍：上半身朝角色前方（同原版 OT_Player：:2766-2784），不扭
-// - 站著、或開槍中：上半身朝準心（Z 鎖定時朝鎖定點）；身體轉向準心（GfgAkTurnTick）
+// - 站著、或開槍中：上半身朝準心（Z 鎖定時朝鎖定點）；身體轉向準心（GfgGunTurnTick）
 
 // 開槍中（扣著扳機，或最後一發之後還沒過 GfgAimHoldTime() 秒）
 // 3 秒：使用者 2026-10-16 20:4x 回報「按一下開槍，一停火就立刻放下槍」（原本 0.5 秒）；第三人稱射擊遊戲停火後一般維持舉槍 2～3 秒
@@ -330,7 +330,7 @@ function GfgCrosshairPoint() : Vector
 }
 
 @addMethod(CR4Player)
-function GfgAkLookAtPoint() : Vector
+function GfgGunLookAtPoint() : Vector
 {
 	var point : Vector;
 
@@ -429,7 +429,7 @@ function GfgCombatFaceHeading( out heading : float ) : bool
 //   （上半身動畫圖 #18428 的 DirectionalMovement；原版中鍵瞄準移動時就是全身瞄準：rangedWeapon.ws:968-969）
 //   衝刺、不在戰鬥中（沒開槍）照原版朝移動方向（同持劍）
 @addMethod(CR4Player)
-function GfgAkTurnTick()
+function GfgGunTurnTick()
 {
 	var aimHeading, diff, strafeHeading : float;
 	var firing, moving, strafe : bool;
@@ -463,7 +463,7 @@ function GfgAkTurnTick()
 		gfgStrafeHeading = strafeHeading;
 		gfgTurning = false;
 		GfgSetWalkInPlace( false );
-		SetCustomRotation( 'GfgAkAim', strafeHeading, 0.f, 0.25f, false );
+		SetCustomRotation( 'GfgGunAim', strafeHeading, 0.f, 0.25f, false );
 		return;
 	}
 	if ( moving || GetCurrentStateName() == 'AimThrow' )
@@ -478,7 +478,7 @@ function GfgAkTurnTick()
 	else if ( AbsF( diff ) < 5.f )
 		gfgTurning = false;
 	if ( gfgTurning )
-		SetCustomRotation( 'GfgAkAim', aimHeading, 0.f, 0.4f, false );
+		SetCustomRotation( 'GfgGunAim', aimHeading, 0.f, 0.4f, false );
 	GfgSetWalkInPlace( gfgTurning );
 }
 
@@ -491,7 +491,7 @@ function GfgRefreshFullBody()
 
 // AK 收起來（或騎馬）時，清掉上面設的狀態
 @addMethod(CR4Player)
-function GfgAkTurnReset()
+function GfgGunTurnReset()
 {
 	if ( gfgStrafing )
 	{
@@ -514,7 +514,7 @@ function UpdateLocomotion()
 		player.SetBehaviorVariable( 'playerSpeedForOverlay', moveSpeed, true );
 }
 
-// 側移中，動畫圖的「面向」改成身體實際朝的方向（GfgAkTurnTick 轉過去的方向）
+// 側移中，動畫圖的「面向」改成身體實際朝的方向（GfgGunTurnTick 轉過去的方向）
 // 側移的動作依「移動方向 − 面向」挑（上半身動畫圖 DirectionalMovement 的輸入 requestedMovementDirectionForOverlay、requestedFacingDirectionForOverlay：docs/m3.md「開槍中側移」）；
 // 原版的面向：戰鬥中朝目標、平常朝鏡頭（locomotionDirectController.ws:1142-1225 → actor.ws:3580-3587）→ 戰鬥中開槍時身體朝準心、面向卻是目標，挑錯動作
 @wrapMethod(CActor)
@@ -538,11 +538,11 @@ function UpdateRequestedDirectionVariables( headingYawWS : float, orientationYaw
 var gfgArmsHold : bool;		// 手臂覆蓋開著（inSlomoForOverlay 是我們設的）
 
 @addMethod(CR4Player)
-function GfgArmsHoldTick( akDrawn : bool )
+function GfgArmsHoldTick( gunDrawn : bool )
 {
 	var on : bool;
 
-	on = akDrawn && !IsUsingVehicle() && ( IsInAir() || substateManager.GetStateCur() == 'Land' );	// 衝刺不蓋：手照原版擺（GfgCarryTick）
+	on = gunDrawn && !IsUsingVehicle() && ( IsInAir() || substateManager.GetStateCur() == 'Land' );	// 衝刺不蓋：手照原版擺（GfgCarryTick）
 	if ( on == gfgArmsHold )
 		return;
 	gfgArmsHold = on;
@@ -647,14 +647,14 @@ function GfgCarryReset()
 }
 
 @addMethod(CR4Player)
-function GfgCarryTick( akDrawn : bool, dt : float )
+function GfgCarryTick( gunDrawn : bool, dt : float )
 {
 	var want : bool;
 	var lw, pm, m : Matrix;
 	var lx, ly, lz, px, py, pz, qx, qy, qz : Vector;
 	var f0, u0, r0, fw, uw, gf, gu, ft, ut, rt, fl, ul, rl, piv, t : Vector;
 
-	if ( !rangedWeapon || !akDrawn )
+	if ( !rangedWeapon || !gunDrawn )
 	{
 		GfgCarryReset();
 		return;
@@ -764,16 +764,16 @@ function GfgReloadAimStart()
 }
 
 @addMethod(CR4Player)
-function GfgReloadAimTick( akDrawn : bool )
+function GfgReloadAimTick( gunDrawn : bool )
 {
 	var now : float;
 
 	if ( !gfgReloadAim )
 		return;
 	now = theGame.GetEngineTimeAsSeconds();
-	if ( akDrawn && rangedWeapon && rangedWeapon.GetCurrentStateName() == 'State_WeaponReload' )
+	if ( gunDrawn && rangedWeapon && rangedWeapon.GetCurrentStateName() == 'State_WeaponReload' )
 		gfgReloadAimUntil = now + 0.3f;
-	if ( akDrawn && now < gfgReloadAimUntil )
+	if ( gunDrawn && now < gfgReloadAimUntil )
 	{
 		SetBehaviorVariable( 'isAimingWeapon', 1.f );
 		return;

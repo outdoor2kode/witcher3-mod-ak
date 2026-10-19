@@ -23,12 +23,12 @@ var gfgLastCheckTime : float;
 var gfgGripSince : float;	// 兩手開始握著槍的時間（引擎時間）；0 = 沒握著
 
 @addMethod(Crossbow)
-function GfgGripUpdate( akDrawn : bool )
+function GfgGripUpdate( gunDrawn : bool )
 {
 	var hand, weapon : int;
 	var d : float;
 
-	if ( !akDrawn )
+	if ( !gunDrawn )
 	{
 		gfgGripSince = 0.f;
 		return;
@@ -116,7 +116,7 @@ function OnWeaponAimStart()
 
 	result = wrappedMethod();
 	crossbow = (Crossbow)this;
-	if ( crossbow && crossbow.GfgIsAk() )
+	if ( crossbow && crossbow.GfgIsGun() )
 	{
 		if ( !crossbow.gfgTriggerHeld )
 		{
@@ -142,9 +142,9 @@ function OnForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 	// 被打中的動作（全身）播放中，原版的保險計時器把它當成「攻擊中」收起十字弩（InputLockFailsafe：rangedWeapon.ws:458-466）
 	// 2026-10-16 實測被狼咬：failsafe 呼叫 OnForceHolster( true, true )，當時 combatActionType 0、fullBodyAnimWeight 1、不能做戰鬥動作
 	// → 拿著 AK、不是真的在攻擊（輕／重攻擊：r4Player.ws:12863-12877）時不收（第 2 項：狼群裡開槍要維持射擊姿勢）
-	if ( gfgInFailsafe && GfgIsAkDrawn() && !thePlayer.IsInCombatAction_Attack() )
+	if ( gfgInFailsafe && GfgIsGunDrawn() && !thePlayer.IsInCombatAction_Attack() )
 		return true;
-	if ( GfgIsAk()&& GetCurrentStateName() != 'State_WeaponWait' )
+	if ( GfgIsGun()&& GetCurrentStateName() != 'State_WeaponWait' )
 		gfgHolsterRequested = true;
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
@@ -163,7 +163,7 @@ function InputLockFailsafe( time : float, id : int )
 @addMethod(Crossbow)
 function GfgKeepRiderAiming()
 {
-	if ( !GfgIsAkDrawn() )
+	if ( !GfgIsGunDrawn() )
 	{
 		gfgHolsterRequested = false;
 		return;
@@ -200,16 +200,16 @@ function ProcessFullBodyAnimWeight( optional forceUpperBodyAnim : bool ) : bool
 	var result : bool;
 
 	result = wrappedMethod( forceUpperBodyAnim );
-	if ( !GfgIsAkDrawn() || ownerPlayer.IsSwimming() || ownerPlayer.GetCurrentStateName() == 'AimThrow' )
+	if ( !GfgIsGunDrawn() || ownerPlayer.IsSwimming() || ownerPlayer.GetCurrentStateName() == 'AimThrow' )
 		return result;
 	// 閃躲、翻滾中（第 29 項：GfgEvadeTick）：上半身
-	if ( ownerPlayer.GfgAkEvading() )
+	if ( ownerPlayer.GfgGunEvading() )
 	{
 		setFullWeight = false;
 		ownerPlayer.SetBehaviorVariable( 'fullBodyAnimWeight', 0.f );
 		return false;
 	}
-	// 側移中（開槍中又在移動、戰鬥中朝目標移動）：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgAkTurnTick）
+	// 側移中（開槍中又在移動、戰鬥中朝目標移動）：全身瞄準，腳用側移、後退的動作（使用者 2026-10-16 回報上半身扭轉；GfgGunTurnTick）
 	if ( ownerPlayer.gfgStrafing && !forceUpperBodyAnim )
 	{
 		setFullWeight = true;
@@ -238,12 +238,12 @@ function CalculateMoveSpeed() : float
 
 	speed = wrappedMethod();
 	// 閃躲、翻滾中（第 29 項：GfgEvadeTick）：上半身圖一樣當作跑步，才不會選全身瞄準
-	if ( player.GfgAkEvading() )
+	if ( player.GfgGunEvading() )
 	{
 		player.SetBehaviorVariable( 'playerMoveTypeForOverlay', (int)PMT_Run );
 		return speed;
 	}
-	if ( speed <= 0.f || player.playerMoveType > PMT_Walk || !player.rangedWeapon || !player.rangedWeapon.GfgIsAkDrawn()
+	if ( speed <= 0.f || player.playerMoveType > PMT_Walk || !player.rangedWeapon || !player.rangedWeapon.GfgIsGunDrawn()
 		|| player.IsSwimming() || player.GetCurrentStateName() == 'AimThrow' )
 		return speed;
 
@@ -330,11 +330,11 @@ function UpdateLookAtVariables( lookAtTargetActive : float, lookAtTarget : Vecto
 	var player : CR4Player;
 
 	player = (CR4Player)this;
-	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAkDrawn() )
+	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsGunDrawn() )
 	{
 		if ( !player.IsUsingVehicle() )
 		{
-			lookAtTarget = player.GfgAkLookAtPoint();
+			lookAtTarget = player.GfgGunLookAtPoint();
 			lookAtTargetActive = 1.f;
 		}
 		lookAtTarget = player.GfgFixBackAim( lookAtTarget );
@@ -450,7 +450,7 @@ function GfgTryFire()
 // 選用的物品是 AK，而且就是裝在遠程武器格的那把
 // 主控台、物品欄換成別的十字弩時，選用物品可能還指著背包裡的 AK（10-19 實測）：
 // 這時原版的中鍵用裝著的十字弩瞄準（playerInput.ws:3184），劍也照常 → 不能當成 AK
-function GfgIsAkSelected( p : CR4Player ) : bool
+function GfgIsGunSelected( p : CR4Player ) : bool
 {
 	var w : W3PlayerWitcher;
 	var id, equipped : SItemUniqueId;
@@ -477,9 +477,9 @@ function GfgNoFireHere( p : CR4Player ) : bool
 
 // 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
 @addMethod(CPlayerInput)
-function GfgSelectedAk() : Crossbow
+function GfgSelectedGun() : Crossbow
 {
-	if ( !GfgIsAkSelected( thePlayer ) )
+	if ( !GfgIsGunSelected( thePlayer ) )
 		return NULL;
 	return (Crossbow)thePlayer.inv.GetItemEntityUnsafe( thePlayer.GetSelectedItemId() );
 }
@@ -490,7 +490,7 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 {
 	var ak : Crossbow;
 
-	ak = GfgSelectedAk();
+	ak = GfgSelectedGun();
 	if ( !ak )
 		return wrappedMethod( action );
 
@@ -504,7 +504,7 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 		// 手上有劍：先收劍、收好再拿出 AK（GfgNoSwordTick）；直接拿出會變成單手拿 AK（第 19 項）
 		if ( thePlayer.GfgSwordInHand() && !thePlayer.IsCrossbowHeld() )
 		{
-			thePlayer.GfgRequestAkRaise( true );
+			thePlayer.GfgRequestGunRaise( true );
 			return true;
 		}
 		// 還沒拿出來：照原版中鍵按下的流程拿出十字弩（playerInput.ws:3185-3204）
@@ -527,7 +527,7 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 @wrapMethod(CPlayerInput)
 function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
 {
-	if ( GfgSelectedAk() )
+	if ( GfgSelectedGun() )
 		return true;
 	return wrappedMethod( action );
 }
@@ -547,7 +547,7 @@ function GfgMiddleBlocked( action : SInputAction ) : bool
 		return false;
 	if ( GetIsAltSignCastingPressed() && theInput.GetMouserControllerScheme() == MouserControllerScheme_Comfort )
 		return false;
-	if ( !GfgSelectedAk() )
+	if ( !GfgSelectedGun() )
 		return false;
 	if ( IsPressed( action ) )
 	{

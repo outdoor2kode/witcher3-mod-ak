@@ -15,13 +15,13 @@ function SendInputContextActions( inputContextName : name, optional isForced : b
 		|| ( m_previousInputContext == 'JumpClimb' && m_currentInputContext == 'Exploration' )
 		|| ( m_previousInputContext == 'Exploration' && m_currentInputContext == 'JumpClimb' ) ) );
 	wrappedMethod( inputContextName, isForced );
-	if ( rebuilt && !m_altSignCasting && thePlayer.GfgHudAkShown() && ( inputContextName == 'Exploration' || inputContextName == 'Combat' ) )
-		GfgSendAkActions( inputContextName );
+	if ( rebuilt && !m_altSignCasting && thePlayer.GfgHudGunShown() && ( inputContextName == 'Exploration' || inputContextName == 'Combat' ) )
+		GfgSendGunActions( inputContextName );
 }
 
 // Flash 那邊只有 5 格（HudModuleControlsFeedback.as 的 mcBtn1～5），多的不顯示
 @addMethod(CR4HudModuleControlsFeedback)
-function GfgSendAkActions( inputContextName : name )
+function GfgSendGunActions( inputContextName : name )
 {
 	var arr : CScriptedFlashArray;
 	var act : name;
@@ -108,12 +108,12 @@ function GfgPushBinding( arr : CScriptedFlashArray, padAction : name, pcAction :
 }
 
 @addField(CR4Player)
-var gfgHudAk : bool;	// 右下角的提示現在是 AK 版
+var gfgHudGun : bool;	// 右下角的提示現在是 AK 版
 
 @addMethod(CR4Player)
-function GfgHudAkShown() : bool
+function GfgHudGunShown() : bool
 {
-	return rangedWeapon && rangedWeapon.GfgIsAkDrawn();
+	return rangedWeapon && rangedWeapon.GfgIsGunDrawn();
 }
 
 // 拿出、收起 AK 時重做提示（UpdateInputContextActions：:164-187，戰鬥情境用 'Combat'）
@@ -123,9 +123,9 @@ function GfgHudTick()
 	var hud : CR4ScriptedHud;
 	var module : CR4HudModuleControlsFeedback;
 
-	if ( GfgHudAkShown() == gfgHudAk )
+	if ( GfgHudGunShown() == gfgHudGun )
 		return;
-	gfgHudAk = !gfgHudAk;
+	gfgHudGun = !gfgHudGun;
 	hud = (CR4ScriptedHud)theGame.GetHud();
 	if ( hud )
 		module = (CR4HudModuleControlsFeedback)hud.GetHudModule( "ControlsFeedbackModule" );
@@ -141,7 +141,7 @@ function OnCbtAttackWithAlternateHeavy( action : SInputAction )
 {
 	var ak : Crossbow;
 
-	ak = GfgSelectedAk();
+	ak = GfgSelectedGun();
 	if ( !ak )
 		return wrappedMethod( action );
 	if ( IsPressed( action ) )
@@ -153,7 +153,7 @@ function OnCbtAttackWithAlternateHeavy( action : SInputAction )
 @wrapMethod(CPlayerInput)
 function OnCbtSpecialAttackWithAlternateHeavy( action : SInputAction )
 {
-	if ( GfgSelectedAk() )
+	if ( GfgSelectedGun() )
 		return true;
 	return wrappedMethod( action );
 }
@@ -164,7 +164,7 @@ function OnCbtSpecialAttackWithAlternateHeavy( action : SInputAction )
 @wrapMethod(CPlayerInput)
 function OnCommSheatheAny( action : SInputAction )
 {
-	if ( IsPressed( action ) && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+	if ( IsPressed( action ) && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() )
 		thePlayer.OnRangedForceHolster( true, false );
 	return wrappedMethod( action );
 }
@@ -187,7 +187,7 @@ function GfgRoundsLeft() : int
 }
 
 // 選用物品是 AK → 彈匣剩幾發；不是 → -1
-function GfgHudAkRounds( item : SItemUniqueId ) : int
+function GfgHudGunRounds( item : SItemUniqueId ) : int
 {
 	var witcher : W3PlayerWitcher;
 
@@ -195,7 +195,7 @@ function GfgHudAkRounds( item : SItemUniqueId ) : int
 	if ( !witcher || !witcher.inv.IsIdValid( item ) || !witcher.inv.ItemHasTag( item, 'gfg_ak47' ) )
 		return -1;
 	// AK 的實體還沒生成（剛裝上）：當作滿的
-	if ( !witcher.rangedWeapon || !witcher.rangedWeapon.GfgIsAk() )
+	if ( !witcher.rangedWeapon || !witcher.rangedWeapon.GfgIsGun() )
 		return witcher.inv.GetCrossbowAmmo( item );
 	return witcher.rangedWeapon.GfgRoundsLeft();
 }
@@ -210,7 +210,7 @@ function UpdateItemData( item : SItemUniqueId, bindingID : HudItemInfoBinding )
 	wrappedMethod( item, bindingID );
 	if ( bindingID != HudItemInfoBinding_item1 )
 		return;
-	rounds = GfgHudAkRounds( item );
+	rounds = GfgHudGunRounds( item );
 	gfgAmmoShown = rounds;
 	if ( rounds < 0 )
 		return;
@@ -236,7 +236,7 @@ function OnTick( timeDelta : float )
 	if ( !thePlayer.IsCiri() )
 	{
 		item = thePlayer.GetSelectedItemId();
-		if ( GfgHudAkRounds( item ) != gfgAmmoShown )
+		if ( GfgHudGunRounds( item ) != gfgAmmoShown )
 			UpdateItemData( item, HudItemInfoBinding_item1 );
 	}
 	return result;
@@ -258,15 +258,15 @@ function UpdateCrossbowItemData( radialSlotId : int, out dataList : CScriptedFla
 	slot = dataList.GetElementFlashObject( dataList.GetLength() - 1 );
 	if ( !slot )
 		return;
-	if ( GfgRadialAkIcon( slot ) )
+	if ( GfgRadialGunIcon( slot ) )
 	{
 		slot.SetMemberFlashNumber( "multiplyX", 2.f );
 		slot.SetMemberFlashNumber( "multiplyY", 0.5f );
 	}
-	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsList" ) );
-	GfgRadialAkIcons( slot.GetMemberFlashArray( "itemsRangedList" ) );
+	GfgRadialGunIcons( slot.GetMemberFlashArray( "itemsList" ) );
+	GfgRadialGunIcons( slot.GetMemberFlashArray( "itemsRangedList" ) );
 	// 第 27 項：AK 只用自己的子彈 → 拿掉中間清單裡的箭（原版列出 bolt 類、跳過目前的無限箭：hudModuleRadialMenu.ws:1109-1151）
-	if ( GetWitcherPlayer() && GetWitcherPlayer().GfgAkEquipped() )
+	if ( GetWitcherPlayer() && GetWitcherPlayer().GfgGunEquipped() )
 		GfgRadialRemoveBolts( slot.GetMemberFlashArray( "itemsList" ) );
 }
 
@@ -288,7 +288,7 @@ function GfgRadialRemoveBolts( list : CScriptedFlashArray )
 
 // 圖示路徑是 AK 的直式圖示（有沒有 img:// 都算）就換成水平的；有換回傳 true
 @addMethod(CR4HudModuleRadialMenu)
-function GfgRadialAkIcon( obj : CScriptedFlashObject ) : bool
+function GfgRadialGunIcon( obj : CScriptedFlashObject ) : bool
 {
 	var path : string;
 
@@ -302,14 +302,14 @@ function GfgRadialAkIcon( obj : CScriptedFlashObject ) : bool
 }
 
 @addMethod(CR4HudModuleRadialMenu)
-function GfgRadialAkIcons( list : CScriptedFlashArray )
+function GfgRadialGunIcons( list : CScriptedFlashArray )
 {
 	var i : int;
 
 	if ( !list )
 		return;
 	for ( i = 0; i < list.GetLength(); i += 1 )
-		GfgRadialAkIcon( list.GetElementFlashObject( i ) );
+		GfgRadialGunIcon( list.GetElementFlashObject( i ) );
 }
 
 // 弩箭發射：AK 的子彈改成飛向準心（畫面中央）指的點（原版是 GetLookAtPosition，最遠 25 公尺：playerBoltProjectile.ws:128-142）
@@ -321,14 +321,14 @@ function ThrowProjectile( targetPosIn : Vector )
 
 	target = targetPosIn;
 	player = (CR4Player)GetOwner();
-	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsAk() )
+	if ( player && player.rangedWeapon && player.rangedWeapon.GfgIsGun() )
 	{
 		target = player.rangedWeapon.GfgAimPoint( rayStart, rayDir );
 		gfgAimTarget = target;
 		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
 		if ( !player.IsDiving() )
 		{
-			gfgAkRange = player.rangedWeapon.GfgRange();
+			gfgGunRange = player.rangedWeapon.GfgRange();
 			// 準心射線經過的角色（第 11 項）：有的話子彈用 AtBone 打那個角色（下面的包裝）
 			GfgFindActorOnRay( rayStart, rayDir, VecDistance( rayStart, target ) );
 		}

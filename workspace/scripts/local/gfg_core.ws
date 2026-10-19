@@ -16,7 +16,7 @@
 
 // 目前裝備的十字弩是不是 AK
 @addMethod(Crossbow)
-function GfgIsAk() : bool
+function GfgIsGun() : bool
 {
 	var id : SItemUniqueId;
 

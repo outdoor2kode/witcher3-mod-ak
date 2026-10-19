@@ -460,7 +460,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 每次進遊戲固定打：`god()` → `closeTutorialPopup()` → `settime(1, 12)` → `additem('gfg_ak47', 1, true)` → Tab 輪盤選 AK → 左鍵拿出（要比對傷害時加 `setlevel(31)`）
     - `god()` 第一個打：編輯器的鏡頭高，Geralt 從空中掉下來會摔死
     - 第一次開輪盤會跳教學（Quick Access Menu）：每頁按 Esc 關（空白鍵在第二頁會連帶冥想）
-  - `setlevel(31)`：AK 的傷害＝10×等級＋20（`gfg_projectile.ws` 的 `GfgSetAkDamage`）→ 固定等級，傷害才好比對
+  - `setlevel(31)`：AK 的傷害＝10×等級＋20（`gfg_projectile.ws` 的 `GfgSetGunDamage`；10-20 前叫 `GfgSetAkDamage`）→ 固定等級，傷害才好比對
     - 2026-10-16 19:55 以前：AK 有 `attack_power` 2.02 → 需求等級 31，沒先升級就裝不上（`docs\findings.md` §13.12）
     - 之後拿掉 `attack_power`（commit `57e2470`）：需求等級變成 1（十字弩類只看 `attack_power`：`inventoryComponent.ws:359-361`、`gameParams.ws:998-1017`）
     - **2026-10-19 遊戲實測**：沒打 `setlevel`（等級 1）也裝得上、輪盤有 AK、能開槍；物品欄的提示框寫 Required Level 1 → 不用先升級

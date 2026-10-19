@@ -29,7 +29,7 @@ function CanSprint( speed : float ) : bool
 	var isAk, result : bool;
 
 	weapon = rangedWeapon;
-	isAk = weapon && weapon.GfgIsAk();
+	isAk = weapon && weapon.GfgIsGun();
 	if ( isAk )
 		rangedWeapon = NULL;
 	result = wrappedMethod( speed );
@@ -45,7 +45,7 @@ function OnSprintHolster()
 	var crossbow : Crossbow;
 
 	crossbow = (Crossbow)this;
-	if ( crossbow && crossbow.GfgIsAk() )
+	if ( crossbow && crossbow.GfgIsGun() )
 		return;
 	wrappedMethod();
 }
@@ -55,7 +55,7 @@ function OnSprintHolster()
 @wrapMethod(Crossbow)
 function RaiseOwnerGraphEvents( eventName : name, force : bool ) : bool
 {
-	if ( eventName == 'Crossbow_Draw' && GfgIsAk() && !ownerPlayer.IsUsingVehicle() )
+	if ( eventName == 'Crossbow_Draw' && GfgIsGun() && !ownerPlayer.IsUsingVehicle() )
 	{
 		if ( force )
 			return ownerPlayer.RaiseForceEvent( eventName );
@@ -78,7 +78,7 @@ function StateEnter( prevStateName : name )
 	stateName = GetStateName();
 	if ( stateName == 'Jump' || stateName == 'Land' || stateName == 'AirCollision' || stateName == 'IdleJump' )
 	{
-		if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+		if ( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() )
 			m_InputContextE = EGCI_Exploration;
 		else
 			// 原版的設定：explorationStateJump.ws:255、explorationStateLand.ws:119、explorationStateAirCollision.ws:79、explorationStateIdleJump.ws:29
@@ -88,13 +88,13 @@ function StateEnter( prevStateName : name )
 }
 
 @addField(CR4Player)
-var gfgKeepAkOnJump : bool;		// 起跳的這段程式執行中為 true：OnRangedForceHolster 不收 AK
+var gfgKeepGunOnJump : bool;		// 起跳的這段程式執行中為 true：OnRangedForceHolster 不收 AK
 
 // 從其他類別不能直接寫入這個欄位（wcc_lite：Left hand side is const），所以用函式設定
 @addMethod(CR4Player)
-function GfgSetKeepAkOnJump( keep : bool )
+function GfgSetKeepGunOnJump( keep : bool )
 {
-	gfgKeepAkOnJump = keep;
+	gfgKeepGunOnJump = keep;
 }
 
 // 起跳時原版強制收起十字弩（explorationStateJump.ws:408）
@@ -102,21 +102,21 @@ function GfgSetKeepAkOnJump( keep : bool )
 @wrapMethod(CExplorationStateJump)
 function StateEnterSpecific( prevStateName : name )
 {
-	thePlayer.GfgSetKeepAkOnJump( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() );
+	thePlayer.GfgSetKeepGunOnJump( thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() );
 	wrappedMethod( prevStateName );
-	thePlayer.GfgSetKeepAkOnJump( false );
+	thePlayer.GfgSetKeepGunOnJump( false );
 
-	if ( m_JumpParmsS.m_JumpTypeE == EJT_ToWater && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
+	if ( m_JumpParmsS.m_JumpTypeE == EJT_ToWater && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsGunDrawn() )
 		thePlayer.OnRangedForceHolster( true, true );
 }
 
 @wrapMethod(CR4Player)
 function OnRangedForceHolster( optional forceUpperBodyAnim, instant, dropItem : bool )
 {
-	if ( gfgKeepAkOnJump )
+	if ( gfgKeepGunOnJump )
 		return true;
 	// 被打中時不收 AK（下面「戰鬥中被打中」那一段）
-	if ( gfgInHitStart && rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+	if ( gfgInHitStart && rangedWeapon && rangedWeapon.GfgIsGunDrawn() )
 		return true;
 	return wrappedMethod( forceUpperBodyAnim, instant, dropItem );
 }
@@ -154,11 +154,11 @@ function OnHitStart()
 //   拿著劍直接拿出十字弩：十字弩在左手、劍留在右手（原版的單手十字弩）→ 雙手持槍的動畫對不上（使用者看到的單手拿 AK）
 
 @addField(CR4Player)
-var gfgAkRaiseWanted : bool;	// 要舉 AK：原版想拔劍、或拿著劍時按了左鍵
+var gfgGunRaiseWanted : bool;	// 要舉 AK：原版想拔劍、或拿著劍時按了左鍵
 @addField(CR4Player)
-var gfgAkRaiseTime : float;		// 要舉 AK 的時間（引擎時間，秒）：5 秒內舉不起來就算了
+var gfgGunRaiseTime : float;		// 要舉 AK 的時間（引擎時間，秒）：5 秒內舉不起來就算了
 @addField(CR4Player)
-var gfgAkRaiseManual : bool;	// 是按左鍵要的：不在戰鬥中也舉
+var gfgGunRaiseManual : bool;	// 是按左鍵要的：不在戰鬥中也舉
 @addField(CR4Player)
 var gfgTriggerWanted : bool;	// 地面的左鍵按著（OnCbtAttackWithAlternateLight）：拿著劍時按下，收好劍、拿出 AK 後接著扣扳機
 
@@ -166,9 +166,9 @@ var gfgTriggerWanted : bool;	// 地面的左鍵按著（OnCbtAttackWithAlternate
 @addMethod(CR4Player)
 function GfgNoSwordMode() : bool
 {
-	if ( rangedWeapon && rangedWeapon.GfgIsAkDrawn() )
+	if ( rangedWeapon && rangedWeapon.GfgIsGunDrawn() )
 		return true;
-	return GfgIsAkSelected( this );
+	return GfgIsGunSelected( this );
 }
 
 // 手上有劍：目前的武器（拔劍一開始就設好：playerWeaponHolster.ws:601），或劍還在手上（收劍到收好才離手）
@@ -182,13 +182,13 @@ function GfgSwordInHand() : bool
 }
 
 @addMethod(CR4Player)
-function GfgRequestAkRaise( manual : bool )
+function GfgRequestGunRaise( manual : bool )
 {
-	if ( !gfgAkRaiseWanted )
-		gfgAkRaiseManual = false;
-	gfgAkRaiseWanted = true;
-	gfgAkRaiseManual = gfgAkRaiseManual || manual;
-	gfgAkRaiseTime = theGame.GetEngineTimeAsSeconds();
+	if ( !gfgGunRaiseWanted )
+		gfgGunRaiseManual = false;
+	gfgGunRaiseWanted = true;
+	gfgGunRaiseManual = gfgGunRaiseManual || manual;
+	gfgGunRaiseTime = theGame.GetEngineTimeAsSeconds();
 }
 
 @addMethod(CR4Player)
@@ -205,7 +205,7 @@ function GetMostConvenientMeleeWeapon( targetToDrawAgainst : CActor, optional ig
 	ret = wrappedMethod( targetToDrawAgainst, ignoreActionLock );
 	if ( ( ret == PW_Steel || ret == PW_Silver ) && thePlayer.GfgNoSwordMode() )
 	{
-		thePlayer.GfgRequestAkRaise( false );
+		thePlayer.GfgRequestGunRaise( false );
 		return PW_Fists;
 	}
 	return ret;
@@ -230,7 +230,7 @@ function GfgNoSwordTick()
 
 	if ( !GfgNoSwordMode() )
 	{
-		gfgAkRaiseWanted = false;
+		gfgGunRaiseWanted = false;
 		return;
 	}
 
@@ -243,7 +243,7 @@ function GfgNoSwordTick()
 			if ( IsInCombat() )
 			{
 				OnEquipMeleeWeapon( PW_Fists, true );
-				GfgRequestAkRaise( false );
+				GfgRequestGunRaise( false );
 			}
 			else
 				OnEquipMeleeWeapon( PW_None, true );
@@ -251,14 +251,14 @@ function GfgNoSwordTick()
 		return;
 	}
 
-	if ( !gfgAkRaiseWanted )
+	if ( !gfgGunRaiseWanted )
 		return;
 	now = theGame.GetEngineTimeAsSeconds();
 	// 已經拿著（或拿出中）、5 秒內舉不起來、不在戰鬥中（按左鍵要的除外）：不舉
 	// （戰鬥中按 C 收起 AK，原版要拔劍的程式一呼叫就會再舉起來：同原版戰鬥中收劍會馬上再拔，r4Player.ws:3178-3189、playerWeaponHolster.ws:531-534）
-	if ( IsCrossbowHeld() || now - gfgAkRaiseTime > 5.f || ( !gfgAkRaiseManual && !IsInCombat() ) )
+	if ( IsCrossbowHeld() || now - gfgGunRaiseTime > 5.f || ( !gfgGunRaiseManual && !IsInCombat() ) )
 	{
-		gfgAkRaiseWanted = false;
+		gfgGunRaiseWanted = false;
 		return;
 	}
 	// 劍還沒收好、不能用十字弩、在空中、游泳、在船上：等
@@ -281,14 +281,14 @@ function GfgNoSwordTick()
 			return;
 	}
 	// 上一次試過還不到 1 秒：等（拿不出來時不要每格一直送）
-	if ( now - gfgAkRaiseTryTime < 1.f )
+	if ( now - gfgGunRaiseTryTime < 1.f )
 		return;
-	gfgAkRaiseTryTime = now;
-	GfgRaiseAk();
+	gfgGunRaiseTryTime = now;
+	GfgRaiseGun();
 }
 
 @addField(CR4Player)
-var gfgAkRaiseTryTime : float;	// 上一次試著舉 AK 的時間（引擎時間，秒）
+var gfgGunRaiseTryTime : float;	// 上一次試著舉 AK 的時間（引擎時間，秒）
 
 // 騎馬戰鬥管理的狀態（沒騎馬：none）
 @addMethod(CR4Player)
@@ -301,11 +301,11 @@ function GfgHorseMgrState() : name
 
 // 拿出 AK（不開火；左鍵還按著就接著扣扳機）
 @addMethod(CR4Player)
-function GfgRaiseAk()
+function GfgRaiseGun()
 {
 	var ak : Crossbow;
 
-	gfgAkRaiseWanted = false;
+	gfgGunRaiseWanted = false;
 	ak = (Crossbow)inv.GetItemEntityUnsafe( GetSelectedItemId() );
 	if ( !ak )
 		return;
@@ -339,9 +339,9 @@ var gfgEvadeOverlay : bool;	// 上面這幾個值現在是閃躲用的
 var gfgEvadeUntil : float;		// 閃躲（含結束後一小段）到這個時間
 
 @addMethod(CR4Player)
-function GfgAkEvading() : bool
+function GfgGunEvading() : bool
 {
-	return gfgEvadeOverlay && rangedWeapon && rangedWeapon.GfgIsAkDrawn();
+	return gfgEvadeOverlay && rangedWeapon && rangedWeapon.GfgIsGunDrawn();
 }
 
 @addMethod(Crossbow)
@@ -351,7 +351,7 @@ function GfgAimingFlag() : bool
 }
 
 @addMethod(CR4Player)
-function GfgEvadeTick( akDrawn : bool )
+function GfgEvadeTick( gunDrawn : bool )
 {
 	var now : float;
 	var cat : int;
@@ -359,9 +359,9 @@ function GfgEvadeTick( akDrawn : bool )
 	now = theGame.GetEngineTimeAsSeconds();
 	cat = (int)GetBehaviorVariable( 'combatActionType' );
 	// 閃躲、翻滾都是 CAT_Dodge（翻滾另設 isRolling：combat.ws:1424-1427）
-	if ( akDrawn && ( IsCurrentlyDodging() || ( IsInCombatAction() && ( cat == (int)CAT_Dodge || cat == (int)CAT_Roll ) ) ) )
+	if ( gunDrawn && ( IsCurrentlyDodging() || ( IsInCombatAction() && ( cat == (int)CAT_Dodge || cat == (int)CAT_Roll ) ) ) )
 		gfgEvadeUntil = now + 0.3f;
-	if ( akDrawn && now < gfgEvadeUntil )
+	if ( gunDrawn && now < gfgEvadeUntil )
 	{
 		if ( !gfgEvadeOverlay )
 		{

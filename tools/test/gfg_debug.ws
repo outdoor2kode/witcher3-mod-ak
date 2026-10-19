@@ -67,7 +67,7 @@ function GfgDbgShotInfo() : string
 
 	if ( deployedEnt )
 		d = true;
-	return "count=" + shotCount + " state=" + GetCurrentStateName() + " deployed=" + d + " drawn=" + GfgIsAkDrawn();
+	return "count=" + shotCount + " state=" + GetCurrentStateName() + " deployed=" + d + " drawn=" + GfgIsGunDrawn();
 }
 
 // gfgmag()：彈匣在不在左手上
@@ -139,7 +139,7 @@ exec function gfgstack()
 // gfggraphs()：AK 的那套動畫圖現在有沒有換上、應不應該換上
 exec function gfggraphs()
 {
-	LogChannel( 'GFG', "graphs on " + thePlayer.gfgAkGraphsOn + " wanted " + thePlayer.GfgAkGraphsWanted() );
+	LogChannel( 'GFG', "graphs on " + thePlayer.gfgGunGraphsOn + " wanted " + thePlayer.GfgGunGraphsWanted() );
 	GfgDbgStack( "graphs" );
 }
 
@@ -271,7 +271,7 @@ timer function GfgDbgWatchTimer( dt : float, id : int )
 		bolt = (W3BoltProjectile)ents[i];
 		pos = ents[i].GetWorldPosition();
 		onScreen = theCamera.WorldVectorToViewRatio( pos, x, y );
-		s += " | " + ents[i].GetReadableName() + " ak=" + FloatToStringPrec( bolt.gfgAkRange, 0 ) + " d=" + FloatToStringPrec( VecDistance( pos, cam ), 2 )
+		s += " | " + ents[i].GetReadableName() + " ak=" + FloatToStringPrec( bolt.gfgGunRange, 0 ) + " d=" + FloatToStringPrec( VecDistance( pos, cam ), 2 )
 			+ " scr=" + onScreen + "(" + FloatToStringPrec( ( x + 1 ) / 2, 3 ) + "," + FloatToStringPrec( ( y + 1 ) / 2, 3 ) + ")";
 		comps = ents[i].GetComponentsByClassName( 'CMeshComponent' );
 		for ( j = 0; j < comps.Size(); j += 1 )
@@ -279,7 +279,7 @@ timer function GfgDbgWatchTimer( dt : float, id : int )
 			bb = ((CBoundedComponent)comps[j]).GetBoundingBox();
 			s += " m" + j + "=" + comps[j].GetName() + ":" + ((CDrawableComponent)comps[j]).IsVisible() + ":" + FloatToStringPrec( VecLength( bb.Max - bb.Min ), 3 )
 				+ ( comps[j].GetEntity() == ents[i] );
-			if ( gfgDbgBulletScale > 0.f && bolt.gfgAkRange > 0.f )
+			if ( gfgDbgBulletScale > 0.f && bolt.gfgGunRange > 0.f )
 				comps[j].SetScale( Vector( gfgDbgBulletScale, gfgDbgBulletScale, gfgDbgBulletScale ) );
 		}
 	}

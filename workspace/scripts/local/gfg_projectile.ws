@@ -6,7 +6,7 @@
 // （CCO 是整個 ReleaseProjectiles2 覆寫，射程乘上倍率：CCO playerBoltProjectile.ws:589-595）
 
 @addField(W3AdvancedProjectile)
-var gfgAkRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
+var gfgGunRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
 
 @addField(W3AdvancedProjectile)
 var gfgAimTarget : Vector;		// AK：準心的射線點（ThrowProjectile 包裝設定）
@@ -21,9 +21,9 @@ var gfgHitNormal : Vector;		// AK：碰撞的法線（射線的反方向）
 @addMethod(W3AdvancedProjectile)
 function GfgShotRange( range : float ) : float
 {
-	if ( gfgAkRange <= 0.f )
+	if ( gfgGunRange <= 0.f )
 		return range;
-	return gfgAkRange;
+	return gfgGunRange;
 }
 
 // AK 子彈的速度（公尺／秒；第 9、10 項）：真實 AK 的初速約 715；原版弩箭 projSpeed 60（bodkin_bolt.w2ent）；角度 0 = 直線
@@ -50,7 +50,7 @@ function ShootProjectileAtPosition( angle : float, velocity : float, target : Ve
 	v = velocity;
 	r = range;
 	tgt = target;
-	if ( gfgAkRange > 0.f )
+	if ( gfgGunRange > 0.f )
 	{
 		a = 0.f;
 		v = GfgBulletSpeed();
@@ -59,14 +59,14 @@ function ShootProjectileAtPosition( angle : float, velocity : float, target : Ve
 			tgt = gfgHitPos;
 	}
 	wrappedMethod( a, v, tgt, r, collisionGroups );		// 不是 AK 的箭：參數照原版
-	if ( gfgAkRange > 0.f && gfgHitActor )
+	if ( gfgGunRange > 0.f && gfgHitActor )
 		GfgManualHit();
 }
 
 @wrapMethod(W3AdvancedProjectile)
 function ShootProjectileAtBone( angle : float, velocity : float, target : CEntity, targetBone : name, optional range : float, optional collisionGroups : array<name> )
 {
-	if ( gfgAkRange > 0.f )
+	if ( gfgGunRange > 0.f )
 	{
 		ShootProjectileAtPosition( angle, velocity, gfgAimTarget, range, collisionGroups );		// 上面的包裝
 		return;
@@ -101,10 +101,10 @@ function OnProjectileCollision( pos, normal : Vector, collidingComponent : CComp
 
 	wasScheduled = isScheduledForDestruction;
 	result = wrappedMethod( pos, normal, collidingComponent, hitCollisionsGroups, actorIndex, shapeIndex );
-	if ( gfgAkRange > 0.f && !wasScheduled && isScheduledForDestruction
+	if ( gfgGunRange > 0.f && !wasScheduled && isScheduledForDestruction
 		&& ( hitCollisionsGroups.Contains( 'Static' ) || hitCollisionsGroups.Contains( 'Terrain' ) ) )
 		PlayEffect( 'sparks' );
-	if ( gfgAkRange > 0.f )
+	if ( gfgGunRange > 0.f )
 		GfgSetBulletMeshVisible( false );
 	return result;
 }
@@ -125,7 +125,7 @@ function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNo
 	var bolt : SItemUniqueId;
 
 	result = wrappedMethod( targetCurrentPosition, target );
-	if ( gfgAkRange > 0.f )
+	if ( gfgGunRange > 0.f )
 	{
 		witcher = (W3PlayerWitcher)GetOwner();
 		if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_Bolt, bolt ) || !witcher.inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
@@ -157,18 +157,18 @@ function GfgSetBulletMeshVisible( visible : bool )
 //   - 用 InfiniteAmmo 標籤判斷的：子彈也有這個標籤 → 和原版的無限箭一樣（不扣數量：playerBoltProjectile.ws:386；不能卸下：inventoryMenu.ws:2562-2565 等）
 //   - 用名稱判斷的：換彈（rangedWeapon.ws:838 → 上面 PlayOwnerReloadAnim 的包裝）、新物品清單（r4guimanager.ws:1636）、
 //     物品欄子彈格的「卸下」按鈕（inventoryContext.ws:646、661）→ 下面補上
-//   - 屬性視窗的十字弩傷害（CharacterStatsPopup.ws:919-920）照原版讀 Bodkin Bolt：AK 的傷害由腳本算（GfgSetAkDamage），和子彈物品無關
+//   - 屬性視窗的十字弩傷害（CharacterStatsPopup.ws:919-920）照原版讀 Bodkin Bolt：AK 的傷害由腳本算（GfgSetGunDamage），和子彈物品無關
 // - AK 只用自己的子彈：輪盤不列出原版的箭（UpdateCrossbowItemData 的包裝）、物品欄不能把箭裝上去；
 //   換回十字弩時照原版裝 Bodkin Bolt（裝 AK 前選的特殊箭留在物品欄）
 
-function GfgIsAkAmmoName( n : name ) : bool
+function GfgIsGunAmmoName( n : name ) : bool
 {
 	return n == 'gfg_ak47_ammo' || n == 'gfg_ak47_ammo_water';
 }
 
-// 遠程武器格裝的是不是 AK（同 Crossbow.GfgIsAk，但不用十字弩的物件：裝備的過程中它可能還沒生成，playerWitcher.ws:6382-6384）
+// 遠程武器格裝的是不是 AK（同 Crossbow.GfgIsGun，但不用十字弩的物件：裝備的過程中它可能還沒生成，playerWitcher.ws:6382-6384）
 @addMethod(W3PlayerWitcher)
-function GfgAkEquipped() : bool
+function GfgGunEquipped() : bool
 {
 	var id : SItemUniqueId;
 
@@ -184,7 +184,7 @@ function GetCurrentInfiniteBoltName( optional forceBodkin : bool, optional force
 	var n : name;
 
 	n = wrappedMethod( forceBodkin, forceHarpoon );
-	if ( !GfgAkEquipped() )
+	if ( !GfgGunEquipped() )
 		return n;
 	if ( n == 'Harpoon Bolt' )
 		return 'gfg_ak47_ammo_water';
@@ -230,7 +230,7 @@ function GfgFixAmmo()
 		return;		// 空著的話原版已經補了（:6403-6406）
 	if ( inv.GetItemName( bolt ) == GetCurrentInfiniteBoltName() )
 		return;
-	if ( GfgAkEquipped() || inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
+	if ( GfgGunEquipped() || inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
 		AddAndEquipInfiniteBolt();
 }
 
@@ -241,7 +241,7 @@ function OnEquipItem( item : SItemUniqueId, slot : int, quantity : int )
 {
 	if ( _currentInv != _containerInv && !_shopNpc && !_containerInv
 		&& _inv.IsIdValid( item ) && _inv.IsItemBolt( item ) && !_inv.ItemHasTag( item, 'gfg_ak47_ammo' )
-		&& GetWitcherPlayer() && GetWitcherPlayer().GfgAkEquipped() )
+		&& GetWitcherPlayer() && GetWitcherPlayer().GfgGunEquipped() )
 	{
 		showNotification( GetLocStringByKeyExt( "menu_cannot_perform_action_now" ) );
 		OnPlaySoundEvent( "gui_global_denied" );
@@ -294,7 +294,7 @@ function RegisterNewItem( item : SItemUniqueId )
 
 // 物品的提示框：類別原本照物品類別寫「Crossbow bolt」（item_category_bolt：guiTooltipComponent.ws:434）→ 子彈改成自己的字串（彈藥）
 // 物品欄的提示框顯示的是 ItemType（不是護甲時＝類別：guiTooltipComponent.ws:502、:641；TooltipInventory.as:282）；ItemCategory（:646）一起改
-// 數值照原版（Bodkin Bolt 的穿刺傷害）：AK 的傷害由腳本算（GfgSetAkDamage），和子彈物品無關
+// 數值照原版（Bodkin Bolt 的穿刺傷害）：AK 的傷害由腳本算（GfgSetGunDamage），和子彈物品無關
 @wrapMethod(W3TooltipComponent)
 function GetBaseItemData( item : SItemUniqueId, itemInvComponent : CInventoryComponent, optional isShopItem : bool, optional compareWithItem : SItemUniqueId, optional compareItemInv : CInventoryComponent ) : CScriptedFlashObject
 {
@@ -419,9 +419,9 @@ function GfgHeadHit() : bool
 }
 
 @addMethod(W3BoltProjectile)
-function GfgIsAkBullet() : bool
+function GfgIsGunBullet() : bool
 {
-	return gfgAkRange > 0.f;
+	return gfgGunRange > 0.f;
 }
 
 @wrapMethod(W3DamageManager)
@@ -430,13 +430,13 @@ function ProcessAction( act : W3DamageAction )
 	var bolt : W3BoltProjectile;
 
 	bolt = (W3BoltProjectile)act.causer;
-	if ( bolt && bolt.GfgIsAkBullet() && (W3Action_Attack)act )
-		GfgSetAkDamage( act, bolt );
+	if ( bolt && bolt.GfgIsGunBullet() && (W3Action_Attack)act )
+		GfgSetGunDamage( act, bolt );
 	wrappedMethod( act );
 }
 
 @addMethod(W3DamageManager)
-function GfgSetAkDamage( act : W3DamageAction, bolt : W3BoltProjectile )
+function GfgSetGunDamage( act : W3DamageAction, bolt : W3BoltProjectile )
 {
 	var dmg, dist, perLevel, flat : float;
 
