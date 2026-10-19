@@ -2688,6 +2688,10 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - `spawnBoatAndMount()`：情境 `Boat`；AK 中鍵按住、中鍵點一下、左鍵都 0 發；原版十字弩中鍵 → `Thrown <<Bodkin Bolt>>`
   - 按 E 離開舵（站在船上，情境 `Exploration`）：AK 左鍵、中鍵 0 發，AK 留在背上
   - 傳回陸地：右下角又有「叫馬」（`OnBoatTrigger` 的離開有跑）→ AK 照常開槍（按住 12 發）
+- **第 40 項改（使用者 10-19：「沒有駕駛，只是站在船上，這要跟站在陸地上一樣行為」）**：`GfgNoFireHere` 拿掉 `IsOnBoat()`
+  → `IsUsingBoat() || IsSwimming() || IsDiving()`：只有掌舵（坐船的乘客也是 `IsUsingBoat`）、游泳、潛水不開槍
+  - 遊戲實測（Novigrad、10-19 16:0x）：`xy(375, 1180)` 游泳 0 發 → `spawnBoatAndMount()` 掌舵 0 發 → E 離開舵、輪盤選 AK、左鍵：**AK 拿出來開槍**（25 發；截圖左下角剩 22 發、槍口火光）
+    → 再 `spawnBoatAndMount()` 掌舵：左鍵、中鍵 0 發 → E、`xy(375, 1180)` 游泳：0 發（AK 確定是選用物品）
 
 ### 37.5 測試時學到的
 
