@@ -52,6 +52,16 @@
    - 原檔搬到 `backup\gfg_ak47_before_split_2026-10-20.ws`；工具、`CLAUDE.md`、`tools\README.md` 裡的舊檔名改了（`docs\findings.md`、`m3.md` 是歷史紀錄，照舊）
    - 遊戲裡的冒煙測試：和第 2 步一起跑（REDkit 現在關著）
 3. #48 重構第 2 步：槍的規格表（每把槍的數值、名稱、模板、聲音、後座力表放一處；加新槍＝加一筆）＋「是不是 AK」→「是不是我們的槍」；AK 的數值照舊 → AK 回歸
+   - ✅ 2a（00:3x）：名稱裡的 Ak 改成 Gun（35 個：`GfgIsAk`→`GfgIsGun`、`GfgIsAkDrawn`→`GfgIsGunDrawn`、`GfgSetAkDamage`→`GfgSetGunDamage`、`gfgAkRange`→`gfgGunRange`…；區域變數 `akDrawn`→`gunDrawn`；暫存 `refactor\rename.py`）；註解的「AK」沒改
+   - **2b 設計**（照這個做；每小步都要編譯過才 commit）：
+     - `gfg_core.ws`：`struct SGfgGunSpec`（欄位：`id`（物品名稱）、`cycleTime`、`recoilResetTime`、`range`、`spreadStand`／`spreadMove`／`spreadPerShot`（度）、`maxMoveSpeed`、`recoveryTime`／`recoveryTimeFinal`／`recoveryStartShot`／`recoveryEndShot`、`dmgPerLevel`／`dmgFlat`／`headshotMult`／`rangeModifier`、`soundBank`／`shotEvent`、`ammoItem`／`ammoWaterItem`、`tmplGun`／`tmplMag`／`tmplNoMag`、`iconInv`／`iconRadial`、`muzzle : Vector`、`kickRight`／`kickUp : array< float >`）
+       - `GfgGunIds()`（全部槍的物品名稱）、`GfgGunSpecOf( id )`（switch；加槍＝加一行）、`W3PlayerWitcher.GfgGun()`（裝著的槍；用物品名稱快取在欄位）
+       - 方法名不要和型別同名（所以型別叫 `SGfgGunSpec`，照原版 struct 的 S 開頭）
+     - 新檔 `gfg_gun_ak47.ws`：`GfgSpecAk47()` 填現在寫死的值（`GfgCycleTime` 0.1、`GfgRecoilResetTime` 0.368、`GfgRange` 208、spread 0.4016／10.3188／0.4469、`GfgMaxMoveSpeed` 5.46、恢復 0.368→0.506（第 2～5 發）、傷害 10×等級＋20、爆頭 ×4、距離 0.98^(d/12.7)、`gfg_ak47.bnk`／`gfg_ak47_shot`、子彈 `gfg_ak47_ammo`／`_water`、模板 `…\gfg_ak47\gfg_ak47(.w2ent|_mag|_nomag)`、圖示 `gfg_ak47_64x128.png`→`gfg_ak47_128x64.png`、槍口 `Vector(0.2368, 0.0409, 0.1710)`）＋後座力表（`gfg_projectile.ws` 的 `GfgRecoilKickRight`／`Up` 的 switch 轉成陣列）
+     - 改成查表的地方：`gfg_fire.ws`（`GfgCycleTime`、`GfgShotSound`、`GfgIsGunSelected` 的標籤、`GfgMuzzleFlash` 的位置）、`gfg_recoil.ws`（`GfgRecoilResetTime`、`GfgRange`、`GfgSpread*`、`GfgMaxMoveSpeed`、`GfgSpreadRecoveryTime`）、`gfg_projectile.ws`（子彈標籤 `gfg_ak47_ammo`→`gfg_gun_ammo` 8 處、`GfgIsGunAmmoName`、`GetCurrentInfiniteBoltName`、`GfgSetGunDamage`、後座力表）、`gfg_reload.ws` 67／71（彈匣模板）、`gfg_anim.ws` 69（標籤）／588（替身模板）、`gfg_ui.ws` 195（標籤）／298（輪盤圖示）、`gfg_core.ws` 27（標籤）
+     - 判斷「我們的槍」用共用標籤 `gfg_gun`、子彈用 `gfg_gun_ammo`（XML 加上；舊標籤留著）
+     - **子彈記住哪把槍射的**（`W3BoltProjectile` 加 `gfgGunId`，和 `gfgGunRange` 同一處設）：傷害照那把槍算（打中時玩家可能換槍了）
+     - **換槍時重新生成快取的實體**：替身 `gfgDummy`、彈匣 `gfgMagNoMag`／`gfgMagEnt`（記下用的模板，和現在的槍不同就刪掉重生）
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）
 6. M4 的規格加進表 → 遊戲裡跑驗收清單 → 回歸清單
