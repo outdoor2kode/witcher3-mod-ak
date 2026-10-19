@@ -922,7 +922,8 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 
 - 裝備檢查：物品等級 > 玩家等級就不能裝備（`r4Player.ws:11727-11745` `HasRequiredLevelToEquipItem`；有 `EET_WolfHour` 時放寬 2 級）
 - 2026-10-12 時 `gfg_ak47` 的 `attack_power` = 2.02 → **需求等級 31**；`Fast` 啟動的 Geralt 等級不夠（2026-10-12 使用者回報無法裝備）
-  - 2026-10-16 第 10 項拿掉 `attack_power`（commit `57e2470`；傷害改由腳本算）→ 照上表需求等級變成 1；沒在遊戲裡驗證（`CLAUDE.md` §12「主控台指令」）
+  - 2026-10-16 第 10 項拿掉 `attack_power`（commit `57e2470`；傷害改由腳本算）→ 照上表需求等級變成 1（`CLAUDE.md` §12「主控台指令」）
+    - 2026-10-19 遊戲實測：沒打 `setlevel`（等級 1）→ 輪盤有 AK、拿得出來、能開槍；子彈的提示框寫 Required Level 1（§37）
 - 測試時可用主控台 `setlevel(31)`（`playerCheats.ws:162-182`：加經驗值直到目標等級，只升不降）
 - → M2 設計傷害時要考慮：`attack_power` 會同時改變需求等級
 
@@ -2629,3 +2630,70 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 實測：Ctrl＋D 閃躲、空白鍵翻滾、A＋空白鍵往左翻滾：都有動作、AK 單手跟著身體、翻完回到兩手持槍（`State_WeaponAim`）；翻完馬上射正常
   - 連射中翻滾：翻滾時停火（兩手沒握好：§34.3）、翻完接著射；換彈中翻滾：照樣換完、歸零
 - 查法：暫時包 `W3PlayerWitcher.EvadePressed`、`CR4PlayerStateCombat.OnPerformEvade` 記下條件（`gfg_debug.ws`）；連拍用 `desk.ps1 burst … hold=a key=space`、主控台 `slow(0.25)` 放慢
+
+## 37. 左下角的子彈數、子彈名稱、子彈圖示、船上和水裡不開槍（2026-10-19 第 35～38 項；遊戲實測）
+
+### 37.1 左下角的子彈數（第 35 項）
+
+- 原版：`CR4HudModuleItemInfo`（`hudModuleItemInfo.ws`）
+  - `OnTick`：`CanTick` 沒過就跳過（`:124`）；選用物品 `GetSelectedItemId()`（`:151`）→ `UpdateItem( …, HudItemInfoBinding_item1 )`（`:220`）
+  - `UpdateItem` 只在物品換了、數量變了、十字弩的箭換了時重送（`:306-384`）
+  - `UpdateItemData`：無效物品直接清空、不呼叫物品欄函式（`:423`）；十字弩那格的數字是箭數，無限箭「∞」、0 是紅色（`:482-500`）→ Flash `setItemInfo`（7 個參數：binding、圖示、類別、名稱、數字、兩種按鍵）
+  - Flash `HudModuleItemInfo.as` 的 `setItemInfo` → `GameEvent.UPDATE`：模組出現、重新計時淡出
+  - 戰鬥音樂中、沒滿血：一直顯示（`SetAlwaysDisplayed`：`:261-264`）
+- 做法（`gfg_ak47.ws`「左下角的子彈數」）：
+  - 剩幾發＝彈匣（XML 的 `ammo` 30）－`shotCount`（`rangedWeapon.ws:691`；每發 +1：`:708`；換彈結束歸零：`:696-702`）
+  - 包 `UpdateItemData`：原版做完後，選用物品是 AK 時把數字換成剩幾發（白色；0 紅色），和快取 `m_previousSetItemInfo`（private，annotation 讀得到）不同才重送 `setItemInfo`
+  - 包 `OnTick`：剩幾發變了 → 呼叫 `UpdateItemData`（原版的 `UpdateItem` 看不到彈匣）
+  - 遠程武器實體不是 AK（還沒拿出來過）時用 `GetCrossbowAmmo`（＝XML 的 30）
+- 遊戲實測（REDkit、reference_level、10-19 14:3x；連拍左下角）：
+  - 不在戰鬥：每發少 1；數字變了就出現、幾秒後淡出（同原版箭數變的時候）
+  - 按住打到空：紅色 0 → 換彈中一直是紅色 0（約 2.3 秒）→ 換完 30（按著不放就接著 28、26…）
+  - 剩 18 發按 R：換彈中不顯示（數字沒變）、換完出現 30
+  - 剩 27 發按 C 收槍：顯示 27 後淡出；再拿出來射一發：26（彈匣跟著十字弩的實體）
+  - 戰鬥中（生一隻狼）：一直顯示「26 7.62mm」
+  - `equipitem('gfg_ak47')` 重新裝上：30（新的實體）
+- 紀錄裡成串的 `Invalid Item ID: 0`：10-13 起的對話紀錄就有（早於第 35 項）→ 不是這裡造成的；來源沒查
+
+### 37.2 子彈名稱（第 37 項）
+
+- 字串 10000008 `gfg_item_name_ak47_ammo`：`7.62x39mm` → `7.62mm`（EN、ZH）
+  - REDkit 關著時改 `LocalEditorStringDataBaseW3_UTF8_mod.db`：照 REDkit 的寫法，每種語言新增一列，`VERSION` = 這個字串的最大值＋1（`STRINGS` 表；LANG：EN 2、ZH 8）；CSV 那一列一起改
+- 遊戲裡：左下角「7.62mm」；物品欄子彈格的提示框「7.62MM／AMMUNITION」（提示框的標題是大寫）
+
+### 37.3 子彈圖示（第 36 項）
+
+- `tools\ammo_build.py` 新的預設（第 28 項的樣子：`--margin 0.1 --style cs2 --env-strength 1 --key 0 --rim 0`）：
+  - 留白 0.22（子彈約占 6 成高）
+  - 材質：不用 CS2 貼圖的顏色（留著法線貼圖）；彈殼拋光黃銅、彈頭銅（金屬的 F0：黃銅 (0.910, 0.778, 0.423)、銅 (0.955, 0.638, 0.538)；粗糙度 0.18、0.25）；彈頭＝含最尖頂點的那塊網格
+  - 環境光 `studio.exr` 強度 0.5、色彩轉換 Standard
+  - 兩盞面光：主光（左上前）2.0、輪廓光（右後）3.0；位置跟著相機的軸算
+- 比過的版本（暫存 `icon36\sheet1.png`、`sheet2.png`：放大、深色底、和原版 Bodkin、魚叉箭並排）：CS2 貼圖的顏色偏白、像塑膠；AgX 色彩轉換黯淡；亮黃銅太亮；深色鋼殼對比低（也像便宜的軍用彈）
+- 遊戲裡：裝備欄的子彈格（Bolts）是一顆斜放的黃銅子彈、銅彈頭，四周留白，比旁邊 AK 的圖小
+
+### 37.4 船上、水裡不開槍（第 38 項）
+
+- 按鍵情境（使用者的 `input.settings`）：`[Boat]` 中鍵 `VehicleItemAction`／`VehicleItemActionHold`、左鍵沒綁；`[Swimming]`／`[Diving]` 中鍵 `ThrowItem`／`ThrowItemHold`、左鍵 `Finisher`／`Finish`
+- 掌舵：`W3VehicleCombatManagerStateNull`（`useVehicle.ws:555-824`）的 `OnItemAction` → `StartItemAction` → 進 `ShootCrossbow`；`OnAttack` → `StartAttackAction`（拔劍）
+- 站在船上：`IsOnBoat()`（船的 `OnBoatTrigger` 進出時設：`boat.ws:40-44`、`:67-70`；同時擋衝刺、叫馬）；掌舵：`IsUsingBoat()`（`actor.ws:6455-6462`）
+- 做法（`gfg_ak47.ws` 的 `GfgNoFireHere`＝`IsOnBoat() || IsUsingBoat() || IsSwimming() || IsDiving()`）：
+  - 左鍵（`OnCbtAttackWithAlternateLight` 的包裝）：按下時在船上、水裡 → 不做事
+  - 中鍵（`GfgMiddleBlocked`）：原本水裡放行（潛水時 AK 唯一的開火方式：§35.2）→ 也擋
+  - 掌舵、騎馬的 `StartItemAction`：選用物品是 AK → 不做事；`StartAttackAction`：AK、不是騎馬 → 不做事
+  - 保險：`GfgTryFire` 開頭也檢查
+- 遊戲實測（Novigrad、10-19 14:5x；數 `Thrown <<…>>` 紀錄）：
+  - `xy(375, 1180)`：在水面游泳；左鍵、中鍵 0 發
+  - 潛水（按住 C 3 秒，情境 `Diving`）：中鍵、左鍵 0 發，AK 留在背上，情境一直是 `Diving`
+  - 對照原版十字弩（`additem('Crossbow 1', 1, true)`＋輪盤）：潛水按住中鍵 → 情境 `ThrowHold` → `Thrown <<Harpoon Bolt>>`
+  - `spawnBoatAndMount()`：情境 `Boat`；AK 中鍵按住、中鍵點一下、左鍵都 0 發；原版十字弩中鍵 → `Thrown <<Bodkin Bolt>>`
+  - 按 E 離開舵（站在船上，情境 `Exploration`）：AK 左鍵、中鍵 0 發，AK 留在背上
+  - 傳回陸地：右下角又有「叫馬」（`OnBoatTrigger` 的離開有跑）→ AK 照常開槍（按住 12 發）
+
+### 37.5 測試時學到的
+
+- reference_level 的兩塊水（`engine\reference_level\world\local_water_shape.w2l`：X 2.5～12.8、Y −0.5～9.6，和 X 115～135、Y −6～6，水面高度 4.9）是濕度測試區（立著「wetness」字樣）：傳過去不會游泳 → 測水改用 Novigrad
+- Novigrad 的原版船（`levels\novigrad\homestead\gameplay_boats.w2l` 等；`EngineTransform` 25 bytes 的版本：第 1 byte 03、接著位置 3 個 float）：(199, 1296)、(380, 1184)、(337, 1039)、(352, 933)；gustfields (1318, 1579)；高度都約 0
+- `xy()` 傳到還沒載入的地方：`StaticTrace` 找不到地面 → 傳到 500 公尺高空（`playerCheats.ws:329-336`）；開著 `god()` 掉下來沒事；落地時紀錄 `INPUT CONTEXT CHANGED Exploration previousInputContext JumpClimb`
+- 潛水時中鍵按太早（還在 `Swimming` → `Diving` 的過渡）不會進瞄準：原版十字弩也一樣 → 按住 C 3 秒再測
+- 主控台偶爾在 `con` 之後還開著（原因沒查）：之後的按鍵打進主控台 → 截圖確認關了
+- `desk.ps1 focus` 在遊戲執行中偶爾報「叫不到前面」，但前景本來就是 REDkit：輸入照樣送得到

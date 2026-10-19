@@ -4,98 +4,46 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 13:5x（互動模式：`CLAUDE.md` §12 補「主控台指令」表；13:0x 使用者暫停自主模式和訓練；交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+最後更新：2026-10-19 15:1x（自主模式結束：第 35～38 項做完、遊戲裡驗證過）
 
 ---
 
-## 自主模式（2026-10-19 14:13 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。關於這個 mod 我對於你昨天開發完後做了測試，我覺得趨近完成，有幾個點需要改善」）
+## 使用者回來時先看這裡（2026-10-19 15:1x）
 
-- 背景：保持清醒 `bazp59owh`、看門狗 `ba5u0fbfr`、每小時續做排程 `439942a1`（第 13 分；10-19 14:13 建 → 10-25 重排）
-- 技能：`autonomous-mode`、`redkit-expert`（知識庫 `D:\OneDrive\Desktop\redkit_expert\knowledge\`；新查到的寫回主題檔、在那邊 commit）
+自主模式（14:13 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。……有幾個點需要改善」）**結束**：交辦的 4 項都做完、遊戲裡驗證過
+- 背景都停了：保持清醒 `bazp59owh`、看門狗 `ba5u0fbfr`（TaskStop）、每小時續做排程 `439942a1`（CronDelete）、旗標 `.autonomous`（刪了）
+- 要再開：說「開始自主模式」（`CLAUDE.md` §14）；現在是互動模式（`CLAUDE.md` §11）
 
-| # | 任務（使用者的描述） | 狀態 |
+| # | 任務（使用者的描述） | 結果（細節：`docs\findings.md` §37；決定寫進 `CLAUDE.md` §7） |
 |---|---|---|
-| 35 | 在畫面中找合適的地方顯示子彈剩餘數量；呈現方式符合遊戲的設計脈絡 | 程式寫好、**沒編譯、沒測**（`gfg_ak47.ws`「子彈數」一節） |
-| 36 | 物品欄裝備子彈時的圖示還是太滿太大、沒有質感，沒有「專業殺手／專家」的感覺 | 圖做好、換上了（`gfg_ak47_ammo_64x128.png`）、**沒進遊戲看**（下面「#36 結果」） |
-| 37 | 子彈名稱太長（左下角、物品欄）：要寫數字可以，簡單的像「3.5mm」就好 | 字串改好（EN、ZH 都是 `7.62mm`）、**沒進遊戲看** |
-| 38 | 船上禁止滾輪（中鍵）射擊、也禁止左鍵開槍；水裡也禁止中鍵、左鍵 | 程式寫好、**沒編譯、沒測**（`GfgNoFireHere`） |
+| 35 | 在畫面中找合適的地方顯示子彈剩餘數量；呈現方式符合遊戲的設計脈絡 | 左下角道具格（原版顯示箭數 ∞ 的位置）改成彈匣剩幾發；打空紅色 0、換彈後 30；出現、淡出照原版（數字變了出現，戰鬥中一直顯示）；收槍時保留發數 |
+| 36 | 物品欄的子彈圖示太滿太大、沒有質感、沒有「專家」的感覺 | 重畫：縮小、四周留白（子彈約占 6 成高）、拋光黃銅彈殼＋銅彈頭、主光＋輪廓光；裝備欄看過 |
+| 37 | 子彈名稱太長：簡單的像「3.5mm」就好 | `7.62mm`（EN、ZH）；左下角、物品欄的提示框看過 |
+| 38 | 船上、水裡禁止中鍵、左鍵開槍 | 掌舵、站在船上、游泳、潛水：左鍵、中鍵都沒有行為；原版十字弩潛水、船上照樣能射（對照測過）；回到陸地 AK 照常 |
 
-**決定**（14:1x 回覆使用者時說了；使用者沒反對就照做）
-- #35：左下角道具格（現在顯示 ∞ 的位置）改成彈匣剩幾發：原版在這格顯示箭、炸彈的數量
-- #36：子彈縮小、留白，寫實的金屬質感重畫；比例參考原版的箭
-- #37：「7.62mm」
-- #38：拿 AK 時船上、水裡左鍵、中鍵都不開槍、不跳提示；原版十字弩照舊（取代 #31 留給使用者決定的那條）
-- 做完要不要裝進 Steam 版：問了使用者；沒回覆就不裝（寫遊戲資料夾要同意：`CLAUDE.md` §6.3）
-
-**現在在做**：開 REDkit 的 mod 專案編譯（Reload scripts／開遊戲時編譯）、一次進遊戲驗證 4 項（下面「驗證計畫」）
-
-**#36 結果**（14:3x）
-- `tools\ammo_build.py` 加 `--style brass|steel|cs2`、`--rough`、`--env`、`--env-strength`、`--view`、`--look`、`--key`、`--rim`；**預設改成選定的**：黃銅彈殼＋銅彈頭（PBR F0）、studio.exr ×0.5、主光 2 W、輪廓光 3 W、留白 22%（子彈約佔 6 成高）
-- 試過 7 種（`scratchpad\icon36\sheet1.png`、`sheet2.png`）：CS2 原貼圖縮小（還是淡、塑膠感）、黃銅＋AgX（偏暗沉）、亮黃銅（太亮）、深色鋼殼（暗背景上看不清、而且真的鋼殼彈是便宜的軍用彈）→ 選「暗一點的環境＋清楚亮點的黃銅」（精品彈的樣子、接近原版箭的暗調）
-- 重做：`blender --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- <gltf> <color> <icon> <暫存資料夾>`（不加選項＝現在這張；和選定那張 byte 一樣）；舊圖備份 `scratchpad\icon36\old_gfg_ak47_ammo_64x128.png`
-- 圖示不進 git（workspace 的 PNG 本來就沒進）
-
-**做好的（14:2x～14:5x）**
-- #37：字串庫 10000008 `gfg_item_name_ak47_ammo` 加新版本（EN v3、ZH v4 = `7.62mm`）＋CSV（腳本 session 暫存 `scratchpad\set_ammo_name.py`；備份 `strings_backup_before_ammo_name.db`）；REDkit 關著時改的
-- #35：`gfg_ak47.ws`「子彈數」一節（在「主動收槍」後面）
-  - 包 `CR4HudModuleItemInfo.UpdateItemData`：原版送完，item1 是 AK 時數量換成彈匣剩幾發（`GfgRoundsLeft` = 30 − shotCount），0 標紅；用 `m_previousSetItemInfo` 的圖示、名稱重送 `setItemInfo`
-  - 包 `OnTick`：剩幾發變了就呼叫 `UpdateItemData`（原版只在箭的數量變了才更新）
-- #38：`GfgNoFireHere`（`IsOnBoat`／`IsUsingBoat`／`IsSwimming`／`IsDiving`）
-  - 左鍵 `OnCbtAttackWithAlternateLight`：按下時在船上、水裡 → 沒有行為；`GfgTryFire` 也擋（扳機先按著的情況）
-  - 中鍵 `GfgMiddleBlocked`：拿掉「游泳時照原版」→ 水裡也擋；駕船的中鍵（VehicleItemAction）：`StartItemAction` 包裝改成 AK 選用就不做事（馬、船）
-  - 船上的 `StartAttackAction`（VehicleAttack）：AK 選用時不做事（原版會拔劍）
-  - 右下角提示：船、游泳、潛水的原版清單本來就沒有射擊（`hudModuleControlsFeedback.ws:332-369`）→ 不用改
-- **wcc_lite 的 EULA 又跳出來**（14:4x `tools\wcc_compile.py`）：沒替使用者按 Agree，關掉（taskkill）→ 編譯改用 REDkit 的 Reload scripts（同 `docs\findings.md` §33.7）
-
-**#36 計畫**
-- 現況（`scratchpad\icons_cmp.png` 比較過）：子彈佔滿畫面（留白 10%）、淡橄欖綠、打光平（studio.exr＋Standard）→ 和原版箭的圖示（細、暗、高對比、金屬亮點）差很多
-- 改 `tools\ammo_build.py`：加 `--style`（`cs2` 原本的貼圖／`brass` 黃銅彈殼＋銅彈頭）、環境圖和強度、view transform（試 AgX）、主光；`--margin` 加大（子彈佔高度約 55～60%）
-- 渲染幾個版本 → 和原版箭的圖示並排（`scratchpad\iconsheet.ps1 輸出 3 圖…`）→ 選最像原版質感的，覆蓋 `gfg_ak47_ammo_64x128.png`（同名覆蓋不用重開 REDkit：`CLAUDE.md` §6.19）
-- 來源：`assets\ak47\ammo\weapons\models\shared\shells\ak47\ak47_bullet.gltf`、`ak47_bullet_color.png`；Blender：`"D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- <gltf> <color> <icon> <out_dir> --preview <大圖>`
-
-**驗證計畫**（REDkit 現在沒開）
-- 輔助腳本：`source C:/Users/beyon/AppData/Local/Temp/claude/D--OneDrive-Desktop-gunforgeralt/789b26d6-a510-42d9-96ac-a3831c548864/scratchpad/desk/g.sh`（舊 session 的 g.sh 複本：`con`、`game_start2`、`ak_select2`、`reload_edit2`、`combat_start`…；加了 `set_mw`、`open_mod_project`、`open_ref_level`）
-  - REDkit：`"D:/Program Files (x86)/Steam/steamapps/common/The Witcher 3 REDkit/bin/x64_RedKit/editor.exe"`？（路徑先查；之前是從 Steam 開）→ Welcome 畫面 → `open_mod_project` → `set_mw` → `open_ref_level` → `game_start2` → `ak_select2`
-  - 編譯錯誤看 editor.log（開遊戲時編譯；Reload scripts 回報 `Scriptables reloaded`）
-- 開 REDkit 的 mod 專案（Welcome → Browse → `gunforgeralt.w3edit`）→ File 最近的世界 reference_level → play game
-- #35：拿 AK 射幾發，左下角數字遞減、打空變紅 0、換彈後 30；R 換彈中途
-- #37：左下角、物品欄（C 收槍 → I）的名稱是 `7.62mm`
-- #38：船：`spawn` 不出船 → 找有船的地方（White Orchard 河邊？或主控台生成船的模板）；水裡：走進水裡游泳、潛水，按左鍵、中鍵都不開槍；原版十字弩照舊能射
-- #36：物品欄的子彈格
-
----
-
-## 使用者回來時先看這裡（2026-10-19 13:0x）
-
-使用者 13:0x：「自主模式可以暫停了 自我訓練也是請暫停 我要使用了 暫停前先紀錄目前狀態以便下次繼續訓練自己 也確認 witcher mod 的開發有記錄好方便之後繼續」
-- → 自主模式**暫停**（互動模式：`CLAUDE.md` §11，寫新東西前先問）
-- 背景都停了：保持清醒、看門狗（TaskStop）、每小時續做排程 `0ad00fc5`（CronDelete）、旗標 `.autonomous`（刪了）
-- 要繼續：使用者說「恢復自主模式」→ 照 §14「開始時」重開；訓練從 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md` 的「接續的步驟」接著做
-
-**mod 的狀態**
-- 13:5x（互動模式，使用者要的）：`CLAUDE.md` §12 補「主控台指令」表（從歷次對話紀錄整理開發時用過的原版指令）
-  - 順便查到：`setlevel(31)` 照程式碼已經不是必要（10-16 拿掉 `attack_power` 後 AK 需求等級 1）；沒在遊戲裡驗證 → 下次進遊戲時試：不打 `setlevel`、直接 `additem('gfg_ak47', 1, true)`，看裝不裝得上
-- 使用者 10-18 回報的 8 項（#24、#28～#34）都完成、遊戲裡驗證過（下面「自主模式」那張表）
-- git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
-- 13:0x 比對 mod 專案的檔案快照：workspace 和練習前（10-19 03:43）一樣；只有 `CLAUDE.md` 不同（Claude 補的知識，已 commit）
-- Steam 版裝的是 **0.3 版（10-18 21:1x）**：8 項的修改還沒裝進去
-  - 要裝：重新 Publish、槍聲 `sound_cache.py`、複製到遊戲資料夾（步驟在下面「打包、裝進遊戲」）
-  - 寫遊戲資料夾要先問使用者
-- **REDkit 現在開著練習專案 lab01**（不是 mod）
-  - 要開發 mod：File → Restart... → Recent projects 點 gunforgeralt 那一列的空白處 → File 選單最近的世界開 reference_level
-  - 也可以叫 Claude 切
+- 順便驗證：等級 1（不打 `setlevel`）也裝得上 AK、能開槍 → `setlevel(31)` 不再必要（`CLAUDE.md` §12 改了）
+- 改到的檔案：`workspace\scripts\local\gfg_ak47.ws`、字串庫（＋CSV）、`tools\ammo_build.py`、子彈圖示 `gfg_ak47_ammo_64x128.png`（workspace 的 PNG 不進 git）
+- 舊的子彈圖示、比過的 7 種版本：session 暫存 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\icon36\`（`old_gfg_ak47_ammo_64x128.png`、`sheet1.png`、`sheet2.png`；session 結束可能會沒）；要回到第 28 項的樣子：`tools\ammo_build.py` 加 `--margin 0.1 --style cs2 --env-strength 1 --key 0 --rim 0`
 
 **要使用者決定的**
-- #31：水中、船上的中鍵要不要也拿掉（現在照原版；潛水時中鍵是 AK 唯一的開火方式）
-- 中鍵瞄準時短按左鍵沒開火、放開中鍵照原版射一發（`docs\findings.md` §35.2）：要不要改
-- 外觀選單（Transmog）的 AK 預覽沒進遊戲測
-- 要不要把目前的版本裝進 Steam 版
+- 要不要把目前的版本裝進 Steam 版：現在裝的是 **0.3 版（10-18 21:1x）**，10-18 的 8 項、這次的 4 項都還沒進去
+  - 要裝：回覆「裝」→ 重新 Publish、槍聲 `sound_cache.py`、複製到遊戲資料夾（步驟在下面「打包、裝進遊戲」）
+  - 寫遊戲資料夾要先問使用者（`CLAUDE.md` §6.3）
+- 子彈圖示的「質感」是主觀的：看了不滿意，說哪裡要改
+- 外觀選單（Transmog）的 AK 預覽沒進遊戲測（舊的，還留著）
+- 已經不用決定的（10-19 13:0x 列過）：#31 水中、船上的中鍵 → 第 38 項擋掉了；中鍵瞄準時短按左鍵 → AK 已經沒有中鍵瞄準
+
+**現況**
+- REDkit 開著 mod 專案、Novigrad 世界（遊戲結束、回到編輯器；沒存任何世界檔）
+- git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
+- 這次用的測試輔助腳本：`C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\desk\g.sh`（加了 `set_mw` 修正、`game_start3`＝不打 setlevel）
+- 紀錄裡成串的 `Invalid Item ID: 0`：10-13 起就有、不是這次造成的；來源沒查（`docs\findings.md` §37.1）
 
 **REDkit 專家**
 - 叫用：說「你現在是 redkit 開發專家」→ 技能 `redkit-expert`；「開啟自主模式」→ 技能 `autonomous-mode`
   - 兩個技能都在 `C:\Users\beyon\.claude\skills\`，任何資料夾都叫得到
 - 訓練進度：官方 Wiki 85 頁讀完、21 個主題都有內容；實作練習 L1～L4s 做完、L4t（特效的燈）做一半；社群資料讀了一部分
-  - 細節在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`
+  - 細節在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`；這次新查到的（HUD 道具格、水上測試）寫進了知識庫
 - 對 M5（槍口火光的光）有用的：特效的燈先用「複製原版有燈的特效＋模板加同名的 slot」（L4t 實測會亮）
 - 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z
 
@@ -481,7 +429,7 @@
 - **F10 會結束遊戲**（不是切換）：改了腳本 → F10 → `reload_edit` → `game_start`；遊戲中用選單熱重載沒反應
 - **REDkit 開久了，空手按 E 也上不了馬**（10-16 18:0x：互動輸入完全沒進腳本）→ 重開 REDkit 就好（使用者：「如果已經沒拿槍，就是之前遇到的問題又出現了，看你要修還是直接關掉 redkit 重開」）
   - 判斷順序：拿著 AK 不能上下馬＝第 4 項本身（已修好）；空手也不行＝環境問題 → 重開
-- `additem` 前要先 `setlevel(31)`（沒設等級時主控台顯示 `Invalid Item ID: 0`、輪盤沒有 AK）
+- `setlevel(31)`：10-19 實測不用了（10-16 拿掉 `attack_power` 後需求等級 1）；以前沒設等級時輪盤沒有 AK
 - 主控台指令曾打進 REDkit 右邊 Scene 的搜尋框（焦點在那裡）→ 編輯模式下點一下畫面空白處（天空）把焦點移走
 - 點遊戲畫面＝左鍵＝AK 的扳機：AK 是選用物品時一點就拿出 AK（`docs\findings.md` §29）
 - 原版十字弩的行為：換彈後不在戰鬥、沒瞄準 → 延遲後自動收起（`rangedWeapon.ws:146-157`）；測試時 AK 會被收起來，點一下畫面再拿出
@@ -502,7 +450,7 @@
 - 遊戲裡：
   - `play game`：Geralt 出生在 0,0,0 會死 → 死亡選單：先 `move 250 900`、`click 250 900` 拿回焦點，再 down ×3 → enter（DEBUG RESURRECT）
   - 主控台：`key oem3` 開、**用 `keys` 輸入**、`key enter`；再 `key oem3` 關
-  - 拿 AK：**先 `setlevel(31)`** 再 `additem('gfg_ak47', 1, true)`；`god()`
+  - 拿 AK：`additem('gfg_ak47', 1, true)`；`god()`（`setlevel(31)` 10-19 起不用）
   - 選 AK：`keydown tab` → 第一次有兩頁教學（Space 兩次；沒教學時不要按 Space，會變冥想）→ `rmove 0 300 10 15` → `keyup tab`
   - 左鍵開槍：`click 860 555`；按鍵前先點一下遊戲畫面（不然方向鍵會送到 REDkit 右邊的場景面板，跳「Changing layer preset」→ 按 No (1112, 526)）
   - 走路切換是 Alt：在 REDkit 裡會叫出選單列 → 按 Alt 後 Esc（遊戲暫停選單）→ Enter（RESUME）
