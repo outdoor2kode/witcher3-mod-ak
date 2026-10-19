@@ -10,6 +10,13 @@
 				<tags></tags>
 				<ammo type="add" min="30" />
 			</ability>
+
+			<!-- ######################## gunforgeralt: M4A1 (item 49, 2026-10-20; CS2 weapon_m4a1) ######################## -->
+			<!-- same as the AK: damage by script (gfg_gun_m4a1.ws), ammo = magazine size 30 (CS2 m_iMaxClip1) -->
+			<ability name="gfg_m4a1 _Stats">
+				<tags></tags>
+				<ammo type="add" min="30" />
+			</ability>
 		</abilities>
 
 		<items>
@@ -77,6 +84,69 @@
 				icon_path						="icons/inventory/weapons/gfg_ak47_ammo_64x128.png"
 			>
 				<tags>							WeaponTab, InfiniteAmmo, UnderwaterAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo, gfg_gun_ammo
+				</tags>
+				<base_abilities>				<a>harpoon_bolt _Stats</a>
+												<a>Default weapon _Stats</a>
+				</base_abilities>
+			</item>
+
+			<!-- item 49 (2026-10-20): M4A1 = copy of gfg_ak47 (the gfg_gun tag makes every script treat it as our gun; values in gfg_gun_m4a1.ws) -->
+			<!-- equip_template = dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1.w2ent; equip_slot: the AK's back slot (defined in test.reddlc) is reused -->
+			<item
+				name							="gfg_m4a1"
+				category						="crossbow"
+				price							="100"
+				weight							="3.4"
+				enhancement_slots				="0"
+				ability_slots					="0"
+				grid_size						="2"
+				hold_slot						="l_weapon"
+				equip_template					="gfg_m4a1"
+				equip_slot						="gfg_ak47_back_slot"
+				localisation_key_name			="gfg_item_name_m4a1"
+				localisation_key_description	="item_desc_crossbow_1"
+				icon_path						="icons/inventory/weapons/gfg_m4a1_64x128.png"
+			>
+				<tags>							Weapon, crossbow, mod_weapon, gfg_m4a1, gfg_gun
+				</tags>
+				<base_abilities>				<a>Default weapon _Stats</a>
+												<a>gfg_m4a1 _Stats</a>
+				</base_abilities>
+			</item>
+
+			<!-- the M4A1's ammo (5.56mm): copies of the AK ammo; the fired projectile reuses gfg_ak47_bullet (too small and fast to tell apart) -->
+			<item
+				name							="gfg_m4a1_ammo"
+				category						="bolt"
+				price							="0"
+				weight							="0.1"
+				stackable						="1"
+				grid_size						="2"
+				hold_template					="gfg_ak47_bullet"
+				localisation_key_name			="gfg_item_name_m4a1_ammo"
+				localisation_key_description	="gfg_item_desc_m4a1_ammo"
+				icon_path						="icons/inventory/weapons/gfg_m4a1_ammo_64x128.png"
+			>
+				<tags>							WeaponTab, InfiniteAmmo, GroundAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_gun_ammo
+				</tags>
+				<base_abilities>				<a>bodkin_bolt _Stats</a>
+												<a>Default weapon _Stats</a>
+				</base_abilities>
+			</item>
+
+			<item
+				name							="gfg_m4a1_ammo_water"
+				category						="bolt"
+				price							="134"
+				weight							="0.1"
+				stackable						="1"
+				grid_size						="2"
+				hold_template					="gfg_ak47_bullet"
+				localisation_key_name			="gfg_item_name_m4a1_ammo"
+				localisation_key_description	="gfg_item_desc_m4a1_ammo"
+				icon_path						="icons/inventory/weapons/gfg_m4a1_ammo_64x128.png"
+			>
+				<tags>							WeaponTab, InfiniteAmmo, UnderwaterAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_gun_ammo
 				</tags>
 				<base_abilities>				<a>harpoon_bolt _Stats</a>
 												<a>Default weapon _Stats</a>
