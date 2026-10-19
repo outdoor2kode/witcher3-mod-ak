@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 17:0x（第 39 項遊戲驗證通過；開始第 41 項）
+最後更新：2026-10-19 17:3x（第 41、42 項完成；接著做回顧後的改善）
 
 ---
 
@@ -17,8 +17,8 @@
 |---|---|---|
 | 39 | 換彈姿勢太怪：右手怎麼會這樣握槍；左手的上臂、前臂、手腕都不自然 → 好好重新審視並改善（附截圖：左手拿彈匣在腰前、右手從上面抓在機匣） | **完成**（16:5x 遊戲實測：地面、騎馬；`docs\m3.md`「換彈姿勢重做」、`docs\findings.md` §38） |
 | 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | **完成**（16:0x 遊戲實測：站在船上開槍 25 發；掌舵、游泳 0 發；`docs\findings.md` §37.4、`CLAUDE.md` §7） |
-| 41 | （16:2x 追加）回頭看整個開發過程哪裡可以做更好（耗時、流程順序、其他角度）→ 整理一份文件、更新必要的文件，之後不重蹈覆轍 | **做中** |
-| 42 | （16:3x 追加，#41 的補充）① 經驗總結也加進 REDkit 專家的知識庫 ② 從 REDkit 專家的經驗＋經驗總結抽出**通用**的軟體開發知識（網頁、網頁動畫、其他遊戲、app 都用得到）→ 做成新技能（例：資深軟體工程師） | 等 #41 |
+| 41 | （16:2x 追加）回頭看整個開發過程哪裡可以做更好（耗時、流程順序、其他角度）→ 整理一份文件、更新必要的文件，之後不重蹈覆轍 | **完成**（17:3x：`docs\retrospective.md`、`CLAUDE.md` §15） |
+| 42 | （16:3x 追加，#41 的補充）① 經驗總結也加進 REDkit 專家的知識庫 ② 從 REDkit 專家的經驗＋經驗總結抽出**通用**的軟體開發知識（網頁、網頁動畫、其他遊戲、app 都用得到）→ 做成新技能（例：資深軟體工程師） | **完成**（17:3x：知識庫 `22-lessons.md`；新技能 `senior-engineer`） |
 
 - **#42 的使用情境（使用者原話）**：「開發 the witcher 3 mod 時，我就會打開自主模式，redkit 開發專家，還有這個資深軟體工程師 skill。但如果開發網頁的話，我就只會開起自主模式和這個資深軟體工程師 skill（再加上之後可能會有的網頁開發專家 skill，目前還沒有）」「開發這個新的 skill 時，記得參考此使用情境來開發」
   - → 新技能只放跨領域的知識：不寫 REDkit、巫師3 的細節（那是 `redkit-expert`），也不重複自主模式的操作程序（那是 `autonomous-mode`）；三個技能同時開不能互相打架（誰管什麼要寫清楚）
@@ -31,25 +31,30 @@
 - #41 的文件放 `docs\retrospective.md`（專案裡的文件，不發布成網頁；最後的回覆用一行提可以發布）
 - #42 的新技能：`C:\Users\beyon\.claude\skills\senior-engineer\`（使用者層級，任何資料夾都叫得到；叫法「你現在是資深軟體工程師」）
 
-**現在在做**：#41（回顧）→ #42
-
 **#39 完成**（16:5x；commit 見 git log）
 - 6 段用 `gfg_` 檔名同名重匯：動畫組 89 筆、沒有 `man_`；和舊版比只有這 6 段的資料變了、事件一樣（暫存 `39998eff…\scratchpad\s31\cmp_anims.py`、`desk\anim_events.py`）
 - 遊戲裡（Novigrad）：地面從左側、左前、右後、遊戲鏡頭（繞到右側）連拍；騎馬從左前連拍 → 右手一直握握把、左手到左腰拿彈匣、插上、右手拉槍機；`magOut` 換彈中段 true、裝上後 false
 - 暫時的測試腳本搬到 `backup\gfg_tmp39_2026-10-19.ws`；重載腳本：原版 1525＋我們 1 個，`Scriptables reloaded`
 - REDkit 開著（主視窗 0xF40C0E、AnimBrowser 0x1B8215E、Asset Browser 0x1F0DA0；遊戲已 F10 結束）
 
-**接續的步驟**（#41、#42）
-1. 收集資料（只讀）：
-   - `git log --reverse`（全部 commit 的時間、訊息）→ 每個里程碑、每一項花多久
-   - 對話紀錄 `C:\Users\beyon\.claude\projects\D--OneDrive-Desktop-gunforgeralt\*.jsonl`：使用者每則訊息（時間、內容）、壓縮次數、使用者糾正我的地方（例：「不是」「為什麼」「做不到」）、看門狗叫醒的次數
-   - `docs\m3.md`、`docs\findings.md` 的「試過、放棄」「犯過」「學到的」；`CLAUDE.md` 的規則是哪次事件之後加的
-   - 專家訓練：`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`、`labs\LOG.md`
-2. 分析：① 時間（哪裡花最多、怎樣更快）② 流程順序（先學工具和文件、先找現成資源、先懂專案架構、先建測試方法）③ 其他角度（驗證品質、和使用者溝通、工具化、知識管理、context、自主模式的停頓、安全）
-3. 寫 `docs\retrospective.md`；更新 `CLAUDE.md`（新規則）、技能（`autonomous-mode`、`redkit-expert`）、memory
-4. #42 ①：經驗總結加進專家知識庫（新主題檔＋INDEX）、在 `redkit_expert` commit
-5. #42 ②：抽出通用的知識 → 新技能 `senior-engineer`（只放跨領域的；不寫 REDkit 細節、不重複自主模式的操作程序；寫清楚和另外兩個技能怎麼分工）
-6. 做完不跑 §14 的「結束」：接著做回顧裡找到的改善、REDkit 專家訓練
+**#41、#42 完成**（17:3x）
+- 回顧 `docs\retrospective.md`：時間線、花最多時間的地方（換彈 4 輪、使用者當測試員 4 天、模型匯入、打包當掉、控制字元）、應該的順序、其他角度、改了什麼
+- `CLAUDE.md` §15（開發流程：驗收清單、回歸清單、寫文字、三個技能）
+- 專家知識庫 `knowledge\topics\22-lessons.md`＋INDEX；技能 `redkit-expert` 開工前先讀它
+- 新技能 `senior-engineer`（SKILL.md＋`reference\` 7 個檔：process、verification、checklists、motion-and-3d、techniques、knowledge、pitfalls）
+- 三個技能的正本放 `D:\OneDrive\Desktop\redkit_expert\skills\`（有 git）→ 複製到 `C:\Users\beyon\.claude\skills\`（已同步）
+- 統計腳本、資料：session 暫存 `s41\`（`scan.py`、`user_dedup.txt`、`sessions.txt`）
+
+**現在在做**：回顧後的改善（使用者：做完不停，接著做回顧裡找到的改善、REDkit 專家訓練）
+
+**接續的步驟**（回顧後的改善；`docs\retrospective.md` 第 6 節）
+1. `tools\README.md`：29 支工具的索引（用途、輸入、輸出、相關文件章節）
+2. `gfg_ak47.ws` 檔頭加目錄（32 個區段標記、關鍵函式）
+3. 測試輔助放進專案：`tools\test\`（`g.sh` 整理成一版、`gfg_debug.ws`＝`gfgfree`、`gfgshots`、`gfgmag` 等＋放進／拿出 workspace 的做法）；`CLAUDE.md` §12 改指向它
+4. commit 前擋控制字元：git hook（`.githooks\pre-commit`＋`git config core.hooksPath`）
+5. `tools\claude_compact.ps1`：送 `/compact` 前確認使用者幾秒內沒操作（看門狗已經有這個邏輯）
+6. 做完 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）
+- 不跑 §14 的「結束」（使用者 16:2x）
 
 ---
 
