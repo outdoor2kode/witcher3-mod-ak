@@ -4,7 +4,7 @@
 // 檔案（2026-10-20 第 48 項：原本一個 gfg_ak47.ws 3738 行，照「=====」節拆開，內容沒改）
 // 找東西：搜尋「===== 標題」或函式名稱（行號會變，不寫）
 //   gfg_core.ws        這個檔：是不是我們的槍、彈匣容量、槍的規格表（每把槍的數值放哪、怎麼查）
-//   gfg_gun_<名稱>.ws  每把槍自己的規格：gfg_gun_ak47.ws
+//   gfg_gun_<名稱>.ws  每把槍自己的規格：gfg_gun_ak47.ws、gfg_gun_m4a1.ws
 //   gfg_anim.ws        動畫圖、姿勢：AK 用自己的一套動畫圖／物品欄預覽人物（後面是 R 主動換彈的按鍵：OnCbtAttackWithAlternateHeavy 的包裝）
 //                      ／上半身朝哪裡、身體轉向／跳躍、落地時兩手臂維持持槍／衝刺時單手提槍／R 換彈時上半身圖當作瞄準中
 //   gfg_fire.ws        開火：全自動（左鍵＝扳機）／兩手握好槍才開火／槍聲（後面：GfgTryFire 開一槍、GfgNoFireHere 掌舵游泳潛水不開槍、GfgMiddleBlocked 中鍵沒有行為）／槍口火光
@@ -82,6 +82,7 @@ function GfgGunIds() : array< name >
 	var ids : array< name >;
 
 	ids.PushBack( 'gfg_ak47' );
+	ids.PushBack( 'gfg_m4a1' );
 	return ids;
 }
 
@@ -90,6 +91,8 @@ function GfgGunSpecOf( id : name ) : SGfgGunSpec
 {
 	switch ( id )
 	{
+		case 'gfg_m4a1':
+			return GfgSpecM4a1();
 		case 'gfg_ak47':
 		default:
 			return GfgSpecAk47();

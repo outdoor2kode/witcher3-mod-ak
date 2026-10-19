@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-20 00:5x（第 49 項：M4 的離線素材大部分做好（模型、貼圖、槍聲 bank、圖示、子彈圖示、後座力表）；接續：計畫第 4 步的「接續的步驟」1～6）
+最後更新：2026-10-20 00:5x（第 49 項：M4 離線素材＋規格檔做好、編譯通過；接續：計畫第 4 步「接續的步驟」2～6：物品 XML、字串、REDkit 匯入、實體模板、遊戲測試）
 
 ---
 
@@ -104,7 +104,7 @@
      - `tools\recoil_pattern.py --ws --name M4a1` 改成印規格檔的陣列函式（`GfgM4a1KickRight／Up`）；AK 的輸出和 `gfg_gun_ak47.ws` 的兩個函式一字不差
    - M4 的規格（`weapons.vdata` 10-20 重抓，和 10-12 的相同；算法同 AK）：cycleTime 0.09、recoilResetTime 0.338941、range 208、spreadStand 0.3151、spreadMove 8.1595、spreadPerShot 0.4011、maxMoveSpeed 5.715、recovery 0.338941→0.466044（第 2～5 發）、傷害 9.1667×等級＋18.3333（AK×33/36）、爆頭 4、距離 0.97、bank `gfg_m4a1.bnk`／`gfg_m4a1_shot`、子彈 `gfg_m4a1_ammo`／`_water`、模板 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1(.w2ent|_mag|_nomag)`、圖示 `gfg_m4a1_64x128.png`→`_128x64.png`、槍口 `Vector(0.1446, 0.0009, 0.1118)`
    - **接續的步驟**：
-     1. `gfg_gun_m4a1.ws`（照 `gfg_gun_ak47.ws`；陣列用 `recoil_pattern.py data/recoil/m4a4_artanis-rcs.csv --ws --name M4a1` 的輸出）＋`gfg_core.ws` 的 `GfgGunIds`、`GfgGunSpecOf` 各加一行 → 編譯
+     1. ✅ `gfg_gun_m4a1.ws`（陣列是 `recoil_pattern.py … --ws --name M4a1` 直接附加的）＋`gfg_core.ws` 的 `GfgGunIds`、`GfgGunSpecOf` 各加一行；編譯通過（11 個檔、63,936 bytes；10-20 00:5x）
      2. 物品 XML：`gfg_m4a1`（複製 `gfg_ak47`：標籤 `gfg_m4a1, gfg_gun`、能力 `gfg_m4a1 _Stats` ammo 30、`equip_template gfg_m4a1`、`equip_slot gfg_ak47_back_slot`（沿用：槽在 `test.reddlc`）、圖示）、`gfg_m4a1_ammo`、`gfg_m4a1_ammo_water`（`hold_template gfg_ak47_bullet` 沿用、標籤 `gfg_gun_ammo`）
      3. 字串（**REDkit 關著時**改 `.db`＋`.csv`：`docs\findings.md` §37.2）：10000014 `gfg_item_name_m4a1` M4A1；10000015 `gfg_item_name_m4a1_ammo` 5.56mm；10000016 `gfg_item_desc_m4a1_ammo`（EN／ZH）
      4. REDkit：匯入兩張貼圖（`WorldDiffuse`、`NormalmapGloss`）、三個模型（`importAsSkinnedMesh` true、材質 XML、Import mesh 對話框按 Cancel：`docs\m3.md`「分兩輪做」）到 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\`
