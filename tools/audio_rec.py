@@ -3,12 +3,15 @@
 用法：
     python -X utf8 tools/audio_rec.py rec <秒數> <輸出.wav> [準備好時建立的檔案]
     python -X utf8 tools/audio_rec.py tones <錄音.wav>
-    python -X utf8 tools/audio_rec.py onsets <錄音.wav> <原始檔.wav>...
+    python -X utf8 tools/audio_rec.py onsets <錄音.wav> <原始檔.wav>... [--pitch 倍率]
 
 - rec：錄預設喇叭的輸出（48 kHz 立體聲）；開始錄之後才建立「準備好」的檔案 → 呼叫的人等這個檔出現再操作遊戲
   （Python 載入要 1 秒左右；不等的話會漏掉開頭）
 - tones：每 50 毫秒的主要頻率（300～5000 Hz），印出單一頻率佔大部分能量的時段 → 用測試音確認媒體有播、音高對
-- onsets：用原始檔開頭 30 毫秒（多個就平均）找出每一發的起點、間隔，印出 100 毫秒音量的最大值
+- onsets：用原始檔開頭 30 毫秒（多個就各自比、每個位置取最大的相關）找出每一發的起點、間隔，印出 100 毫秒音量的最大值
+  - 連射結束後的聲音（換彈等）偶爾也會被抓到 → 只看連射那段
+  - 槍聲 bank 有改音高（`ak_soundbank.py --pitch`）時加同一個 `--pitch`：模板照倍率重新取樣
+    （10-20 M4 pitch 1.1：不加的話 4 個音檔裡的 m4a1_02 對不上，30 發只抓到 24 個起點）
 - 需要 tools/_vendor/pylib314（soundcard 0.4.6、numpy：pip install --target tools/_vendor/pylib314 soundcard）
 
 2026-10-18 實測（findings.md §33.5）：遊戲暫停（例：拍照模式）時錄到的是全 0
@@ -75,10 +78,20 @@ def tones(path):
             print(f'{i / RATE:5.2f} 秒  {f[k]:7.1f} Hz  {lvl:6.1f} dBFS  佔 {share:.2f}')
 
 
-def onsets(path, sources):
+def template(src, pitch):
+    """原始檔開頭 30 毫秒；pitch ≠ 1 時照播放速度倍率重新取樣（線性內插，同 bank 的 --pitch）"""
+    n = int(0.03 * RATE)
+    a = load(src).mean(axis=1)
+    if pitch == 1.0:
+        return a[:n]
+    return np.interp(np.arange(n) * pitch, np.arange(len(a)), a)
+
+
+def onsets(path, sources, pitch=1.0):
     r = load(path).mean(axis=1)
-    tpl = np.mean([load(s).mean(axis=1)[:int(0.03 * RATE)] for s in sources], axis=0)
-    c = ncc(r, tpl)
+    # 每個原始檔各自當模板，每個位置取最大的相關係數
+    # （原本平均成一個模板：差很多的檔對不上，10-20 M4 的 4 個槍聲漏抓 8 發）
+    c = np.max([ncc(r, template(s, pitch)) for s in sources], axis=0)
     peaks = []
     for i in np.argsort(-c):
         if c[i] < 0.42:
@@ -99,7 +112,12 @@ def main():
     elif cmd == 'tones':
         tones(sys.argv[2])
     elif cmd == 'onsets':
-        onsets(sys.argv[2], sys.argv[3:])
+        args, pitch = sys.argv[3:], 1.0
+        if '--pitch' in args:
+            k = args.index('--pitch')
+            pitch = float(args[k + 1])
+            del args[k:k + 2]
+        onsets(sys.argv[2], args, pitch)
     else:
         raise SystemExit(__doc__)
 

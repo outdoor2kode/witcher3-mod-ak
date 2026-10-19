@@ -168,6 +168,7 @@ timer function GfgDbgDrawTimer( dt : float, id : int )
 	var m : Matrix;
 	var ang, ang2 : float;
 	var st : name;
+	var rot : EulerAngles;
 
 	t = theGame.GetEngineTimeAsSeconds() - gfgDbgDrawStart;
 	if ( t > gfgDbgDrawLen )
@@ -188,7 +189,9 @@ timer function GfgDbgDrawTimer( dt : float, id : int )
 	ang2 = Rad2Deg( AcosF( ClampF( VecDot( barrel, VecNormalize( aim - muzzle ) ), -1.f, 1.f ) ) );
 	if ( rangedWeapon )
 		st = rangedWeapon.GetCurrentStateName();
-	LogChannel( 'GFG', "draw t=" + FloatToStringPrec( t, 3 ) + " ak=" + st + " ang=" + FloatToStringPrec( ang, 1 ) + " a2=" + FloatToStringPrec( ang2, 1 ) + " dist=" + FloatToStringPrec( VecDistance( aim, muzzle ), 1 ) + " d=" + FloatToStringPrec( VecDistance( a, b ), 3 ) + " trig=" + rangedWeapon.gfgTriggerHeld + " sh=" + rangedWeapon.GfgDbgShots() + " spr=" + GetIsSprinting() + " grip=" + FloatToStringPrec( theGame.GetEngineTimeAsSeconds() - rangedWeapon.gfgGripSince, 3 ) );
+	// 鏡頭的俯仰、偏航（後座力：第 49 項比對每把槍的彈道表；cameraDirector.ws:21）
+	rot = theCamera.GetCameraRotation();
+	LogChannel( 'GFG', "draw t=" + FloatToStringPrec( t, 3 ) + " cp=" + FloatToStringPrec( rot.Pitch, 3 ) + " cy=" + FloatToStringPrec( rot.Yaw, 3 ) + " ak=" + st + " ang=" + FloatToStringPrec( ang, 1 ) + " a2=" + FloatToStringPrec( ang2, 1 ) + " dist=" + FloatToStringPrec( VecDistance( aim, muzzle ), 1 ) + " d=" + FloatToStringPrec( VecDistance( a, b ), 3 ) + " trig=" + rangedWeapon.gfgTriggerHeld + " sh=" + rangedWeapon.GfgDbgShots() + " spr=" + GetIsSprinting() + " grip=" + FloatToStringPrec( theGame.GetEngineTimeAsSeconds() - rangedWeapon.gfgGripSince, 3 ) );
 }
 
 exec function gfgdrawlog( optional sec : float )

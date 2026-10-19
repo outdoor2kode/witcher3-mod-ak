@@ -111,6 +111,23 @@
      4. ✅ REDkit 匯入（01:08～01:13）：`gfg_m4a1_d01.xbm`（`TCM_DXTNoAlpha`、`WorldDiffuse`）、`_n01.xbm`（`TCM_NormalsGloss`、`NormalmapGloss`），都 2048、和 AK 的設定相同；`gfg_m4a1.w2mesh`（39,855 頂點）、`_nomag`（34,924）、`_mag`（4,931）：紀錄都有 `HasSkinning: true (NODE 'handle')`；材質 `weapon_rif_m4a4` 指到 M4 的兩張貼圖、`SpecularColor` 59／`RSpecScale` 0／`RSpecBase` 1（`mesh_material_patch.py --list`，同 AK）
      5. ✅ 實體模板（01:17～01:19）：REDkit 關著時把 AK 的 3 個 `.w2ent` 複製成 `gfg_m4a1(.w2ent|_mag|_nomag)`（模板裡沒有自己的路徑）→ REDkit 裡打開、元件 `witcher_crossbow_lvl1` 的 `mesh` 用綠色箭頭換成 M4 的模型、Ctrl+S；讀檔：兩處模型路徑都換了，其他只差校驗碼、時間
      6. 重開 REDkit（新的 bank、圖示、模型）→ 遊戲裡跑 M4 的驗收清單 → AK 回歸
+        - 01:2x 重開 REDkit（關的時候卡住、CPU 空轉 → taskkill）→ reference_level → `dbg_on`＋重載 → `game_start gfg_m4a1`（`g.sh` 加了物品參數，預設照舊 AK）
+        - ✅ 遊戲裡（01:26～01:43；截圖在 session 暫存 `desk\m4_*`）：
+          - 輪盤 `M4A1`＋水平圖示（紀錄 `GFX setData  M4A1 img://…gfg_m4a1_128x64.png`）；物品欄：直的 M4 圖示、子彈格細的 5.56；提示框 `M4A1／CROSSBOW／Required Level 1`、`5.56MM／AMMUNITION`
+          - 拿出：CS2 的 M4A4 模型有貼圖、右手握把、左手護木（自由鏡頭左右側面）；`Equipped bullet item gfg_m4a1_ammo`
+          - 連射 30 發（`Thrown <<gfg_m4a1_ammo>>` 30）；`gfgdrawlog` 每格記發數：29 個間隔平均 **0.0903 秒**（5 格 0.091、偶爾 4 格追回）；打空自動換彈；左下角 `30 5.56mm`
+          - 槍聲：`shot bank loaded: gfg_m4a1.bnk true`；錄音每發都有（`audio_rec.py onsets … --pitch 1.1`）
+          - 換彈（慢動作側面）：沒彈匣的 M4、左手在左腰拿 M4 的彈匣、插回；`magOut=true`。左手抓的點沿用 AK 的（M4 彈匣近握把 3.8 公分）：側面看手拿在彈匣下半段，預設鏡頭看不出 → **不做 M4 專用的換彈動畫**
+          - 槍口火光、曳光在槍口（預設鏡頭連拍）；戰鬥提示（射擊、換彈、閃躲、法印、收槍）
+          - 狼：每發 **27.42**（M4 公式 27.5×0.97^(距離/12.7)；AK 同距離 29.9）
+          - AK ↔ M4 互換：換 AK → `gfg_ak47.bnk`、`gfg_ak47_ammo`、身上只剩 AK 的子彈、替身／沒彈匣的槍重生成 AK 的；換回 M4（`equipitem('gfg_m4a1')`）→ `gfg_m4a1_ammo`、只剩 M4 的子彈、實體重生成 M4 的；錄音只對得上 M4 的槍聲（AK 的模板 0 個）
+          - 衝刺：右手單手提 M4 的替身；沒開槍時跑＝持槍衝鋒
+        - 實體名稱：引擎把模板名結尾的數字拿掉再加流水號（`gfg_ak47` → `gfg_ak48`、`gfg_m4a1` → `gfg_m4a2`；`gfg_ak47_nomag` → `gfg_ak47_nomag48`）
+          - 騎馬（01:43～01:46）：舉槍、連射（21＋9 發）、打空自動換彈（發數歸 0）、按住 E 下馬 → 收槍（`drawn=false`）；E 點一下不會下馬
+          - 後座力（01:47～01:49；`gfg_debug.ws` 的 `gfgdrawlog` 加了鏡頭的 `cp`、`cy`；暫存 `desk\recoil_cmp.py` 對規格檔的表）：連射前段兩把各照自己的表（第 4 發往上：M4 遊戲 2.61°／表 2.97°、AK 3.90°／4.74°）
+            - **觀察（AK 原本就這樣，沒改）**：滑鼠不動時鏡頭俯仰被拉回預設的 −10°：第 7 發後開始往下，30 發結束時比起點低 2.3～2.5°（表是往上 9.7～10.4°）；偏航的正負和表相反（兩把一樣）→ 回報使用者，不在第 49 項範圍
+        - 還沒測：跳（剛下馬的地方夾在牆邊，變成攀牆）、游泳、潛水、船；原版十字弩、劍（REDkit 重開後）
+        - 工具：`audio_rec.py onsets` 改成每個原始檔各自當模板取最大（原本平均：M4 的 4 個音檔裡 m4a1_02 對不上，30 發只抓到 24 個）、加 `--pitch`；AK 舊錄音照樣 30 發
    - 現況（01:2x）：REDkit 開著（mod 專案、**沒開世界**；00:59 重開過）；新的 bank、圖示、模型要再重開 REDkit 才讀得到
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）

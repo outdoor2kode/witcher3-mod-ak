@@ -63,6 +63,7 @@ dbg_off() {
 # ===== 遊戲 =====
 # 開遊戲：play game (650,86) → 一進去就 god()（編輯器鏡頭高，從空中掉下會摔死）→ 死了選 DEBUG RESURRECT → 關教學、中午、拿 AK（舊名 game_start3）
 # 等級 1 就裝得上 AK（10-19 實測）→ 不打 setlevel；要比對傷害再打 setlevel(31)
+# game_start [物品=gfg_ak47]：拿別把槍（例 gfg_m4a1；10-20 第 49 項加）
 game_start() {
   local o i; d focus $MW; o=$(logsize); d click 650 86
   wait_log $o "INPUT CONTEXT CHANGED" 40 || { echo "遊戲沒開起來：$(shot start_fail)"; return 1; }
@@ -72,7 +73,7 @@ game_start() {
     wait_log $o "previousInputContext Death" 10
     sleep 2; con "god()"
   fi
-  con "closeTutorialPopup()" "settime(1, 12)" "additem('gfg_ak47', 1, true)"
+  con "closeTutorialPopup()" "settime(1, 12)" "additem('${1:-gfg_ak47}', 1, true)"
   echo "遊戲開好了"
 }
 # 結束遊戲回編輯器：點遊戲畫面（拿鍵盤焦點）→ F10 → 點編輯器畫面；F10 的結束紀錄有時晚 15 秒以上才寫 → 看兩次
