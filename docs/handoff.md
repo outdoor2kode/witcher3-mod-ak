@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 17:3x（第 41、42 項完成；接著做回顧後的改善）
+最後更新：2026-10-19 17:2x（第 41、42 項完成；回顧後的改善 1、2、4、5 做完，下一步 3）
 
 ---
 
@@ -48,9 +48,13 @@
 **現在在做**：回顧後的改善（使用者：做完不停，接著做回顧裡找到的改善、REDkit 專家訓練）
 
 **接續的步驟**（回顧後的改善；`docs\retrospective.md` 第 6 節）
-1. `tools\README.md`：29 支工具的索引（用途、輸入、輸出、相關文件章節）
-2. `gfg_ak47.ws` 檔頭加目錄（32 個區段標記、關鍵函式）
-3. 測試輔助放進專案：`tools\test\`（`g.sh` 整理成一版、`gfg_debug.ws`＝`gfgfree`、`gfgshots`、`gfgmag` 等＋放進／拿出 workspace 的做法）；`CLAUDE.md` §12 改指向它
+1. ✅（17:2x）`tools\README.md`：「要改什麼 → 去哪個檔」＋29 支工具的索引（分 5 類，附文件章節）
+2. ✅（17:2x）`gfg_ak47.ws` 檔頭加目錄（照區段標題、函式名稱；不寫行號）；`wcc_compile.py` 通過、BOM 還在
+3. 測試輔助放進專案 `tools\test\`（下一步）：
+   - `g.sh`（session 暫存 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\desk\g.sh`）每個函式只留最後一版：`d`、`shot`、`con`、`logsize`、`has_log`、`wait_log`、`set_mw`（第二版）、`game_start3`、`ak_select2`（第三版）、`horse_start`、`import_one`（第四版；`GAB`＝AnimBrowser 的 handle）、`save_gab`、`add_ev`、`add_dur`、`add_track`（第二版）、`rm_anim`、`reload_edit`（第二版）、`restart_all`、`radial_select`、`crop`、`gridm`、`mont`；加今天的 `side_after`（`gfgshots(28)`＋R、13 秒後 `gfgfree`、連拍）
+     - 同資料夾的 `crop.ps1`、`grid.ps1`、`montage.ps1` 一起搬；`P`（輸出資料夾）改成參數或預設 session 暫存
+   - `gfg_debug.ws`：合併 `backup\gfg_tmp39_2026-10-19.ws`（`gfgfree`、`gfgshots`、`gfgmag`）＋ `backup\gfg_debug_2026-10-19.ws`、`backup\gfg_debug_gfgbv_2026-10-19.ws` 裡還用得到的；用法：複製到 `workspace\scripts\local\` → Reload scripts；測完刪掉 workspace 的副本（正本在 `tools\test\`）
+   - `CLAUDE.md` §12「自己寫的測試指令」那段改指向 `tools\test\`；`tools\README.md` 加一節
 4. ✅（17:1x）commit 前擋控制字元：`.githooks\pre-commit`＋`check_ctrl.py`（兩個 repo 都裝了、`core.hooksPath` 設好；測過會擋；裝的當下抓到知識庫 `16-packaging.md` 一個既有的退格字元，修了）
 5. ✅（17:1x）`tools\claude_compact.ps1`：每次送出前 `Wait-UserQuiet`（使用者停手 8 秒、分頁不忙；最多 10 分鐘，等不到不送）；`-Test` 跑過；**下一次壓縮時看紀錄確認**（`使用者在操作…` 那行只有等的時候才印）
 6. 做完 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）
