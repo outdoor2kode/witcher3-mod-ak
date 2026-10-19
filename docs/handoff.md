@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-20 01:1x（第 47 項完成；第 48 項重構：拆檔、Ak→Gun 改名、槍的規格表做到 2b-3a；下一步 2b-3b：見計畫第 3 步）
+最後更新：2026-10-20 01:2x（第 47 項完成；第 48 項重構：拆檔、Ak→Gun 改名、槍的規格表做到 2b-3b 前半；下一步：計畫第 3 步的「2b-3b 後半」）
 
 ---
 
@@ -66,10 +66,8 @@
    - ✅ 2b-2（01:0x）：數值都查表了（`GfgCycleTime`、`GfgRecoilResetTime`、`GfgRange`、`GfgSpread*`、`GfgMaxMoveSpeed`、`GfgSpreadRecoveryTime`、`GfgSetGunDamage`（照子彈的 `gfgGunId`）、`GfgRecoilKickRight`／`Up`）
    - ✅ 2b-3a（01:1x）：XML 加了 `gfg_gun`（AK）、`gfg_gun_ammo`（兩種子彈）；腳本的標籤判斷都換成這兩個；`GfgIsGunAmmoName`、`GetCurrentInfiniteBoltName` 查表
    - **WitcherScript 的兩個坑**（已寫進專家主題 08）：`switch` 只有 `default` → `Empty switch`；`函式().欄位` → `Parent scope does not come from variable`（先放進區域變數）
-   - **2b-3b 下一步**（每個都還寫死 AK）：
-     - `gfg_fire.ws` 的 `GfgShotSound`：bank、事件用 `g = GfgSpec();` 的 `g.soundBank`、`g.shotEvent`
-     - `gfg_fire.ws` 的 `GfgMuzzleFlash`（CR4Player）：`CreateAttachment` 的位置用 `GetWitcherPlayer().GfgGun()` 的 `muzzle`
-     - `gfg_ui.ws` 的 `GfgRadialGunIcon`：對 `GfgGunIds()` 每把槍，路徑有 `iconInv` 就換成 `iconRadial`
+   - ✅ 2b-3b 前半（01:2x）：`GfgShotSound`（bank、事件）、`GfgMuzzleFlash`（槍口位置）、`GfgRadialGunIcon`（每把槍的直式→水平圖示）都查表；編譯通過
+   - **2b-3b 後半 下一步**（還寫死 AK 的）：
      - `gfg_reload.ws` 67／71（`GfgMagSpawn` 的兩個模板）、`gfg_anim.ws` 的 `GfgCarrySpawnDummy`（替身模板）→ 規格表＋換槍時刪掉重生（2b-4）
      - `gfg_core.ws` 檔頭第 2 行還寫「只對帶有 gfg_ak47 標籤」→ 改成 `gfg_gun`
      - 整理：`gfg_ui.ws` 最後一節裡的 `ThrowProjectile` 包裝（子彈飛向準心、設射程和 `gfgGunId`）是拆檔時分錯的 → 搬到 `gfg_projectile.ws`

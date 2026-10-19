@@ -291,14 +291,24 @@ function GfgRadialRemoveBolts( list : CScriptedFlashArray )
 function GfgRadialGunIcon( obj : CScriptedFlashObject ) : bool
 {
 	var path : string;
+	var ids : array< name >;
+	var g : SGfgGunSpec;
+	var i : int;
 
 	if ( !obj )
 		return false;
 	path = obj.GetMemberFlashString( "itemIconPath" );
-	if ( !StrContains( path, "gfg_ak47_64x128.png" ) )
-		return false;
-	obj.SetMemberFlashString( "itemIconPath", StrReplace( path, "gfg_ak47_64x128.png", "gfg_ak47_128x64.png" ) );
-	return true;
+	ids = GfgGunIds();		// 每把槍的直式、水平圖示在槍的規格表
+	for ( i = 0; i < ids.Size(); i += 1 )
+	{
+		g = GfgGunSpecOf( ids[i] );
+		if ( StrContains( path, g.iconInv ) )
+		{
+			obj.SetMemberFlashString( "itemIconPath", StrReplace( path, g.iconInv, g.iconRadial ) );
+			return true;
+		}
+	}
+	return false;
 }
 
 @addMethod(CR4HudModuleRadialMenu)

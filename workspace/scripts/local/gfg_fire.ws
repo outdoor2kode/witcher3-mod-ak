@@ -357,16 +357,19 @@ var gfgShotBankLogged : bool;
 @addMethod(Crossbow)
 function GfgShotSound()
 {
-	if ( !theSound.SoundIsBankLoaded( "gfg_ak47.bnk" ) )
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();		// bank、事件在槍的規格表
+	if ( !theSound.SoundIsBankLoaded( g.soundBank ) )
 	{
-		theSound.SoundLoadBank( "gfg_ak47.bnk", false );
+		theSound.SoundLoadBank( g.soundBank, false );
 		if ( !gfgShotBankLogged )
 		{
 			gfgShotBankLogged = true;
-			LogChannel( 'GFG', "shot bank loaded: " + theSound.SoundIsBankLoaded( "gfg_ak47.bnk" ) );
+			LogChannel( 'GFG', "shot bank loaded: " + g.soundBank + " " + theSound.SoundIsBankLoaded( g.soundBank ) );
 		}
 	}
-	ownerPlayer.SoundEvent( "gfg_ak47_shot" );
+	ownerPlayer.SoundEvent( g.shotEvent );
 }
 
 // 扳機按住時，條件符合、而且到了下一發的時間就開一槍
@@ -587,6 +590,7 @@ var gfgMuzzleTmpl : CEntityTemplate;
 function GfgMuzzleFlash()
 {
 	var fx : W3VisualFx;
+	var g : SGfgGunSpec;
 
 	// 模板：原版刀劍火花 sword_colision_fx（gameplay.xml:131）的複本，改成槍口用：拿掉刀劍碰撞聲、光 0.06 秒半徑 3、粒子只噴 0.1 秒、整段 0.8 秒
 	// 路徑寫法照 signEntity.ws:708（第二個參數 true = 路徑，不是別名）
@@ -597,7 +601,8 @@ function GfgMuzzleFlash()
 	fx = (W3VisualFx)theGame.CreateEntity( gfgMuzzleTmpl, GetWorldPosition(), GetWorldRotation() );
 	if ( !fx )
 		return;
-	fx.CreateAttachment( this, 'l_weapon', Vector( 0.2368, 0.0409, 0.1710 ) );
+	g = GetWitcherPlayer().GfgGun();		// 槍口的位置在槍的規格表
+	fx.CreateAttachment( this, 'l_weapon', g.muzzle );
 	fx.PlayEffect( 'sparks' );
 	fx.DestroyOnFxEnd( 'sparks' );
 }
