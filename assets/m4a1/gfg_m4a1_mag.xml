@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<mesh>
+    <mesh_data autohideDistance="30.00" isTwoSided="false" useExtraStreams="false" mergeInGlobalShadowMesh="true" entityProxy="false">
+        <LODs>
+            <LOD_info distance="0.00" />
+        </LODs>
+    </mesh_data>
+    <collision attenuation="-1.00" diagonalLimit="-1.00" swimmingRotationAxis="0" />
+    <materials>
+        <material name="weapon_rif_m4a4" local="true" base="engine\materials\graphs\pbr_std.w2mg">
+            <param name="Diffuse" type="handle:ITexture" value="dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1_d01.xbm" />
+            <param name="Normal" type="handle:ITexture" value="dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1_n01.xbm" />
+            <param name="SpecularColor" type="Color" value="59; 59; 59; 255" />
+            <param name="RSpecScale" type="Float" value="0" />
+            <param name="RSpecBase" type="Float" value="1" />
+        </material>
+    </materials>
+</mesh>

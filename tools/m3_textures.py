@@ -3,9 +3,9 @@
 用法：
     "D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background
         --python-exit-code 1 --python tools/m3_textures.py --
-        顏色.png 法線.png ORM.png 輸出資料夾 [--size 2048]
+        顏色.png 法線.png ORM.png 輸出資料夾 [--size 2048] [--name gfg_ak47]
 
-- 只讀三張來源圖；輸出 gfg_ak47_d01.png、gfg_ak47_n01.png 到輸出資料夾（沒有就建立）
+- 只讀三張來源圖；輸出 <name>_d01.png、<name>_n01.png 到輸出資料夾（沒有就建立；name 預設 gfg_ak47，M4 用 gfg_m4a1）
 - gfg_ak47_d01.png：顏色圖縮小，RGB（`pbr_std` 的 Diffuse；alpha 會當 Mask，所以不放）
 - gfg_ak47_n01.png：法線圖縮小，RGB = 法線、alpha = 粗糙度（ORM 圖的 G）
   - `pbr_std` 把 Normal 的 alpha 當 Roughness（docs/m3.md「第 4 步前的查證」）
@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('orm', type=Path, help='ak47_default_ao_*_orm_*.png')
     p.add_argument('out_dir', type=Path, help='輸出資料夾')
     p.add_argument('--size', type=int, default=2048, help='輸出的邊長（預設 2048）')
+    p.add_argument('--name', default=NAME, help=f'輸出檔名的開頭（預設 {NAME}）')
     return p.parse_args(argv)
 
 
@@ -86,8 +87,8 @@ def main() -> int:
             print(f'找不到檔案：{p}')
             return 2
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    d_path = (args.out_dir / f'{NAME}_d01.png').resolve()
-    n_path = (args.out_dir / f'{NAME}_n01.png').resolve()
+    d_path = (args.out_dir / f'{args.name}_d01.png').resolve()
+    n_path = (args.out_dir / f'{args.name}_n01.png').resolve()
 
     color = load(args.color)
     normal = load(args.normal)

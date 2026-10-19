@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-20 00:3x（第 48 項：槍的規格表做完、AK 回歸在遊戲裡通過；下一步：計畫第 4 步 M4 素材）
+最後更新：2026-10-20 00:5x（第 49 項：M4 的離線素材大部分做好（模型、貼圖、槍聲 bank、圖示、子彈圖示、後座力表）；接續：計畫第 4 步的「接續的步驟」1～6）
 
 ---
 
@@ -82,7 +82,35 @@
      - 知識庫（#47）：專家主題 17（原版的計時器警告）；`senior-engineer` 的 `checklists.md`（重構的回歸：資料用程式比對新舊＋每條路徑實測）、`pitfalls.md`（自己估的時間不準、`VAR=值 source 檔` 的變數）
      - 修正：`g.sh` 的用法要寫 `P=…; source tools/test/g.sh`（分號；`CLAUDE.md` §12、`tools\README.md` 跟著改）
    - 現況：REDkit 開著（mod 專案、Novigrad 世界；遊戲已 F10 結束；`gfg_debug.ws` 已拿出 workspace、重載過）
-   - **下一步：計畫第 4 步（M4 素材，離線）**
+4. **M4 素材（離線）：大部分做好（10-20 00:38～00:55）**
+   - 模型：`Source2Viewer-CLI`（`tools\_vendor\s2v_cli\`）從 VPK 匯出 → `assets\m4a1\cs2\weapons\models\m4a4\weapon_rif_m4a4.gltf`
+     - 指令：`-i <pak01_dir.vpk> -f "weapons/models/m4a4/weapon_rif_m4a4.vmdl_c,weapons/models/m4a4/weapon_rif_m4a4_mag.vmdl_c" -o assets/m4a1/cs2 -d --gltf_export_format gltf --gltf_export_materials --gltf_textures_adapt --gltf_export_animations --gltf_animation_list gfg_none`
+     - **不加 `--gltf_export_animations` 就沒有骨架**（頂點有 JOINTS／WEIGHTS，但沒有 skins）；加了再用不存在的動畫名稱 → 有骨架、沒有動畫
+     - M4A4 和 AK 一樣：模型 `…body_hd`、握把骨頭 `ag1_hand_r`、彈匣骨頭 `clip` → `tools\m3_build_ak.py` 不用改就能用
+     - 兩把的 `weapon` 骨頭相對 `ag1_hand_r` 完全相同（F +0.0866、U +0.1145）＝CS2 的標準手的點；扳機差約 1 公分 → 用同一組 `--place` 對齊就對（暫存 `m4exp\bones.py`、疊圖 `m4exp\overlay_side.png`）
+     - 彈匣重心比 AK 近握把 3.8 公分、高 1.7 公分 → 換彈時左手抓的點會差幾公分，遊戲裡看了再決定要不要做 M4 專用的換彈動畫
+   - `assets\m4a1\gfg_m4a1.fbx`（39,550 頂點）、`_nomag.fbx`（34,628）、`_mag.fbx`（4,922；沒有跨兩邊的面）；`--place` 同 AK（`docs\m3.md` 第 1155 行）；指令同 AK 加 `--name gfg_m4a1 [--part nomag|mag --name gfg_m4a1_nomag|_mag]`
+     - 檢查：同一支工具重做 AK → 頂點區塊和現在的 `gfg_ak47.fbx` 完全相同
+     - 槍口（`l_weapon` 座標）`(0.1446, 0.0009, 0.1118)`＝槍座標 F 0.5535、U 0.1121（AK：工具印 (0.2355, 0.0439, 0.1717)、規格表用 (0.2368, 0.0409, 0.1710)）
+   - 貼圖：`tools\m3_textures.py` 加 `--name`（預設 AK）→ `assets\m4a1\gfg_m4a1_d01.png`、`_n01.png`（2048；粗糙度平均 0.726，AK 0.416）；**Blender 讀圖要給絕對路徑**
+   - 材質 XML：`assets\m4a1\gfg_m4a1.xml`（＋`_nomag`、`_mag` 複本）：材質名 `weapon_rif_m4a4`（FBX 裡的名稱）、貼圖 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1_d01.xbm`／`_n01.xbm`、高光照 AK
+   - 槍聲：CS2 `Weapon_M4A1.Single`（GameTracking-CS2 `soundevents/game_sounds_weapons.vsndevts:35082-35163`）＝`m4a1_01`～`04`、volume 1.0、**pitch 1.1**（AK：volume 1.1、pitch 1.0）
+     - `tools\ak_soundbank.py` 加 `--name`、`--pitch`（窗函數 sinc 重新取樣；1.0 不動）；重做 AK 的 bank → 和現在的位元組相同
+     - `workspace\soundbanks\pc\gfg_m4a1.bnk`：事件 `gfg_m4a1_shot`、−3.8 dB（AK −3 再小 0.83 dB）、同時 1 個；ID 和原版 739 個 bank、AK 的 bank 都沒撞；pitch 檢查：同一段內容頻譜重心、最強頻率都 ×1.1000
+     - WAV：`assets\m4a1\sound\m4a1_01～04.wav`（CLI 從 VPK 轉）
+   - 圖示：CS2 `weapon_m4a1_png.vtex_c` → `assets\m4a1\icon\weapon_m4a1_png.png`；`tools\ak_icon.ps1`：直 `87.0`、橫 `-Angle:-9.6`（M4 槍管在原圖 9.63°、AK 8.4°；兩把槍管的方向一樣）→ `workspace\…\icons\inventory\weapons\gfg_m4a1_64x128.png`、`gfg_m4a1_128x64.png`
+   - 子彈圖示 5.56mm：CS2 沒有 5.56 的子彈模型 → `tools\ammo_build.py` 加 `--shape 半徑 長度`（預設 1 1；重做 AK 的圖示 → 位元組相同）；`--shape 0.82 1.03` → `gfg_m4a1_ammo_64x128.png`（比 7.62 細）
+   - 後座力：Artanis-RCS `patterns/m4a4.csv`（30 列、88 毫秒＝0.09 秒；`m4a1.csv` 是 M4A1-S 25 列）→ `data\recoil\m4a4_artanis-rcs.csv`；最高 9.72°、先往右再往左再往右
+     - `tools\recoil_pattern.py --ws --name M4a1` 改成印規格檔的陣列函式（`GfgM4a1KickRight／Up`）；AK 的輸出和 `gfg_gun_ak47.ws` 的兩個函式一字不差
+   - M4 的規格（`weapons.vdata` 10-20 重抓，和 10-12 的相同；算法同 AK）：cycleTime 0.09、recoilResetTime 0.338941、range 208、spreadStand 0.3151、spreadMove 8.1595、spreadPerShot 0.4011、maxMoveSpeed 5.715、recovery 0.338941→0.466044（第 2～5 發）、傷害 9.1667×等級＋18.3333（AK×33/36）、爆頭 4、距離 0.97、bank `gfg_m4a1.bnk`／`gfg_m4a1_shot`、子彈 `gfg_m4a1_ammo`／`_water`、模板 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\gfg_m4a1(.w2ent|_mag|_nomag)`、圖示 `gfg_m4a1_64x128.png`→`_128x64.png`、槍口 `Vector(0.1446, 0.0009, 0.1118)`
+   - **接續的步驟**：
+     1. `gfg_gun_m4a1.ws`（照 `gfg_gun_ak47.ws`；陣列用 `recoil_pattern.py data/recoil/m4a4_artanis-rcs.csv --ws --name M4a1` 的輸出）＋`gfg_core.ws` 的 `GfgGunIds`、`GfgGunSpecOf` 各加一行 → 編譯
+     2. 物品 XML：`gfg_m4a1`（複製 `gfg_ak47`：標籤 `gfg_m4a1, gfg_gun`、能力 `gfg_m4a1 _Stats` ammo 30、`equip_template gfg_m4a1`、`equip_slot gfg_ak47_back_slot`（沿用：槽在 `test.reddlc`）、圖示）、`gfg_m4a1_ammo`、`gfg_m4a1_ammo_water`（`hold_template gfg_ak47_bullet` 沿用、標籤 `gfg_gun_ammo`）
+     3. 字串（**REDkit 關著時**改 `.db`＋`.csv`：`docs\findings.md` §37.2）：10000014 `gfg_item_name_m4a1` M4A1；10000015 `gfg_item_name_m4a1_ammo` 5.56mm；10000016 `gfg_item_desc_m4a1_ammo`（EN／ZH）
+     4. REDkit：匯入兩張貼圖（`WorldDiffuse`、`NormalmapGloss`）、三個模型（`importAsSkinnedMesh` true、材質 XML、Import mesh 對話框按 Cancel：`docs\m3.md`「分兩輪做」）到 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\`
+     5. 實體模板：`gfg_ak47.w2ent` 裡模型路徑出現 2 次（位移 3308、4795）：`flatCompiledData` 和 `streamingDataBuffer` 裡各有一個內嵌的 CR2W → 二進位改要連內嵌的校驗碼一起算；**較穩：REDkit 裡 Save as ＋換 `mesh`**（`docs\m3.md`「B」）；三個（整把、`_mag`、`_nomag`）
+     6. 重開 REDkit（新的 bank、圖示、模型）→ 遊戲裡跑 M4 的驗收清單 → AK 回歸
+   - 現況：REDkit 開著（mod 專案、Novigrad 世界、遊戲已結束）；新建的 workspace 檔（bank、圖示）要重開 REDkit 才讀得到
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）
 6. M4 的規格加進表 → 遊戲裡跑驗收清單 → 回歸清單

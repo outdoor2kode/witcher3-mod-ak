@@ -4,7 +4,7 @@
     "D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background
         --python-exit-code 1 --python tools/ammo_build.py --
         ak47_bullet.gltf 顏色.png 圖示.png 輸出資料夾 [--preview 大圖.png] [--samples 64] [--count 1] [--pitch 8]
-        [--tilt 25] [--shadow 0.6] [--margin 0.1]
+        [--tilt 25] [--shadow 0.6] [--margin 0.1] [--shape 1 1]
 
 - 來源：Source 2 Viewer 匯出的 weapons/models/shared/shells/ak47/ak47_bullet.gltf、ak47_bullet_color.png（docs/handoff.md「#27 查到的」）
   - Blender 匯入後（公尺）：長軸 Y，尖在 -Y（-0.0418）、底在 +Y（0.0213）；7 塊互不相連的頂點
@@ -25,6 +25,9 @@
     - 名稱：模型、材質都叫 gfg_ak47_bullet（材質 XML assets/ak47/gfg_ak47_bullet.xml 用同名）；UV 叫 DiffuseUV
     - 匯出後解析 FBX：節點的變換、頂點的外框（公分）
   - gfg_ak47_bullet_d01.png：顏色圖存成 RGB（pbr_std 會把 Diffuse 的 alpha 當 Mask：tools/m3_textures.py）
+- --shape 半徑倍率 長度倍率（第 49 項 M4 的 5.56mm，10-20）：渲染圖示前把整顆子彈變細、變長（CS2 沒有 5.56 的子彈模型）
+  - 5.56×45：0.82 1.03（彈殼直徑 9.6／11.35 公釐、彈頭 5.7／7.9；全長 57.4／56）；法線照逆轉置矩陣跟著轉
+  - 用了 --shape 時輸出資料夾給暫存的：彈頭模型、貼圖照樣會寫（射出去的彈頭 M4 沿用 AK 的）
 - 只讀來源檔
 - Blender 內建的 Python 預設不讀 PYTHONUTF8 等環境變數，所以在腳本裡把輸出改成 UTF-8
 """
@@ -71,6 +74,8 @@ def parse_args():
     p.add_argument('--look', default='None', help='色彩轉換的 look（例：AgX - Punchy）')
     p.add_argument('--key', type=float, default=2.0, help='左上前方面光的強度（W；0 = 不加）')
     p.add_argument('--rim', type=float, default=3.0, help='右後方輪廓光的強度（W；0 = 不加）')
+    p.add_argument('--shape', type=float, nargs=2, default=(1.0, 1.0), metavar=('半徑', '長度'),
+                   help='渲染前把子彈的半徑、長度乘上倍率（預設 1 1 = 不變；5.56mm 用 0.82 1.03）')
     a = p.parse_args(argv)
     # Blender 的相對路徑是相對於 .blend 檔 → 一律換成絕對路徑
     for k in ('gltf', 'color', 'icon', 'out_dir', 'preview'):
@@ -119,6 +124,18 @@ def check_source(obj) -> tuple[Vector, Vector]:
         raise SystemExit(f'尖端不在 -Y：-Y 端半徑 {r_tip:.4f}、+Y 端 {r_base:.4f}')
     print(f'來源：頂點 {len(pts)} 個；外框 {fmt(lo)}～{fmt(hi)}；尖端半徑 {r_tip:.4f}、底部 {r_base:.4f}')
     return lo, hi
+
+
+def reshape(obj, radial: float, length: float) -> None:
+    """--shape：半徑（X、Z）乘 radial、長度（Y）乘 length；角落法線照逆轉置矩陣轉、正規化"""
+    me = obj.data
+    normals = [c.vector.copy() for c in me.corner_normals]
+    m = Matrix.Diagonal((radial, length, radial, 1.0))
+    me.transform(m)
+    nm = m.to_3x3().inverted().transposed()
+    me.normals_split_custom_set([(nm @ n).normalized() for n in normals])
+    me.update()
+    print(f'--shape：半徑 ×{radial}、長度 ×{length}')
 
 
 # ---------- 圖示 ----------
@@ -537,6 +554,8 @@ def main():
     sys.stdout.reconfigure(encoding='utf-8')
     a = parse_args()
     obj = import_bullet(a.gltf)
+    if tuple(a.shape) != (1.0, 1.0):
+        reshape(obj, *a.shape)
     lo, hi = check_source(obj)
     a.out_dir.mkdir(parents=True, exist_ok=True)
 

@@ -1,19 +1,23 @@
-"""做 AK 槍聲的 SoundBank：CS2 的 WAV → Wwise 的 PCM WEM → gfg_ak47.bnk（不用 Wwise；第 22 項，2026-10-18）
+"""做槍聲的 SoundBank：CS2 的 WAV → Wwise 的 PCM WEM → <name>.bnk（不用 Wwise；第 22 項，2026-10-18；M4 第 49 項，10-20）
 
 用法：
     python -X utf8 tools/ak_soundbank.py --template <combat.bnk> --out <gfg_ak47.bnk>
-        [--volume 0] [--limit 1] [--check <bank 資料夾>] <WAV>...
+        [--name gfg_ak47] [--volume 0] [--pitch 1.0] [--limit 1] [--check <bank 資料夾>] <WAV>...
 
     例（<REDKIT_DEPOT> = REDkit 的 r4data）：
     python -X utf8 tools/ak_soundbank.py --template "<REDKIT_DEPOT>/soundbanks/Pc/combat.bnk"
         --out workspace/soundbanks/pc/gfg_ak47.bnk --check "<REDKIT_DEPOT>/soundbanks/Pc"
         assets/ak47/sound/ak47_01.wav assets/ak47/sound/ak47_02.wav assets/ak47/sound/ak47_04.wav
+    M4：--name gfg_m4a1 --volume -3.8 --pitch 1.1 … assets/m4a1/sound/m4a1_01.wav … m4a1_04.wav
+    （CS2 的 Weapon_M4A1.Single：volume 1.0、pitch 1.1；AK 的 Weapon_AK47.Single：volume 1.1 → M4 比 AK 小 0.83 dB）
 
 做出來的 bank（Wwise bank 第 150 版，同遊戲的 combat.bnk）：
-- 事件 gfg_ak47_shot → 播放 → 隨機容器（不連續播同一個；同時最多 --limit 個，新的蓋掉舊的）→ 每個 WAV 一個 Sound
+- 事件 <name>_shot → 播放 → 隨機容器（不連續播同一個；同時最多 --limit 個，新的蓋掉舊的）→ 每個 WAV 一個 Sound
 - 隨機容器掛在原版十字弩射擊的上一層（combat.bnk 的 actor-mixer 850914486）：匯流排、3D 定位跟著十字弩
 - Sound 用 PCM（plugin 0x00010001），媒體放在 bank 裡（DIDX、DATA）
-- 遊戲裡：腳本 theSound.SoundLoadBank( "gfg_ak47.bnk", true ) 載入（sound.ws:88），SoundEvent( "gfg_ak47_shot" ) 播放
+- 遊戲裡：腳本 theSound.SoundLoadBank( "<name>.bnk", true ) 載入（sound.ws:88），SoundEvent( "<name>_shot" ) 播放
+- --pitch：CS2 sound event 的 pitch（播放速度的倍率：音高、長度一起變）→ WAV 先重新取樣（窗函數 sinc，±16 點、Hann；
+  倍率 > 1 時截止頻率跟著降，避免疊頻）；1.0 不動 WAV（AK 的 bank 和以前位元組相同）
 
 格式的出處：
 - 物件的欄位、位置：wwiser（bnnm/wwiser v20260808）解析 combat.bnk 的結果；寫入前先檢查範本的值
@@ -76,12 +80,38 @@ def expect(buf, off, fmt, value, what):
         raise SystemExit(f'範本不符：{what} 是 {got}，預期 {value}')
 
 
-def make_wem(path):
+def resample(data, ch, mult):
+    """16 位元 PCM 照播放速度倍率 mult 重新取樣（輸出長度 = 輸入 / mult）：窗函數 sinc（±16 點、Hann）"""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '_vendor', 'pylib314'))
+    import numpy as np
+    x = np.frombuffer(data, '<i2').astype(np.float64).reshape(-1, ch)
+    n = len(x)
+    m = int(round(n / mult))
+    t = np.arange(m) * mult           # 每個輸出樣本在輸入的位置
+    fc = min(1.0, 1.0 / mult)         # 截止頻率（相對奈奎斯特）
+    half = 16
+    i0 = np.floor(t).astype(np.int64)
+    out = np.zeros((m, ch))
+    for k in range(-half + 1, half + 1):
+        idx = i0 + k
+        d = t - idx
+        w = fc * np.sinc(fc * d) * (0.5 + 0.5 * np.cos(np.pi * d / half))
+        ok = (idx >= 0) & (idx < n)
+        out[ok] += x[idx[ok]] * w[ok][:, None]
+    clipped = int(np.sum(np.abs(out) > 32767))
+    return np.clip(np.round(out), -32768, 32767).astype('<i2').tobytes(), m, clipped
+
+
+def make_wem(path, pitch=1.0):
     with wave.open(path, 'rb') as w:
         ch, width, rate, n = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
         data = w.readframes(n)
     if width != 2 or ch not in (1, 2):
         raise SystemExit(f'{path}：只收 16 位元的單聲道、立體聲（這個是 {width * 8} 位元 {ch} 聲道）')
+    if pitch != 1.0:
+        data, n, clipped = resample(data, ch, pitch)
+        print(f'  pitch {pitch}：重新取樣成 {n} 個樣本（{n / rate:.3f} 秒），超出範圍被截掉 {clipped} 個')
     chcfg = {1: 0x4101, 2: 0x3102}[ch]  # 遮罩：單聲道 0x4（中央）、立體聲 0x3（左右）；類型 1 = 標準
     fmt = struct.pack('<HHIIHHHHI', 0xFFFE, ch, rate, rate * ch * 2, ch * 2, 16, 6, 0, chcfg)
     body = b'fmt ' + struct.pack('<I', len(fmt)) + fmt
@@ -115,11 +145,13 @@ def bank_ids(folder):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='做 AK 槍聲的 SoundBank（gfg_ak47.bnk）')
+    ap = argparse.ArgumentParser(description='做槍聲的 SoundBank（<name>.bnk）')
     ap.add_argument('wavs', nargs='+')
     ap.add_argument('--template', required=True, help='combat.bnk（只讀）')
     ap.add_argument('--out', required=True)
+    ap.add_argument('--name', default='gfg_ak47', help='bank 名稱（檔名不含 .bnk）；事件是 <name>_shot（預設 gfg_ak47）')
     ap.add_argument('--volume', type=float, default=0.0, help='隨機容器的音量（dB；十字弩的是 -3）')
+    ap.add_argument('--pitch', type=float, default=1.0, help='播放速度倍率（CS2 sound event 的 pitch；預設 1.0 = 不變）')
     ap.add_argument('--limit', type=int, default=1, help='同時最多幾個（CS2 的 instance_limit 是 1）；0 = 不限')
     ap.add_argument('--check', help='bank 資料夾：檢查新的 ID 有沒有和這裡的 bank 撞到')
     args = ap.parse_args()
@@ -150,14 +182,15 @@ def main():
     expect(act, 11, '<I', TEMPLATE_CNTR, '動作的目標')
     expect(act, 19, '<I', fnv('combat'), '動作的 bank ID')
 
-    bank_id = fnv('gfg_ak47')
-    event_id = fnv('gfg_ak47_shot')
-    action_id = fnv('gfg_ak47_shot_play')
-    cntr_id = fnv('gfg_ak47_shot_random')
+    name = args.name
+    bank_id = fnv(name)
+    event_id = fnv(f'{name}_shot')
+    action_id = fnv(f'{name}_shot_play')
+    cntr_id = fnv(f'{name}_shot_random')
     sounds = []  # (Sound ID, 媒體 ID, WEM)
     for i, path in enumerate(args.wavs, 1):
-        wem, ch, rate, n = make_wem(path)
-        sounds.append((fnv(f'gfg_ak47_shot_sound_{i:02d}'), fnv(f'gfg_ak47_shot_media_{i:02d}'), wem))
+        wem, ch, rate, n = make_wem(path, args.pitch)
+        sounds.append((fnv(f'{name}_shot_sound_{i:02d}'), fnv(f'{name}_shot_media_{i:02d}'), wem))
         print(f'{os.path.basename(path)}：{ch} 聲道 {rate} Hz {n / rate:.3f} 秒 → WEM {len(wem)} bytes')
 
     if args.check:
@@ -166,7 +199,7 @@ def main():
         clash += [x for x in [event_id, action_id, cntr_id] + [s[0] for s in sounds] if x in used]
         clash += [s[1] for s in sounds if s[1] in media]
         if clash:
-            raise SystemExit(f'ID 和原版撞到：{clash}')
+            raise SystemExit(f'ID 和 {args.check} 的 bank 撞到：{clash}')
         print(f'ID 檢查：沒撞到（{len(banks)} 個 bank、{len(used)} 個物件、{len(media)} 個媒體）')
 
     hirc = []
@@ -224,8 +257,8 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, 'wb') as f:
         f.write(out)
-    print(f'寫入 {args.out}（{len(out)} bytes）：bank {bank_id}、事件 gfg_ak47_shot {event_id}、'
-          f'{len(sounds)} 個聲音、音量 {args.volume} dB、同時最多 {args.limit or "不限"}')
+    print(f'寫入 {args.out}（{len(out)} bytes）：bank {bank_id}、事件 {name}_shot {event_id}、'
+          f'{len(sounds)} 個聲音、音量 {args.volume} dB、pitch {args.pitch}、同時最多 {args.limit or "不限"}')
 
 
 if __name__ == '__main__':
