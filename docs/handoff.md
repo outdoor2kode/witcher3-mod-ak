@@ -4,13 +4,38 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 18:1x（第 43 項 0.4 版裝進遊戲、第 44 項回顧網頁完成；專家訓練 L4t 做完；下一步專家訓練接著練）
+最後更新：2026-10-19 18:1x（使用者暫停自主模式：「可以暫停自主模式了 我要使用電腦」→ 背景都停了；第 39～44 項都完成；專家訓練 L4u 只做了離線查詢）
 
 ---
 
-## 自主模式（2026-10-19 15:36 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。」＋ 2 項）
+## 使用者回來時先看這裡（2026-10-19 18:1x）
 
-- 背景：保持清醒 `bl37km196`、看門狗 `b9msivnyc`（17:1x 重開：用新版的 `Submit`）、每小時續做排程 `c8a498e9`（第 13 分；10-19 15:3x 建 → 10-25 重排）
+自主模式（15:36 開始）**暫停**（使用者 18:1x：「可以暫停自主模式了 我要使用電腦」）
+- 背景都停了：保持清醒 `bl37km196`、看門狗 `b9msivnyc`（TaskStop）、每小時續做排程 `c8a498e9`（CronDelete）、旗標 `.autonomous`（改名成 `.autonomous.paused_1817`）
+- 要再開：說「開始自主模式」（`CLAUDE.md` §14）；現在是互動模式（`CLAUDE.md` §11）
+- 交辦的 6 項（#39～#44）都做完：下面「自主模式」的表
+
+**REDkit 現在開著練習專案 lab01**（不是 mod 專案；世界 labworld、遊戲已 F10）
+- 要開發 mod：File → Restart...（y=360）→ Welcome 的 Recent projects 點 gunforgeralt 那一列的空白處；不行就 Browse (1236,814) → `gunforgeralt.w3edit`
+- 0.4 打包後 REDkit 已經重開過 → 切回 mod 專案後可以直接 play game
+
+**要使用者做、決定的**
+- 0.4 版已裝進 Steam 版（17:4x）：Claude 沒在 Steam 版裡開遊戲測 → 玩一下看看；之後再裝照樣先問（`CLAUDE.md` §6.3）
+- 回顧網頁 https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo：私人，要分享從頁面的 Share
+- 子彈圖示的「質感」是主觀的：看了不滿意，說哪裡要改
+- 外觀選單（Transmog）的 AK 預覽沒進遊戲測（舊的，還留著）
+
+**REDkit 專家**
+- 叫用（技能都在 `C:\Users\beyon\.claude\skills\`，任何資料夾都叫得到）：「你現在是 redkit 開發專家」→ `redkit-expert`；「開啟自主模式」→ `autonomous-mode`；「你現在是資深軟體工程師」→ `senior-engineer`
+- 訓練進度：官方 Wiki 85 頁讀完、21 個主題都有內容；實作 L1～L4t 做完；L4u（聚光燈＋Instance Properties）只查了原版、還沒開 REDkit 做（細節：`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+- 對 M5（槍口火光的光）有用的：特效的 DynamicLight 項目結尾不能超出特效的 length（L4t）；原版營火是用特效的參數軌道（`Brightness`）控制模板上的燈（L4u 查到）
+- 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z
+
+---
+
+## 自主模式（2026-10-19 15:36～18:1x，使用者暫停；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。」＋ 2 項）
+
+- 背景（18:1x 都停了）：保持清醒 `bl37km196`、看門狗 `b9msivnyc`、每小時續做排程 `c8a498e9`
 - 技能：`autonomous-mode`、`redkit-expert`
 
 | # | 任務（使用者的描述） | 狀態 |
@@ -47,7 +72,7 @@
 - 三個技能的正本放 `D:\OneDrive\Desktop\redkit_expert\skills\`（有 git）→ 複製到 `C:\Users\beyon\.claude\skills\`（已同步）
 - 統計腳本、資料：session 暫存 `s41\`（`scan.py`、`user_dedup.txt`、`sessions.txt`）
 
-**現在在做**：REDkit 專家訓練（使用者 16:2x：做完不停，接著做回顧裡找到的改善 → 都做完了 → 專家訓練）
+**現在在做**：沒有（18:1x 使用者暫停；暫停前在做 REDkit 專家訓練 L4u）
 
 **接續的步驟**
 1. ✅ 回顧後的改善 5 項都做完（`docs\retrospective.md` 第 6 節）
@@ -62,12 +87,12 @@
    - REDkit 現在開著練習專案 lab01（不是 mod 專案）：要開發 mod 時切回（Welcome → Browse (1236,814) → `gunforgeralt.w3edit`）
    - 打包後關 REDkit 時當在 Scaleform（17:51）：`CrashReporter.exe` 用 taskkill 關、沒送出
    - `tools\test\g.sh` 的 `logsize` 改用 `wc -c`（`stat` 的大小在 REDkit 寫檔時會落後：專家訓練 `tools\lab\l3.sh` 早就這樣寫）
-5. 下一步 → 專家訓練接著練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`「接續的步驟」0.0 挑一個）
-- 不跑 §14 的「結束」（使用者 16:2x）
+5. 專家訓練 L4u（聚光燈＋Instance Properties）：18:1x 只查了原版的模板 → 使用者暫停（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`「接續的步驟」0.0）
+- 使用者 16:2x 要做完不停（不跑 §14 的「結束」）→ 18:1x 使用者要用電腦、叫停 → 跑了「結束」的 1、2、3 步；第 4 步（終端機叫回前面）沒做：使用者正在用電腦，不搶焦點
 
 ---
 
-## 使用者回來時先看這裡（2026-10-19 15:1x）
+## 上一次自主模式結束時（2026-10-19 15:1x；舊的：裡面的「現況」已過時，現況看最上面）
 
 自主模式（14:13 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。……有幾個點需要改善」）**結束**：交辦的 4 項都做完、遊戲裡驗證過
 - 背景都停了：保持清醒 `bazp59owh`、看門狗 `ba5u0fbfr`（TaskStop）、每小時續做排程 `439942a1`（CronDelete）、旗標 `.autonomous`（刪了）
