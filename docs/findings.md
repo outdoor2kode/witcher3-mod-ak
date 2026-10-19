@@ -921,7 +921,8 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 | > 1.9 | 32 | **31** |
 
 - 裝備檢查：物品等級 > 玩家等級就不能裝備（`r4Player.ws:11727-11745` `HasRequiredLevelToEquipItem`；有 `EET_WolfHour` 時放寬 2 級）
-- 目前 `gfg_ak47` 的 `attack_power` = 2.02 → **需求等級 31**；`Fast` 啟動的 Geralt 等級不夠（2026-10-12 使用者回報無法裝備）
+- 2026-10-12 時 `gfg_ak47` 的 `attack_power` = 2.02 → **需求等級 31**；`Fast` 啟動的 Geralt 等級不夠（2026-10-12 使用者回報無法裝備）
+  - 2026-10-16 第 10 項拿掉 `attack_power`（commit `57e2470`；傷害改由腳本算）→ 照上表需求等級變成 1；沒在遊戲裡驗證（`CLAUDE.md` §12「主控台指令」）
 - 測試時可用主控台 `setlevel(31)`（`playerCheats.ws:162-182`：加經驗值直到目標等級，只升不降）
 - → M2 設計傷害時要考慮：`attack_power` 會同時改變需求等級
 

@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 13:0x（使用者暫停自主模式和訓練；交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+最後更新：2026-10-19 13:5x（互動模式：`CLAUDE.md` §12 補「主控台指令」表；13:0x 使用者暫停自主模式和訓練；交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 ---
 
@@ -16,6 +16,8 @@
 - 要繼續：使用者說「恢復自主模式」→ 照 §14「開始時」重開；訓練從 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md` 的「接續的步驟」接著做
 
 **mod 的狀態**
+- 13:5x（互動模式，使用者要的）：`CLAUDE.md` §12 補「主控台指令」表（從歷次對話紀錄整理開發時用過的原版指令）
+  - 順便查到：`setlevel(31)` 照程式碼已經不是必要（10-16 拿掉 `attack_power` 後 AK 需求等級 1）；沒在遊戲裡驗證 → 下次進遊戲時試：不打 `setlevel`、直接 `additem('gfg_ak47', 1, true)`，看裝不裝得上
 - 使用者 10-18 回報的 8 項（#24、#28～#34）都完成、遊戲裡驗證過（下面「自主模式」那張表）
 - git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
 - 13:0x 比對 mod 專案的檔案快照：workspace 和練習前（10-19 03:43）一樣；只有 `CLAUDE.md` 不同（Claude 補的知識，已 commit）

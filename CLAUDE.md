@@ -435,14 +435,43 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - REDkit 畫面上的筆刷工具（植被、地形）：拖曳要用 `rmove`（`move` 是 SetCursorPos，畫面收不到）（2026-10-19 練習專案實測：`D:\OneDrive\Desktop\redkit_expert\labs\LOG.md` L4k）
   - 螢幕鎖定、睡眠時截圖和輸入都會失效 → 長時間自己跑時用 `awake`
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
-- **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
+- **取得物品**：`additem('物品名稱', 1, true)`（物品名稱以實際定義為準；第 3 個參數 `true`＝加完直接裝上：`temp.ws:5988-5989`）
 - **開物品欄**：拿著 AK 時打不開（十字弩的 `Lock()`，`docs\findings.md` §31）→ 先按 C 收槍再按 I；Enter 開面板（2026-10-18 實測）
+- **主控台指令**：開發時用過的原版指令（Claude 打的、測試步驟裡請使用者打的；2026-10-19 從對話紀錄整理；出處都在 `<W3_VANILLA_SCRIPTS>`）
+  - 每次進遊戲固定打：`god()` → `setlevel(31)` → `closeTutorialPopup()` → `settime(1, 12)` → `additem('gfg_ak47', 1, true)` → Tab 輪盤選 AK → 左鍵拿出
+    - `god()` 第一個打：編輯器的鏡頭高，Geralt 從空中掉下來會摔死
+    - 第一次開輪盤會跳教學（Quick Access Menu）：每頁按 Esc 關（空白鍵在第二頁會連帶冥想）
+  - `setlevel(31)`：AK 的傷害＝10×等級＋20（`gfg_ak47.ws` 的 `GfgSetAkDamage`）→ 固定等級，傷害才好比對
+    - 2026-10-16 19:55 以前：AK 有 `attack_power` 2.02 → 需求等級 31，沒先升級就裝不上（`docs\findings.md` §13.12）
+    - 之後拿掉 `attack_power`（commit `57e2470`）：照程式碼需求等級變成 1（十字弩類只看 `attack_power`：`inventoryComponent.ws:359-361`、`gameParams.ws:998-1017`）；**沒在遊戲裡驗證**
+
+| 指令 | 用途 | 用過的寫法 | 出處 |
+|---|---|---|---|
+| `setlevel(等級)` | 升級（只升不降） | `setlevel(31)` | `game\player\playerCheats.ws:162` |
+| `additem(名稱, 數量, 裝上)` | 加物品 | `additem('gfg_ak47', 1, true)`；比對原版十字弩：`additem('Crossbow 1', 1, true)`；特殊箭：`additem('Blunt Bolt', 20)`、`additem('Explosive Bolt', 10)` | `game\temp.ws:5968` |
+| `equipitem(名稱)` | 裝上身上已有的物品 | `equipitem('gfg_ak47')`（2026-10-18：原版十字弩換回 AK） | `game\temp.ws:5826` |
+| `god()` | 無敵；再打一次關掉（紀錄 `God is now ON`／`OFF`） | | `game\temp.ws:6054` |
+| `settime(天, 時)` | 改時間 | `settime(1, 12)`：中午 | `engine\gameTime.ws:182` |
+| `changeweather(天氣)` | 改天氣 | `changeweather('WT_Clear')`：晴天 | `game\temp.ws:737` |
+| `closeTutorialPopup()` | 關掉目前的教學彈窗；之後的照樣會跳 | | `game\quests\tutorialManager\tutorialManager.ws:1739` |
+| `spawn(別名, 數量, 距離, 敵對, 等級)` | 生成敵人（細節在下面「測試用靶子」） | `spawn('wolf', 1, 12, true)`；狼群：`spawn('wolf', 6, 4, true)` | `game\temp.ws:6815` |
+| `spawnPath(路徑, 敵對)` | 生成任何實體模板（面前 3 公尺；細節在下面「測試用靶子」） | 狼、盜賊、牆；AK 的彈匣：`spawnPath('dlc\gunforgeralt\data\items\weapons\gfg_ak47\gfg_ak47_mag.w2ent')` | `game\temp.ws:6790` |
+| `killall(範圍)` | 清掉附近的敵人 | `killall(50)` | `game\player\playerCheats.ws:9` |
+| `instantMount('playerHorse')` | 直接騎上自己的馬（先按 X 叫馬；找 1000 公尺內） | | `game\temp.ws:7366` |
+| `slow(倍率)` | 時間流速 | `slow(0.05)`：慢動作（換彈 2.4 秒變 48 秒）→ `slow(1)` 恢復 | `game\temp.ws:8210` |
+| `xy(x, y)` | 傳送到該點的地面 | `xy(100, -40)` | `game\player\playerCheats.ws:325` |
+| `moveCamera(x, y, z, 俯仰, 偏航, 翻滾)` | 移動自由鏡頭 | 2026-10-17 在 `gfgfree` 開的自由鏡頭裡微調（偏航 0＝朝 +Y、俯仰負＝往下） | `game\player\playerCheats.ws:340` |
+| `r4inventory()` | 開物品欄 | 2026-10-18 拿著 AK 時打：沒開（截圖）→ 用上面「開物品欄」的做法 | `game\temp.ws:889` |
+| `SoundEvent("事件")` | 播聲音 | `SoundEvent("gfg_ak47_shot")`；有時錄不到 → 掛在玩家身上播（下面「錄電腦播的聲音」） | `engine\sound.ws:626` |
+| `TM(每分鐘幾小時)` | 時間流速 | `TM(60)` 快轉、`TM(0.25)` 恢復（2026-10-12 寫在測試步驟裡；之後改用 `settime`） | `game\temp.ws:1027` |
+
+- 自己寫的測試指令（`gfg` 開頭）都拿掉了：最後一批在 `backup\gfg_debug_2026-10-19.ws`、`backup\gfg_debug_gfgbv_2026-10-19.ws`（要用就放回 `workspace\scripts\local\`），較早的在 git 歷史
 - **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）
   - 開著世界、在 Scene 面板雙擊圖層使它變粗體（啟用）→ Asset Browser（Ctrl+A）選模型或實體 → 點一下畫面 → 按 **C** 放在滑鼠位置；也可以直接拖進畫面
   - 放模型時選 Static Mesh 才有碰撞（搜尋結果引用的同一頁內容）
   - 怪物：放遭遇區域、生成點、守衛區域，用 spawn tree 生成（Wiki「HOW-TO: Create a monster encounter」，頁面 6326170）
   - ⚠️ 放進原版世界的圖層等於修改原版檔案；測完不要存檔（§13.4 的原則）
-- **測試用靶子**（原版主控台指令；2026-10-13 查程式碼；`spawnPath` 生成牆已實測，其餘**未實測**；見 `docs\findings.md` §15、§18.4）
+- **測試用靶子**（原版主控台指令；2026-10-13 查程式碼；`spawnPath` 生成牆、`spawn('wolf', …)`、`killall`、`god()` 已實測（上面「主控台指令」），其餘**未實測**；見 `docs\findings.md` §15、§18.4）
   - `spawnPath('characters\npc_entities\monsters\wolf_lvl1.w2ent', true)`：在面前生成**敵對**的狼（`temp.ws:6790-6813`）；不加 `true` 會設成友善
     - 位置固定在玩家前方 3 公尺、面向玩家（`temp.ws:6797-6803`）
   - ⚠️ **友善的角色打不到**：玩家射出的投射物碰到友善角色不算命中（`throwable.ws:126-128`）
@@ -455,7 +484,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
     - 建築：`<REDKIT_DEPOT>` 裡路徑含 `architecture` 的 `.w2ent` 有 1598 個，例：`environment\architecture\human\redania\nomans_land\thatched_buildings\entities\nml_thatched_house_big_exterior.w2ent`（未實測；大小沒查過，生成在面前 3 公尺，可能壓到 Geralt）
   - `killall(範圍)` 清掉附近的敵人（`playerCheats.ws:9`）；`statstarget()` 印出目前目標的數值（`temp.ws:6168`）
   - 十字弩兵：`spawn('xbow', 1, 15, true)`（別名 `gameplay.xml:1149` → `gameplay\templates\characters\npcs\test_enemies\enemy_crossbow.w2ent`；未實測）
-  - `god()`：無敵（`temp.ws:6054-6066`；未實測）
+  - `god()`：無敵（`temp.ws:6054-6078`；再打一次關掉；2026-10-16 起每次測試都用）
   - 時間、天氣（看清楚畫面用）：`settime(1, 12)` 改成中午（`gameTime.ws:182`）；`changeweather('WT_Clear')` 改成晴天（`temp.ws:737`；2026-10-16 實測，下雨時中午也很暗）
   - 原版**沒有**調整 NPC 血量、讓怪物不攻擊的指令
   （已安裝 Multi Companion Mod Remastered，但它生成的是**友方同伴**，不適合當靶子）
