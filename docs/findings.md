@@ -2261,6 +2261,7 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 群組名稱按右鍵：Append track、Insert／Append track group、Rename item、**Remove item**（刪整個群組）；軌道空白處按右鍵：Add track item
   - 存檔：左上 **Save** 按鈕（寫進硬碟；`cr2w_dump.py` 讀回確認）
   - 時間軸上方的播放鍵：預覽視窗沒有顯示粒子（`Particle emitters: 0`）→ 沒用，直接進遊戲看
+    - 2026-10-19 練習專案實測（`D:\OneDrive\Desktop\redkit_expert\labs\LOG.md` L4o）：**Particle Editor**（Asset Browser 雙擊 `.w2p`）的預覽有粒子（自己做的 21 個、原版 `candle_flame_fx2.w2p` 1 個；原版 `glow_warm_fx1.w2p` 是 0）→ 調粒子本身可以在 Particle Editor 看；Entity Editor 的特效預覽沒再測
 - 光的 `lightChannels` 預設 `LC_Characters`（原版刀劍火花、弩箭的光都沒存這個欄位 = 預設），遊戲裡晚上連射時地面也被照亮
 - 腳本載入自己的模板：`LoadResource( "dlc\…\xxx.w2ent", true )`（第二個參數 true = 路徑，不是別名：`signEntity.ws:708`）
 - 在 REDkit 裡存的新模板，同一次開著的 REDkit 開遊戲就讀得到（不用重開；和 §6.16 腳本產生的 workspace 檔不同）
