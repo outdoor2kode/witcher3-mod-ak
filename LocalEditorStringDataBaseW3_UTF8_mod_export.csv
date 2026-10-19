@@ -13,3 +13,6 @@ ID;RESOURCE;PROPERTY;VOICEOVER;KEY;BR;CZ;RU;AR;TR;CN;PL;IT;FR;DE;ZH;ESMX;EN;KR;E
 10000011;CUSTOM;All;;gfg_hud_holster;;;;;;;;;;;收槍;;Holster;;;;
 10000012;CUSTOM;All;;gfg_hud_reload;;;;;;;;;;;換彈;;Reload;;;;
 10000013;CUSTOM;All;;gfg_hud_shoot;;;;;;;;;;;射擊;;Shoot;;;;
+10000014;CUSTOM;All;;gfg_item_name_m4a1;;;;;;;;;;;M4A1;;M4A1;;;;
+10000015;CUSTOM;All;;gfg_item_name_m4a1_ammo;;;;;;;;;;;5.56mm;;5.56mm;;;;
+10000016;CUSTOM;All;;gfg_item_desc_m4a1_ammo;;;;;;;;;;;M4A1 用的 5.56x45mm NATO 步槍子彈。用不完。;;5.56x45mm NATO rifle cartridges for the M4A1. Never runs out.;;;;

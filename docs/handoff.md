@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-20 00:5x（第 49 項：M4 離線素材、規格檔、物品 XML 做好；接續：計畫第 4 步「接續的步驟」3～6：字串（REDkit 關著改）、REDkit 匯入、實體模板、遊戲測試）
+最後更新：2026-10-20 01:2x（第 49 項：M4 的字串、REDkit 匯入（貼圖 2、模型 3）、實體模板 3 個做好；接續：計畫第 4 步「接續的步驟」6：重開 REDkit → 遊戲裡跑 M4 驗收清單 → AK 回歸）
 
 ---
 
@@ -18,8 +18,8 @@
 |---|---|---|
 | 46 | 看 WitcherOnline 的 Claude.md，把 WitcherScript 的語法差異與陷阱更新到專家和工程師的知識庫（做過就略） | **跳過：找不到這個檔**（本機 D:、C:\Users\beyon 全找過；GitHub `rejuvenate7/WitcherOnline`、`Flawkee/WitcherOnline` 共 6 個分支都沒有 CLAUDE.md）→ 使用者給路徑再補 |
 | 47 | 開發時把開發知識加進 redkit 專家和資深工程師的知識庫；「這點也加入文件讓你以後能記得」 | **完成**（`CLAUDE.md` §15「開發時一起累積知識」、技能 `senior-engineer`、`redkit-expert`；之後每步照做） |
-| 48 | 加新武器前（或後）把程式碼模組化、優化：好加新武器、結構清楚、易讀、clean code、SOLID | **進行中**（計畫第 2、3 步） |
-| 49 | 加第二把武器 **M4A1 卡賓槍**：照開發經驗從頭到尾快速加；**不准影響現有功能**（AK 的一切、持弩、拿劍…） | 待做 |
+| 48 | 加新武器前（或後）把程式碼模組化、優化：好加新武器、結構清楚、易讀、clean code、SOLID | **完成**（計畫第 2、3 步：拆檔＋槍的規格表；10-20 00:34 AK 回歸通過）；M4 做完再看要不要再整理（計畫第 7 步） |
+| 49 | 加第二把武器 **M4A1 卡賓槍**：照開發經驗從頭到尾快速加；**不准影響現有功能**（AK 的一切、持弩、拿劍…） | **進行中**（計畫第 4 步：剩遊戲裡驗收、回歸） |
 
 **決定**
 - #49 的 M4A1＝CS2 的 **`weapon_m4a1`**（使用者 10-19 23:5x 更正：「你要做 weapon_m4a1，另一個是裝了消音器的版本 silencer，不做那個」；Claude 原本選了 M4A1-S）
@@ -107,11 +107,11 @@
      1. ✅ `gfg_gun_m4a1.ws`（陣列是 `recoil_pattern.py … --ws --name M4a1` 直接附加的）＋`gfg_core.ws` 的 `GfgGunIds`、`GfgGunSpecOf` 各加一行；編譯通過（11 個檔、63,936 bytes；10-20 00:5x）
      2. ✅ 物品 XML（00:5x）：`gfg_m4a1`（標籤 `gfg_m4a1, gfg_gun`、能力 `gfg_m4a1 _Stats` ammo 30、`equip_template gfg_m4a1`、`equip_slot gfg_ak47_back_slot` 沿用、圖示 `gfg_m4a1_64x128.png`、名稱 key `gfg_item_name_m4a1`、說明沿用 `item_desc_crossbow_1`）、`gfg_m4a1_ammo`、`gfg_m4a1_ammo_water`（`hold_template gfg_ak47_bullet`、標籤 `gfg_gun_ammo`、key `gfg_item_name_m4a1_ammo`／`gfg_item_desc_m4a1_ammo`、圖示 `gfg_m4a1_ammo_64x128.png`）；XML 解析通過
        - 遊戲裡要看：AK ↔ M4 換槍時另一把的子彈會不會留在身上、裝錯（`gfg_projectile.ws`「AK 的子彈」那節）
-     3. 字串（**REDkit 關著時**改 `.db`＋`.csv`：`docs\findings.md` §37.2）：10000014 `gfg_item_name_m4a1` M4A1；10000015 `gfg_item_name_m4a1_ammo` 5.56mm；10000016 `gfg_item_desc_m4a1_ammo`（EN／ZH）
-     4. REDkit：匯入兩張貼圖（`WorldDiffuse`、`NormalmapGloss`）、三個模型（`importAsSkinnedMesh` true、材質 XML、Import mesh 對話框按 Cancel：`docs\m3.md`「分兩輪做」）到 `dlc\gunforgeralt\data\items\weapons\gfg_m4a1\`
-     5. 實體模板：`gfg_ak47.w2ent` 裡模型路徑出現 2 次（位移 3308、4795）：`flatCompiledData` 和 `streamingDataBuffer` 裡各有一個內嵌的 CR2W → 二進位改要連內嵌的校驗碼一起算；**較穩：REDkit 裡 Save as ＋換 `mesh`**（`docs\m3.md`「B」）；三個（整把、`_mag`、`_nomag`）
+     3. ✅ 字串（01:0x；REDkit 關著改：`docs\findings.md` §37.2；暫存 `m4str\add_strings.py`，改之前的 `.db`、`.csv` 備份在暫存 `m4str\backup\`）：10000014 `gfg_item_name_m4a1` M4A1；10000015 `gfg_item_name_m4a1_ammo` 5.56mm；10000016 `gfg_item_desc_m4a1_ammo`（EN「5.56x45mm NATO rifle cartridges for the M4A1. Never runs out.」／ZH「M4A1 用的 5.56x45mm NATO 步槍子彈。用不完。」）；每種語言一列、VERSION EN 1／ZH 2（索引 `STRINGS_PK_STRID_VERSION` 是 (STRING_ID, VERSION) 唯一）；`integrity_check` ok
+     4. ✅ REDkit 匯入（01:08～01:13）：`gfg_m4a1_d01.xbm`（`TCM_DXTNoAlpha`、`WorldDiffuse`）、`_n01.xbm`（`TCM_NormalsGloss`、`NormalmapGloss`），都 2048、和 AK 的設定相同；`gfg_m4a1.w2mesh`（39,855 頂點）、`_nomag`（34,924）、`_mag`（4,931）：紀錄都有 `HasSkinning: true (NODE 'handle')`；材質 `weapon_rif_m4a4` 指到 M4 的兩張貼圖、`SpecularColor` 59／`RSpecScale` 0／`RSpecBase` 1（`mesh_material_patch.py --list`，同 AK）
+     5. ✅ 實體模板（01:17～01:19）：REDkit 關著時把 AK 的 3 個 `.w2ent` 複製成 `gfg_m4a1(.w2ent|_mag|_nomag)`（模板裡沒有自己的路徑）→ REDkit 裡打開、元件 `witcher_crossbow_lvl1` 的 `mesh` 用綠色箭頭換成 M4 的模型、Ctrl+S；讀檔：兩處模型路徑都換了，其他只差校驗碼、時間
      6. 重開 REDkit（新的 bank、圖示、模型）→ 遊戲裡跑 M4 的驗收清單 → AK 回歸
-   - 現況：REDkit 開著（mod 專案、Novigrad 世界、遊戲已結束）；新建的 workspace 檔（bank、圖示）要重開 REDkit 才讀得到
+   - 現況（01:2x）：REDkit 開著（mod 專案、**沒開世界**；00:59 重開過）；新的 bank、圖示、模型要再重開 REDkit 才讀得到
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）
 6. M4 的規格加進表 → 遊戲裡跑驗收清單 → 回歸清單

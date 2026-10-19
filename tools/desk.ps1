@@ -14,6 +14,8 @@
                                            連拍：先按住 hold、等 pre、按一下 key，再每隔幾毫秒拍一張（看跳躍落地等快速動作）
   wshot <視窗> <out.png> [scale=…] [grid=…] [mode=print]
                                            截視窗的範圍；mode=print 用 PrintWindow：視窗被擋住也截得到（含 REDkit 的 D3D12 畫面）
+                                           mode=print 的圖：(0,0) = GetWindowRect 的左上（含隱形邊框；最大化的視窗是 (-8,-8)）
+                                           → 圖上的位置換成螢幕座標要加上它；照格線的標籤讀最準（2026-10-20 裁圖後直接當螢幕座標，點偏 8 像素）
   focus <視窗>                             把視窗叫到最前面
   place <視窗> <x> <y> <寬> <高>            移動、縮放視窗（例：跑到螢幕外的 Asset Browser）
   close <視窗>                             關視窗（等於按 X）
