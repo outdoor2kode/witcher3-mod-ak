@@ -61,7 +61,11 @@
 - 試參數的腳本：同資料夾 `exp.py`（改 R 的常數再跑）
 
 **接續的步驟**（#39 進遊戲）
-1. F10 結束遊戲 → 暫時把 `backup\gfg_debug_2026-10-19.ws` 放回 `workspace\scripts\local\`（`gfgfree`、`gfgshots`、`gfgnoturn`；測完搬回 backup）→ Tools → Debuggers → Reload scripts（`GfgMagTick` 抓的點也要重載）
+1. ✅（16:2x）F10 結束遊戲、重載腳本（`GfgMagTick` 新的抓的點）；暫時的測試腳本 `workspace\scripts\local\gfg_tmp39.ws`（**測完刪掉**；不進 git）：
+   - `gfgfree(角度, 距離, 高度)` 自由鏡頭對著槍（`gfgfree(0, 0, 0, true)` 關）；`gfgshots(n)` 設已射幾發；`gfgmag()` 印 magOut、換彈狀態
+   - backup 的 `gfg_debug_2026-10-19.ws` 沒有 gfgfree（10-18 清理時拿掉了，舊版在 git `7684690^`）→ 寫了這個小檔
+   - 自由鏡頭開著時 `GfgCameraTick` 不跑（抓彈匣在裡面）→ 要等抓到之後再開（`gfgmag()` 看 magOut=true）
+   - REDkit 開著：主視窗 0xF40C0E、Asset Browser 0x1F0DA0（已搜尋 `gfg_ak47_geralt`，結果還沒雙擊）
 2. AnimBrowser（Asset Browser 雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`；問 Entity… 按 No）→ 6 段用 `gfg_` 檔名 plain 同名重匯（g.sh 的 `import_one plain <檔名>`；GAB 要換成新開的視窗 handle）
 3. 開遊戲（`game_start3`）、拿 AK → 換彈：遊戲鏡頭（使用者的視角）連拍＋側面（`gfgfree`）；`slow(0.05)`；看左手握彈匣、左腰、右手握把和拉槍機；彈匣有沒有被抓到（紀錄、截圖）
 4. 騎馬換彈也看一次（叫馬 `instantMount('playerHorse')`）
