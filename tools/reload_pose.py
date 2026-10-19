@@ -39,7 +39,7 @@
   shoulderRoll ＝ 鎖骨、上臂的正中間；bicep2 ＝ −0.92（左）／−0.97（右）× 上臂相對鎖骨的扭轉
   - 遊戲裡這些骨頭由動畫圖輸出前的 CBehaviorGraphConstraintNodeRoll 即時算（gfg_gameplay、gfg_overlay 都有）→ 烤進去是讓
     AnimBrowser 的預覽（不跑動畫圖）和遊戲一樣
-- 抓彈匣（0.30 秒）、裝上（1.50 秒）時左手相對槍的位置相同；抓的點印在開頭 → 改了要同步 gfg_ak47.ws 的 GfgMagTick
+- 抓彈匣（0.30 秒）、裝上（1.50 秒）時左手相對槍的位置相同；抓的點印在開頭 → 改了要同步 gfg_reload.ws 的 GfgMagTick
 - 量法（docs/handoff.md 第 8 項；暫存 s18\\mag_pos.py）：彈匣底部 F +0.251 U −0.107、彈匣口 F +0.169 U +0.095；
   槍機拉柄 F +0.231 U +0.105 R +0.045；底層左手腕 F +0.261 U +0.045 R −0.046
 - 動畫事件（AnimBrowser 加；同名重匯會保留）：OnWeaponReload 1.50 秒（彈匣裝上）、RaiseWeapon 2.15 秒起 0.25 秒
@@ -100,7 +100,7 @@ LEFT_POLE_KEYS = [(0.00, 0.0), (0.24, 1.0), (1.52, 1.0), (1.66, 0.0)]
 # 其他 = 槍座標 (F, U, R)，方向同護木
 LEFT_KEYS = [
     (0.00, 'hg'),
-    (0.30, ('mag', (0.0, 0.0, 0.0))),       # 握住彈匣（遊戲裡這一格抓：gfg_ak47.ws GfgMagTick 的抓的點 = 下面印的手腕位置）
+    (0.30, ('mag', (0.0, 0.0, 0.0))),       # 握住彈匣（遊戲裡這一格抓：gfg_reload.ws GfgMagTick 的抓的點 = 下面印的手腕位置）
     (0.50, ('mag', (0.04, -0.11, -0.02))),  # 往前下拉出
     (0.85, 'pouch'),
     (1.05, 'pouch'),

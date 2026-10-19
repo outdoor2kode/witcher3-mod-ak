@@ -13,7 +13,7 @@
      ex_man_geralt_gabriel_aim_run → ex_gfg_geralt_gabriel_aim_run）→ 不再蓋過原版
   2. 原版的 4 張動畫圖各做一份 AK 專用的複本：原版（＋之前的修改：overlay_patch.py、gameplay_patch.py）＋同樣的改名
      → 複本裡的十字弩節點播我們的動畫；原版的圖、動畫都不動
-  3. 腳本（gfg_ak47.ws）裝上 AK 時把玩家這 4 個動畫圖 slot 的圖換成複本、重新啟用；換成別的十字弩時換回原版
+  3. 腳本（gfg_anim.ws）裝上 AK 時把玩家這 4 個動畫圖 slot 的圖換成複本、重新啟用；換成別的十字弩時換回原版
 - 改名只換名稱表：名稱字串同長度直接換、名稱的雜湊重算、字串表和名稱表的校驗碼、檔頭校驗碼重算；物件資料不動（CName 存的是名稱表的編號）
   - 名稱的雜湊：FNV-1a 32，算到結尾的 0（空名稱是 0）；2026-10-18 用 pc_rider.w2beh 的名稱表驗證
   - 表 0（字串）、表 1（名稱）的校驗碼：整張表的 CRC32（同物件表；2026-10-18 用 pc_rider.w2beh 驗證）
@@ -202,7 +202,7 @@ def patch_gameplay(src: bytes) -> bytes:
     return out
 
 
-# （輸出檔名, 原版的圖, 之前對原版的修改, 改名的對照：None = 動畫組的 man_ → gfg_）；腳本裡的路徑要一樣（gfg_ak47.ws 的 GfgAkGraphPath）
+# （輸出檔名, 原版的圖, 之前對原版的修改, 改名的對照：None = 動畫組的 man_ → gfg_）；腳本裡的路徑要一樣（gfg_anim.ws 的 GfgAkGraphPath）
 GRAPHS = (
     ('gfg_overlay.w2beh', 'pc_overlay.w2beh', patch_overlay, None),     # PlayerOverlay：上半身（瞄準、射擊、換彈）
     ('gfg_gameplay.w2beh', 'pc_gameplay.w2beh', patch_gameplay, None),  # Gameplay：主動畫圖（走跑）

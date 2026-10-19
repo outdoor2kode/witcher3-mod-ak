@@ -8,7 +8,7 @@
 
 | 要改的 | 檔案 | 文件 |
 |---|---|---|
-| 射擊、換彈、彈匣、HUD、按鍵、騎馬、船上水裡的行為 | `workspace\scripts\local\gfg_ak47.ws`（檔頭有目錄） | `docs\findings.md` §14～§37 |
+| 射擊、換彈、彈匣、HUD、按鍵、騎馬、船上水裡的行為 | `workspace\scripts\local\gfg_*.ws`（9 個檔；`gfg_core.ws` 檔頭寫每個檔管什麼；10-20 從一個 `gfg_ak47.ws` 拆開） | `docs\findings.md` §14～§37 |
 | 物品（AK、子彈）的數值、名稱 ID | `workspace\dlc\gunforgeralt\data\gameplay\items\gunforgeralt_items.xml` | `CLAUDE.md` §6.11 |
 | 物品名稱、說明的文字 | 字串資料庫 `LocalEditorStringDataBaseW3_UTF8_mod.db`（＋文字版 `.csv`） | `docs\findings.md` §37.2 |
 | 動畫（89 段） | `workspace\dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`（AnimBrowser 匯入下面「動畫」工具產生的 `.re`） | `CLAUDE.md` §6.11、`docs\m3.md` |
@@ -79,7 +79,7 @@
 
 - 座標是 1920x1080、REDkit 最大化時量的：介面不一樣先截圖再改
 - 10-19 17:3x 遊戲裡從頭跑過一次：`dbg_on` → `reload_edit` → `game_start` → `ak_select` → 每個除錯指令 → `side_after` → `game_end` → `dbg_off` → `reload_edit`（AnimBrowser 那幾個這次沒跑；10-16～10-19 用過）
-- `gfg_debug.ws` 用到 `gfg_ak47.ws` 的欄位、函式：那邊改名時這裡跟著改；檢查：兩個檔放進同一個暫存資料夾給 `wcc_compile.py` 編譯
+- `gfg_debug.ws` 用到 `workspace\scripts\local\gfg_*.ws` 的欄位、函式：那邊改名時這裡跟著改；檢查：全部放進同一個暫存資料夾給 `wcc_compile.py` 編譯
 
 ## 資料夾
 

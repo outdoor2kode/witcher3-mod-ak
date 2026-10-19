@@ -2,7 +2,7 @@
 // 用法：tools/test/g.sh 的 dbg_on（複製到 workspace\scripts\local\）→ Reload scripts → 遊戲裡按 ~ 打指令 → 結果在 editor.log 的 [GFG]
 // 測完：dbg_off（刪 workspace 的副本）→ Reload scripts；打包前確認 workspace 沒有這個檔
 // 2026-10-19 合併：第 39 項的 gfgfree、gfgshots、gfgmag＋第 24～34 項還用得到的檢查（舊檔在 backup\，不進 git）
-// 用到 gfg_ak47.ws 的欄位、函式：那邊改名時這裡跟著改（tools/wcc_compile.py 加這個檔一起編譯檢查）
+// 用到 gfg_*.ws 的欄位、函式：那邊改名時這裡跟著改（tools/wcc_compile.py 加這個檔一起編譯檢查）
 //
 // 目錄
 //   鏡頭          gfgfree( 角度, 距離, 高度 [, 關] )

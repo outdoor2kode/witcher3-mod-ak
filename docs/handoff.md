@@ -45,8 +45,11 @@
 - `tools\wcc_compile.py` 通過；`editor.log` 沒有新的錯誤
 
 **計畫**（做完一步打勾、commit）
-1. #47 文件（`CLAUDE.md` §15、技能 `senior-engineer`、`redkit-expert`）
-2. #48 重構第 1 步（行為不變）：`gfg_ak47.ws`（3738 行、一個檔）照「=====」節拆成幾個檔 → 編譯 → 遊戲裡 AK 冒煙測試
+1. ✅ #47 文件（`CLAUDE.md` §15、技能 `senior-engineer`、`redkit-expert`；10-20 00:0x）
+2. ✅ #48 重構第 1 步（行為不變；00:1x）：`gfg_ak47.ws`（3738 行）照「=====」節拆成 9 個檔：`gfg_core`、`gfg_anim`、`gfg_fire`、`gfg_recoil`、`gfg_projectile`、`gfg_reload`、`gfg_controls`、`gfg_horse`、`gfg_ui`（`.ws`；`gfg_core.ws` 檔頭寫每個檔管什麼）
+   - 拆檔腳本（暫存 `refactor\split.py`）檢查過：拆完 3739 行＝原檔，逐行內容一樣；編譯通過（加 `gfg_debug.ws` 也過）
+   - 原檔搬到 `backup\gfg_ak47_before_split_2026-10-20.ws`；工具、`CLAUDE.md`、`tools\README.md` 裡的舊檔名改了（`docs\findings.md`、`m3.md` 是歷史紀錄，照舊）
+   - 遊戲裡的冒煙測試：和第 2 步一起跑（REDkit 現在關著）
 3. #48 重構第 2 步：槍的規格表（每把槍的數值、名稱、模板、聲音、後座力表放一處；加新槍＝加一筆）＋「是不是 AK」→「是不是我們的槍」；AK 的數值照舊 → AK 回歸
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）

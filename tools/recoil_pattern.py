@@ -11,7 +11,7 @@
 - --compare：和另一份 `shot,x_degrees,y_degrees` 格式的彈道比對（例：CSGODOT 的 ak47.csv），
   算出最合適的縮放倍率與均方根誤差（# 開頭的行會略過）
 - --svg：輸出彈道圖；--ascii：在終端機畫粗略的彈道圖
-- --ws：印出 WitcherScript 的位移表（GfgRecoilKickRight／GfgRecoilKickUp），貼進 workspace/scripts/local/gfg_ak47.ws
+- --ws：印出 WitcherScript 的位移表（GfgRecoilKickRight／GfgRecoilKickUp），貼進 workspace/scripts/local/gfg_recoil.ws
 """
 import argparse
 import math

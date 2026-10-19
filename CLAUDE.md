@@ -227,7 +227,7 @@
     - 改過的原版檔用 `.gitignore` 排除，靠腳本重做
     - 本專案改的（2026-10-18 第 25 項起）：**不蓋原版的檔**，改用複本 → 原版十字弩照舊
       - `tools\ak_graphs.py`：原版 `pc_overlay`、`pc_gameplay`、`pc_rider`、`pc_swimming`、`pc_inventory` 複製一份，套上 `overlay_patch.py`、`gameplay_patch.py` 的修改（右手臂覆蓋、直線走跑兩手臂），動畫名稱改成 `gfg_` 開頭 → `workspace\dlc\gunforgeralt\data\behaviors\gfg_*.w2beh`
-      - **腳本換 slot 的圖**：裝的是 AK 時，把玩家動畫元件的 slot 換成複本、重建實例（`gfg_ak47.ws` 開頭「AK 用自己的一套動畫圖」；`docs\findings.md` §34）
+      - **腳本換 slot 的圖**：裝的是 AK 時，把玩家動畫元件的 slot 換成複本、重建實例（`gfg_anim.ws` 開頭「AK 用自己的一套動畫圖」；`docs\findings.md` §34）
       - `overlay_patch.py`、`gameplay_patch.py` 直接跑會停（不加 `--override` 就不寫原版的覆蓋路徑）
     - 物件變大小也可以改：物件資料連續排列、沒有 buffer 的檔，後面的物件位移往後挪、更新物件表和檔頭的檔案大小（第 6、7 個 u32）（`tools\gameplay_patch.py`）
     - **REDkit 開著時新建的 workspace 檔，遊戲讀不到 → 重開 REDkit 才生效**（2026-10-16 `pc_gameplay.w2beh` 實測）；改既有的檔不用重開
@@ -460,7 +460,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 每次進遊戲固定打：`god()` → `closeTutorialPopup()` → `settime(1, 12)` → `additem('gfg_ak47', 1, true)` → Tab 輪盤選 AK → 左鍵拿出（要比對傷害時加 `setlevel(31)`）
     - `god()` 第一個打：編輯器的鏡頭高，Geralt 從空中掉下來會摔死
     - 第一次開輪盤會跳教學（Quick Access Menu）：每頁按 Esc 關（空白鍵在第二頁會連帶冥想）
-  - `setlevel(31)`：AK 的傷害＝10×等級＋20（`gfg_ak47.ws` 的 `GfgSetAkDamage`）→ 固定等級，傷害才好比對
+  - `setlevel(31)`：AK 的傷害＝10×等級＋20（`gfg_projectile.ws` 的 `GfgSetAkDamage`）→ 固定等級，傷害才好比對
     - 2026-10-16 19:55 以前：AK 有 `attack_power` 2.02 → 需求等級 31，沒先升級就裝不上（`docs\findings.md` §13.12）
     - 之後拿掉 `attack_power`（commit `57e2470`）：需求等級變成 1（十字弩類只看 `attack_power`：`inventoryComponent.ws:359-361`、`gameParams.ws:998-1017`）
     - **2026-10-19 遊戲實測**：沒打 `setlevel`（等級 1）也裝得上、輪盤有 AK、能開槍；物品欄的提示框寫 Required Level 1 → 不用先升級

@@ -47,7 +47,7 @@ FPS = 30
 LEFT_ARM = ('l_bicep', 'l_forearm', 'l_hand')
 RIGHT_ARM = ('r_bicep', 'r_forearm', 'r_hand')
 CHANGED = list(LEFT_ARM) + list(RIGHT_ARM) + ['l_weapon']
-MUZZLE = np.array([0.2368, 0.0409, 0.1710])  # l_weapon 座標（gfg_ak47.ws「槍口火光」）
+MUZZLE = np.array([0.2368, 0.0409, 0.1710])  # l_weapon 座標（gfg_fire.ws「槍口火光」）
 
 # 每段：原版名稱、槍在手上的時間（起, 迄；None = 沒有槍）、槍的權重、右手的權重、左手的權重（沒有槍時才用）
 # 權重的關鍵格 (秒, 值)：1 = 展示姿勢（兩手握槍）、0 = 原版（左手單手、右手垂下）；關鍵格之間 smoothstep

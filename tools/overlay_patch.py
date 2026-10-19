@@ -17,7 +17,7 @@
     沒武器、拳頭 0.75，鋼劍、銀劍 0）→ 原版十字弩是單手的，站著時給空著的右手一個姿勢
 - 手臂覆蓋版（預設；2026-10-16 自主模式，使用者回報：衝刺時拿槍的姿勢很怪、跳躍落地瞬間變回持槍姿勢）：
   - 主動畫圖的衝刺、跳躍、落地沒有十字弩版本 → 手臂照衝刺、跳躍擺動，AK 跟著左手甩；落地後一格就跳回持槍
-  - 改成「腳本把 inSlomoForOverlay 設成 1 時，兩手臂用雙手持槍的姿勢蓋住」（腳本：gfg_ak47.ws 的 GfgArmsHoldTick）
+  - 改成「腳本把 inSlomoForOverlay 設成 1 時，兩手臂用雙手持槍的姿勢蓋住」（腳本：gfg_anim.ws 的 GfgArmsHoldTick）
     - inSlomoForOverlay：動畫圖有宣告、接到十字弩狀態機 #17015 的 'inSlomo' 輸入（#17231 → #17229），但原版腳本從不設定、
       圖裡也沒有節點讀 'inSlomo' 的值（2026-10-16 查 pc_overlay.w2beh 全部物件）→ 借來當開關
   - #18531 animationName：man_ger_sword_axii_arm_override → man_geralt_gabriel_aim_idle_rp（我們的雙手持槍姿勢；名稱表裡原本就有）
