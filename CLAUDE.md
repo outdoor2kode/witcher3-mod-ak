@@ -663,6 +663,12 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - Bash 工具的指令裡兩個反斜線會先變成一個 → Python 裡要寫反斜線用 `chr(92)`
 - commit 前自動檢查控制字元：`.githooks\pre-commit`（`check_ctrl.py`；含 NUL 的檔當二進位跳過）；新的 clone 要先 `git config core.hooksPath .githooks`（2026-10-19 啟用；專家訓練的 repo 也裝了，裝的當下抓到知識庫一個既有的錯）
 
+**開發時一起累積知識**（使用者 2026-10-19：「開發過程時，也記得要把開發知識加入 redkit 專家和資深工程師的知識庫中」）
+- 每做完一步（commit 時）：
+  - 新查到、新測到的 REDkit／巫師3 事實 → 專家知識庫 `D:\OneDrive\Desktop\redkit_expert\knowledge\topics\`（附出處；新工具登記在 `knowledge\INDEX.md`）
+  - 任何專案都用得到的做法、教訓 → 技能 `senior-engineer` 的 `reference\`（正本 `D:\OneDrive\Desktop\redkit_expert\skills\senior-engineer\`，改完複製到 `C:\Users\beyon\.claude\skills\senior-engineer\`）
+- 兩個 repo 各自 commit；交接檔記下這一步寫了哪些主題
+
 **技能**（使用者層級，任何資料夾都叫得到；正本在 `D:\OneDrive\Desktop\redkit_expert\skills\`）
 - 「開啟自主模式」→ `autonomous-mode`：使用者不在時怎麼一直跑
 - 「你現在是 redkit 開發專家」→ `redkit-expert`：REDkit、巫師3 的事實和做法
