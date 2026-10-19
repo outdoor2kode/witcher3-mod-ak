@@ -2,7 +2,8 @@
 # 2026-10-19 從 session 暫存整理進專案（第 41 項回顧：好用的輔助放在暫存，換 session 就找不到；docs\retrospective.md）
 #
 # 用法
-#   P=<截圖放哪> source tools/test/g.sh   ← 不給 P：%TEMP%\claude\gfg-test；Claude 用 session 暫存（例 <scratchpad>/desk）
+#   P=<截圖放哪>; source tools/test/g.sh   ← 不給 P：%TEMP%\claude\gfg-test；Claude 用 session 暫存（例 <scratchpad>/desk）
+#   分號不能省：`P=… source …`（同一行沒分號）的 P 只在 source 期間有效，之後函式讀到空的 P（10-20 實測：寫到 /handles.sh 被拒）
 #   Bash 工具每次呼叫都是新的 shell → 每次都要 source
 #   第一次、REDkit 重開、AnimBrowser 重開：set_mw、set_gab（視窗 handle 存在 $P/handles.sh，之後 source 會讀回來）
 #   除錯指令（gfgfree、gfgshots、gfgmag…）在同資料夾的 gfg_debug.ws：game_end → dbg_on → reload_edit → game_start；測完 dbg_off → reload_edit

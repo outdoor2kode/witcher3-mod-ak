@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-20 01:5x（第 48 項重構：腳本的規格表做完（2b-4：換槍時重生替身、彈匣）；下一步：遊戲裡跑 AK 的回歸清單）
+最後更新：2026-10-20 00:3x（第 48 項：槍的規格表做完、AK 回歸在遊戲裡通過；下一步：計畫第 4 步 M4 素材）
 
 ---
 
@@ -22,7 +22,7 @@
 | 49 | 加第二把武器 **M4A1 卡賓槍**：照開發經驗從頭到尾快速加；**不准影響現有功能**（AK 的一切、持弩、拿劍…） | 待做 |
 
 **決定**
-- #49 的 M4A1＝CS2 的 **`weapon_m4a1`**（使用者 10-20 00:1x 更正：「你要做 weapon_m4a1，另一個是裝了消音器的版本 silencer，不做那個」；Claude 原本選了 M4A1-S）
+- #49 的 M4A1＝CS2 的 **`weapon_m4a1`**（使用者 10-19 23:5x 更正：「你要做 weapon_m4a1，另一個是裝了消音器的版本 silencer，不做那個」；Claude 原本選了 M4A1-S）
   - `weapons.vdata` 的 `weapon_m4a1_prefab`：彈匣 30、射速 0.09 秒（約 667 發／分）、傷害 33、爆頭 4.0、後座力種子 38965、角度變化 70、槍口 [35.62, -4.975, -3.707]
   - 模型：CS2 給 `weapon_m4a1` 用的是 `weapons/models/m4a4/weapon_rif_m4a4.vmdl`（`m_szWorldModel`）
   - 遊戲裡的名稱：M4A1（使用者的叫法）；數值取陣列第一個值（同 AK：`CLAUDE.md` §8）
@@ -46,13 +46,13 @@
 - `tools\wcc_compile.py` 通過；`editor.log` 沒有新的錯誤
 
 **計畫**（做完一步打勾、commit）
-1. ✅ #47 文件（`CLAUDE.md` §15、技能 `senior-engineer`、`redkit-expert`；10-20 00:0x）
-2. ✅ #48 重構第 1 步（行為不變；00:1x）：`gfg_ak47.ws`（3738 行）照「=====」節拆成 9 個檔：`gfg_core`、`gfg_anim`、`gfg_fire`、`gfg_recoil`、`gfg_projectile`、`gfg_reload`、`gfg_controls`、`gfg_horse`、`gfg_ui`（`.ws`；`gfg_core.ws` 檔頭寫每個檔管什麼）
+1. ✅ #47 文件（`CLAUDE.md` §15、技能 `senior-engineer`、`redkit-expert`；10-19 23:5x）
+2. ✅ #48 重構第 1 步（行為不變；10-19 23:53）：`gfg_ak47.ws`（3738 行）照「=====」節拆成 9 個檔：`gfg_core`、`gfg_anim`、`gfg_fire`、`gfg_recoil`、`gfg_projectile`、`gfg_reload`、`gfg_controls`、`gfg_horse`、`gfg_ui`（`.ws`；`gfg_core.ws` 檔頭寫每個檔管什麼）
    - 拆檔腳本（暫存 `refactor\split.py`）檢查過：拆完 3739 行＝原檔，逐行內容一樣；編譯通過（加 `gfg_debug.ws` 也過）
    - 原檔搬到 `backup\gfg_ak47_before_split_2026-10-20.ws`；工具、`CLAUDE.md`、`tools\README.md` 裡的舊檔名改了（`docs\findings.md`、`m3.md` 是歷史紀錄，照舊）
    - 遊戲裡的冒煙測試：和第 2 步一起跑（REDkit 現在關著）
-3. #48 重構第 2 步：槍的規格表（每把槍的數值、名稱、模板、聲音、後座力表放一處；加新槍＝加一筆）＋「是不是 AK」→「是不是我們的槍」；AK 的數值照舊 → AK 回歸
-   - ✅ 2a（00:3x）：名稱裡的 Ak 改成 Gun（35 個：`GfgIsAk`→`GfgIsGun`、`GfgIsAkDrawn`→`GfgIsGunDrawn`、`GfgSetAkDamage`→`GfgSetGunDamage`、`gfgAkRange`→`gfgGunRange`…；區域變數 `akDrawn`→`gunDrawn`；暫存 `refactor\rename.py`）；註解的「AK」沒改
+3. ✅ #48 重構第 2 步（10-20 00:34 遊戲裡的 AK 回歸通過）：槍的規格表（每把槍的數值、名稱、模板、聲音、後座力表放一處；加新槍＝加一筆）＋「是不是 AK」→「是不是我們的槍」；AK 的數值照舊 → AK 回歸
+   - ✅ 2a（23:56）：名稱裡的 Ak 改成 Gun（35 個：`GfgIsAk`→`GfgIsGun`、`GfgIsAkDrawn`→`GfgIsGunDrawn`、`GfgSetAkDamage`→`GfgSetGunDamage`、`gfgAkRange`→`gfgGunRange`…；區域變數 `akDrawn`→`gunDrawn`；暫存 `refactor\rename.py`）；註解的「AK」沒改
    - **2b 設計**（照這個做；每小步都要編譯過才 commit）：
      - `gfg_core.ws`：`struct SGfgGunSpec`（欄位：`id`（物品名稱）、`cycleTime`、`recoilResetTime`、`range`、`spreadStand`／`spreadMove`／`spreadPerShot`（度）、`maxMoveSpeed`、`recoveryTime`／`recoveryTimeFinal`／`recoveryStartShot`／`recoveryEndShot`、`dmgPerLevel`／`dmgFlat`／`headshotMult`／`rangeModifier`、`soundBank`／`shotEvent`、`ammoItem`／`ammoWaterItem`、`tmplGun`／`tmplMag`／`tmplNoMag`、`iconInv`／`iconRadial`、`muzzle : Vector`、`kickRight`／`kickUp : array< float >`）
        - `GfgGunIds()`（全部槍的物品名稱）、`GfgGunSpecOf( id )`（switch；加槍＝加一行）、`W3PlayerWitcher.GfgGun()`（裝著的槍；用物品名稱快取在欄位）
@@ -62,16 +62,27 @@
      - 判斷「我們的槍」用共用標籤 `gfg_gun`、子彈用 `gfg_gun_ammo`（XML 加上；舊標籤留著）
      - **子彈記住哪把槍射的**（`W3BoltProjectile` 加 `gfgGunId`，和 `gfgGunRange` 同一處設）：傷害照那把槍算（打中時玩家可能換槍了）
      - **換槍時重新生成快取的實體**：替身 `gfgDummy`、彈匣 `gfgMagNoMag`／`gfgMagEnt`（記下用的模板，和現在的槍不同就刪掉重生）
-   - ✅ 2b-1（00:5x）：`SGfgGunSpec`、`GfgGunIds`、`GfgGunSpecOf`、`W3PlayerWitcher.GfgGun()`、`Crossbow.GfgSpec()`（`gfg_core.ws`）＋`gfg_gun_ak47.ws`
-   - ✅ 2b-2（01:0x）：數值都查表了（`GfgCycleTime`、`GfgRecoilResetTime`、`GfgRange`、`GfgSpread*`、`GfgMaxMoveSpeed`、`GfgSpreadRecoveryTime`、`GfgSetGunDamage`（照子彈的 `gfgGunId`）、`GfgRecoilKickRight`／`Up`）
-   - ✅ 2b-3a（01:1x）：XML 加了 `gfg_gun`（AK）、`gfg_gun_ammo`（兩種子彈）；腳本的標籤判斷都換成這兩個；`GfgIsGunAmmoName`、`GetCurrentInfiniteBoltName` 查表
+   - ✅ 2b-1（10-20 00:00）：`SGfgGunSpec`、`GfgGunIds`、`GfgGunSpecOf`、`W3PlayerWitcher.GfgGun()`、`Crossbow.GfgSpec()`（`gfg_core.ws`）＋`gfg_gun_ak47.ws`
+   - ✅ 2b-2（00:02）：數值都查表了（`GfgCycleTime`、`GfgRecoilResetTime`、`GfgRange`、`GfgSpread*`、`GfgMaxMoveSpeed`、`GfgSpreadRecoveryTime`、`GfgSetGunDamage`（照子彈的 `gfgGunId`）、`GfgRecoilKickRight`／`Up`）
+   - ✅ 2b-3a（00:04）：XML 加了 `gfg_gun`（AK）、`gfg_gun_ammo`（兩種子彈）；腳本的標籤判斷都換成這兩個；`GfgIsGunAmmoName`、`GetCurrentInfiniteBoltName` 查表
    - **WitcherScript 的兩個坑**（已寫進專家主題 08）：`switch` 只有 `default` → `Empty switch`；`函式().欄位` → `Parent scope does not come from variable`（先放進區域變數）
-   - ✅ 2b-3b 前半（01:2x）：`GfgShotSound`（bank、事件）、`GfgMuzzleFlash`（槍口位置）、`GfgRadialGunIcon`（每把槍的直式→水平圖示）都查表；編譯通過
-   - ✅ 2b-3b 後半＋2b-4（01:5x）：換彈的兩個模板（`GfgMagTick`）、衝刺替身的模板（`GfgCarryTick`→`GfgCarrySpawnDummy( path )`）查表；換了槍 → `GfgMagUseGun`／`GfgCarryUseGun` 刪掉上一把的實體（`CEntity.Destroy()`：`entity.ws:34`）、清掉失敗旗標、照新的槍重生（欄位 `gfgMagFor`、`gfgDummyFor` 記是哪把槍的）
+   - ✅ 2b-3b 前半（00:05）：`GfgShotSound`（bank、事件）、`GfgMuzzleFlash`（槍口位置）、`GfgRadialGunIcon`（每把槍的直式→水平圖示）都查表；編譯通過
+   - ✅ 2b-3b 後半＋2b-4（00:11）：換彈的兩個模板（`GfgMagTick`）、衝刺替身的模板（`GfgCarryTick`→`GfgCarrySpawnDummy( path )`）查表；換了槍 → `GfgMagUseGun`／`GfgCarryUseGun` 刪掉上一把的實體（`CEntity.Destroy()`：`entity.ws:34`）、清掉失敗旗標、照新的槍重生（欄位 `gfgMagFor`、`gfgDummyFor` 記是哪把槍的）
      - `gfg_core.ws` 檔頭改成 `gfg_gun`、列了 `gfg_gun_<名稱>.ws`；`ThrowProjectile` 包裝從 `gfg_ui.ws` 搬到 `gfg_projectile.ws` 開頭（欄位後面）；編譯通過（62,096 bytes）
      - 腳本裡寫死 AK 的只剩註解和 `gfg_gun_ak47.ws`（`grep gfg_ak47`）；握把原點、槍管方向（`GfgMagTick`、`GfgCarryTick` 的 f0、u0）是 AK 動畫和模型擺法的常數 → M4 的模型照同一個握把點、槍管方向建，就不用改
      - 這一步沒有新的 REDkit 事實（還沒進遊戲）
-   - **下一步**：開 REDkit（先查 `witcher3.exe` 沒在跑）→ mod 專案 → 遊戲裡跑 AK 的回歸清單（拿出、連射 30 發、後座力、換彈動畫和彈匣、HUD、輪盤圖示、槍聲、傷害、槍口火光、騎馬、船）＋原版十字弩、劍
+   - ✅ AK 回歸（00:15～00:34，遊戲裡；截圖在 session 暫存 `desk\`）：
+     - reference_level：連射 30 發（`Thrown <<gfg_ak47_ammo>>` 30 筆；錄音 30 發、29 個間隔平均 0.100 秒＝600 發／分）、`shot bank loaded: gfg_ak47.bnk true`、槍口火光、HUD 21 → 紅 0、打空自動換彈 → 30；衝刺時單手提槍（替身）；輪盤是水平的 AK 圖；狼：`Geralt hits Wolf for 29.57`（等級 1：30×0.98^(約 9/12.7)）、打死；戰鬥的提示（射擊、換彈、閃躲、法印、收槍）
+     - 後座力表、所有數值：和拆檔前的檔（`backup\gfg_ak47_before_split_2026-10-20.ws`）用程式比對，全同
+     - 側面看換彈（`gfg_debug.ws`）：沒彈匣的槍＋左手拿彈匣、`magOut=true`；`gfgakstate`：替身、`gfg_ak47_nomag` 都是規格表的模板生的
+     - 騎馬：開槍 19 發、打空自動換彈、下馬時收槍
+     - 原版十字弩：中鍵點一下射、按住瞄準放開射（`Bodkin Bolt` 2 發）、潛水射 `Harpoon Bolt`；裝原版十字弩時按 1 拔鋼劍；換回 AK 照常（同一個替身，沒重生）
+     - Novigrad：游泳時左鍵、中鍵 0 發，子彈換成 `gfg_ak47_ammo_water`（規格表）；掌舵 0 發；站在船上 13 發
+     - 編譯通過；`editor.log` 沒有新的錯誤（`HolsterWeaponFailSafe` 的計時器警告是原版的：`rangedWeapon.ws:1280` 加了、原版沒有這個函式）
+     - 知識庫（#47）：專家主題 17（原版的計時器警告）；`senior-engineer` 的 `checklists.md`（重構的回歸：資料用程式比對新舊＋每條路徑實測）、`pitfalls.md`（自己估的時間不準、`VAR=值 source 檔` 的變數）
+     - 修正：`g.sh` 的用法要寫 `P=…; source tools/test/g.sh`（分號；`CLAUDE.md` §12、`tools\README.md` 跟著改）
+   - 現況：REDkit 開著（mod 專案、Novigrad 世界；遊戲已 F10 結束；`gfg_debug.ws` 已拿出 workspace、重載過）
+   - **下一步：計畫第 4 步（M4 素材，離線）**
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）
 6. M4 的規格加進表 → 遊戲裡跑驗收清單 → 回歸清單

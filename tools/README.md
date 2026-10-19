@@ -73,7 +73,7 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `test\g.sh` | bash 函式：`P=<截圖資料夾> source tools/test/g.sh`；`set_mw`／`set_gab`（視窗）、`reload_edit`、`game_start`、`ak_select`、`game_end`、`restart_all`、`horse_start`、`side_after`（側面連拍換彈）、AnimBrowser 的 `import_one`／`add_ev`／`add_dur`／`add_track`／`rm_anim`／`save_gab`、圖片 `crop`／`gridm`／`mont`；說明在每個函式上面 |
+| `test\g.sh` | bash 函式：`P=<截圖資料夾>; source tools/test/g.sh`（分號不能省）；`set_mw`／`set_gab`（視窗）、`reload_edit`、`game_start`、`ak_select`、`game_end`、`restart_all`、`horse_start`、`side_after`（側面連拍換彈）、AnimBrowser 的 `import_one`／`add_ev`／`add_dur`／`add_track`／`rm_anim`／`save_gab`、圖片 `crop`／`gridm`／`mont`；說明在每個函式上面 |
 | `test\gfg_debug.ws` | 測試用的主控台指令（`gfgfree`、`gfgshots`、`gfgmag`、`gfgbv`、`gfgstack`、`gfggraphs`、`gfgdrawlog`、`gfgammo`、`gfgbulletwatch`、`gfgbulletview`、`gfgakstate`、`gfgakshow`）；`dbg_on` 放進 workspace、`dbg_off` 拿出來（**打包前要拿出來**） |
 | `test\crop.ps1`、`grid.ps1`、`montage.ps1` | 裁切放大、拼成格子（標編號）、橫向拼接（`g.sh` 的 `crop`、`gridm`、`mont` 會叫） |
 

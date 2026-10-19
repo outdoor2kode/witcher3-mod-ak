@@ -494,7 +494,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - `gfg_debug.ws`：測試用的主控台指令（`gfgfree` 自由鏡頭對著槍、`gfgshots` 設定已射幾發、`gfgmag` 彈匣在不在左手、`gfgstack` 動畫圖堆疊…）
     - 正本不放 workspace：`g.sh` 的 `dbg_on` 複製進去 → Reload scripts；測完 `dbg_off` → Reload scripts
     - **打包前確認 workspace 沒有它**（`git status` 會列出 `workspace/scripts/local/gfg_debug.ws`）
-  - `g.sh`：Claude 操作 REDkit、遊戲的 bash 函式（開遊戲到拿出 AK、重載腳本、AnimBrowser 匯入動畫和加事件、側面連拍換彈、拼圖）；`P=<截圖資料夾> source tools/test/g.sh`
+  - `g.sh`：Claude 操作 REDkit、遊戲的 bash 函式（開遊戲到拿出 AK、重載腳本、AnimBrowser 匯入動畫和加事件、側面連拍換彈、拼圖）；`P=<截圖資料夾>; source tools/test/g.sh`（分號不能省：g.sh 檔頭）
   - 舊的除錯指令（第 25 項動畫圖堆疊的實驗等）在 `backup\`（不進 git），更早的在 git 歷史
 - **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）
   - 開著世界、在 Scene 面板雙擊圖層使它變粗體（啟用）→ Asset Browser（Ctrl+A）選模型或實體 → 點一下畫面 → 按 **C** 放在滑鼠位置；也可以直接拖進畫面
