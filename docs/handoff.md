@@ -27,7 +27,7 @@
 - #39：手的方向改用解剖角度控制（`tools\reload_pose.py` 檔頭）；槍右傾 20°、槍口朝下 10°、往左 8 公分（身體中線）、槍口往左 10°；左手肘往下引導；右手肘換彈匣時往下 25°、拉槍機時抬 15°；拉槍機掌心朝左下；左腰 (-0.24, 0.12, 1.04)
   - 抓彈匣的點變成 F +0.1447、U −0.0401、R −0.0480 → `gfg_ak47.ws` 的 `GfgMagTick` 要跟著改
 
-**現在在做**：#39 改 `tools\reload_pose.py`（下面「接續的步驟」）
+**現在在做**：#39 進遊戲驗證（工具改好、6 段產生好、`GfgMagTick` 改好：commit `c980643`；下面「接續的步驟」）→ 再做 #41
 
 **#39 查到的**（15:4x；暫存工具 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\roll_check.py`：每格手相對前臂繞前臂軸的扭轉角、扭轉骨頭的扭轉角）
 - 換彈動畫是 `tools\reload_pose.py` 產生的（關鍵格＋兩節手臂 IK；`docs\m3.md`「換彈動作明顯一點」）
@@ -53,14 +53,20 @@
   - 右手換彈中旋前 −92、拉槍機時尺偏 −56～−72
 - 遊戲開著（16:0x 開的，Novigrad、Geralt 在水裡）：可以直接 AnimBrowser 重匯、在遊戲裡看
 
-**接續的步驟**（#39）
-1. 量原版的 `bicep2`、`elbowRoll`、`shoulderRoll` 和什麼成比例（上臂扭轉、手肘彎曲）：用 `roll_check.py` 的寫法、原版 `assets\anims\inventory_crossbow_check1.re` 等多段擬合
-2. `reload_pose.py`：IK 之後照原版比例設扭轉骨頭（手扭轉 × 0.2／0.5／0.2、bicep2…），加進 `changed`
-3. 重新設計關鍵格，讓手扭轉留在原版的範圍：槍右傾 45° → 約 20°、槍口上翹 18° → 往下約 10°；上半身右轉留著（#34 從背後要看得到）；握彈匣、左腰的手勢重算（左腰：手臂自然下垂）
-   - 握彈匣的手相對槍變了 → `gfg_ak47.ws` `GfgMagTick` 的抓的點要改成 `reload_pose.py` 印的值（現在 F 0.1875、U −0.1042、R −0.0378）
-4. 輸出 6 段（地面 `gfg_geralt_gabriel_reload_lowered.re`＋複本 `…_reload_front_2.re`、騎馬 4 段 `gfg_geralt_gabriel_horse_{gait}_reload_lowered.re`；底層、指令在 `docs\m3.md`「換彈動作明顯一點」的「底層、檔名」）→ AnimBrowser 用 `gfg_` 檔名同名重匯（事件保留）
-5. 遊戲裡側面看：暫時把 `backup\gfg_debug_2026-10-19.ws` 放回 `workspace\scripts\local\`（`gfgfree`、`gfgshots`、`gfgnoturn`），測完拿掉；`slow(0.05)` 慢動作連拍
-6. #40 一起測：Novigrad `xy(375, 1180)` → `spawnBoatAndMount()` → E 離開舵 → 左鍵：AK 拿出來、開槍（數 `Thrown <<gfg_ak47_ammo>>`）；掌舵、水裡照舊 0 發
+**#39 改好的**（16:2x，commit `c980643`；細節在 `tools\reload_pose.py` 檔頭）
+- 每格印左右手的旋前、屈腕、橈偏，超出 `NAT` 範圍會列出；彈匣離身體、槍托離胸口也印
+- 新版：左手 旋前 −119～+17、屈腕 −36～−8、橈偏 −18～+24；右手 旋前 −66～−6、屈腕 −30～+4、橈偏 −33～−5（全部在範圍內）
+- 6 段已產生在 `assets\anims\gfg\`（舊的備份 `assets\anims\gfg\backup_reload_C_1019\`）；騎馬加 `--pouch -0.24 0.17 1.20`
+- 離線棒子人預覽：`C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\pv_v3.png`
+- 試參數的腳本：同資料夾 `exp.py`（改 R 的常數再跑）
+
+**接續的步驟**（#39 進遊戲）
+1. F10 結束遊戲 → 暫時把 `backup\gfg_debug_2026-10-19.ws` 放回 `workspace\scripts\local\`（`gfgfree`、`gfgshots`、`gfgnoturn`；測完搬回 backup）→ Tools → Debuggers → Reload scripts（`GfgMagTick` 抓的點也要重載）
+2. AnimBrowser（Asset Browser 雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`；問 Entity… 按 No）→ 6 段用 `gfg_` 檔名 plain 同名重匯（g.sh 的 `import_one plain <檔名>`；GAB 要換成新開的視窗 handle）
+3. 開遊戲（`game_start3`）、拿 AK → 換彈：遊戲鏡頭（使用者的視角）連拍＋側面（`gfgfree`）；`slow(0.05)`；看左手握彈匣、左腰、右手握把和拉槍機；彈匣有沒有被抓到（紀錄、截圖）
+4. 騎馬換彈也看一次（叫馬 `instantMount('playerHorse')`）
+5. 通過：`docs\m3.md` 加一節（第 39 項）、`docs\findings.md`（扭轉骨頭即時算、原版規則、解剖角度）、`CLAUDE.md` §7、專家知識庫（`06-animation.md`）→ commit
+6. 然後做 #41（回顧）
 
 ---
 
