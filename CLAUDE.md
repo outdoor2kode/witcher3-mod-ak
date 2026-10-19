@@ -432,6 +432,7 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
   - 截圖：`wshot proc:editor 檔名.png mode=print grid=50`（REDkit 被終端機擋住也截得到，含 D3D12 畫面；格線標螢幕座標）→ 用 Read 看圖
   - 點擊、按鍵前先 `focus`；REDkit 是 wxWidgets，UI Automation 看不到元件 → 看截圖的座標點
   - 只對 editor、witcher3、blender 送輸入（工具會擋終端機、瀏覽器）；做完把終端機叫回前面
+  - REDkit 畫面上的筆刷工具（植被、地形）：拖曳要用 `rmove`（`move` 是 SetCursorPos，畫面收不到）（2026-10-19 練習專案實測：`D:\OneDrive\Desktop\redkit_expert\labs\LOG.md` L4k）
   - 螢幕鎖定、睡眠時截圖和輸入都會失效 → 長時間自己跑時用 `awake`
 - **開啟主控台**：`<W3_GAME_DIR>\bin\config\base\general.ini` 的 `[General]` 加 `DBGConsoleOn=true`，遊戲中按 `~`
 - **取得物品**：`additem('物品名稱')`（物品名稱以實際定義為準）
