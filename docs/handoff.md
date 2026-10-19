@@ -4,18 +4,52 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 12:4x（壓縮前；自主模式：交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練 B-5、B-6 進行中，進度改記在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
+最後更新：2026-10-19 13:0x（使用者暫停自主模式和訓練；交辦的 8 項＋收尾、流程圖都做完；REDkit 專家訓練進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 ---
 
-## 使用者 10-19 02:0x 的新指示（自主模式繼續，不結束）
+## 使用者回來時先看這裡（2026-10-19 13:0x）
+
+使用者 13:0x：「自主模式可以暫停了 自我訓練也是請暫停 我要使用了 暫停前先紀錄目前狀態以便下次繼續訓練自己 也確認 witcher mod 的開發有記錄好方便之後繼續」
+- → 自主模式**暫停**（互動模式：`CLAUDE.md` §11，寫新東西前先問）
+- 背景都停了：保持清醒、看門狗（TaskStop）、每小時續做排程 `0ad00fc5`（CronDelete）、旗標 `.autonomous`（刪了）
+- 要繼續：使用者說「恢復自主模式」→ 照 §14「開始時」重開；訓練從 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md` 的「接續的步驟」接著做
+
+**mod 的狀態**
+- 使用者 10-18 回報的 8 項（#24、#28～#34）都完成、遊戲裡驗證過（下面「自主模式」那張表）
+- git 乾淨（只有 `gunforgeralt.w3edit` 照例不 commit）
+- 13:0x 比對 mod 專案的檔案快照：workspace 和練習前（10-19 03:43）一樣；只有 `CLAUDE.md` 不同（Claude 補的知識，已 commit）
+- Steam 版裝的是 **0.3 版（10-18 21:1x）**：8 項的修改還沒裝進去
+  - 要裝：重新 Publish、槍聲 `sound_cache.py`、複製到遊戲資料夾（步驟在下面「打包、裝進遊戲」）
+  - 寫遊戲資料夾要先問使用者
+- **REDkit 現在開著練習專案 lab01**（不是 mod）
+  - 要開發 mod：File → Restart... → Recent projects 點 gunforgeralt 那一列的空白處 → File 選單最近的世界開 reference_level
+  - 也可以叫 Claude 切
+
+**要使用者決定的**
+- #31：水中、船上的中鍵要不要也拿掉（現在照原版；潛水時中鍵是 AK 唯一的開火方式）
+- 中鍵瞄準時短按左鍵沒開火、放開中鍵照原版射一發（`docs\findings.md` §35.2）：要不要改
+- 外觀選單（Transmog）的 AK 預覽沒進遊戲測
+- 要不要把目前的版本裝進 Steam 版
+
+**REDkit 專家**
+- 叫用：說「你現在是 redkit 開發專家」→ 技能 `redkit-expert`；「開啟自主模式」→ 技能 `autonomous-mode`
+  - 兩個技能都在 `C:\Users\beyon\.claude\skills\`，任何資料夾都叫得到
+- 訓練進度：官方 Wiki 85 頁讀完、21 個主題都有內容；實作練習 L1～L4s 做完、L4t（特效的燈）做一半；社群資料讀了一部分
+  - 細節在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`
+- 對 M5（槍口火光的光）有用的：特效的燈先用「複製原版有燈的特效＋模板加同名的 slot」（L4t 實測會亮）
+- 流程圖：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z
+
+---
+
+## 使用者 10-19 02:0x 的新指示（10-19 13:0x 使用者暫停）
 
 原文：「如果你全做完了已交辦任務 整理一份你至今開發的流程圖 例如，要自己製作動畫，會先透過什麼工具做到什麼事再匯出或者怎樣，來完成這件事 然後標注是否工具為自己開發的。還是別人開發的。 流程圖儘量簡單明瞭好閱讀。 這個做完後，我要你訓練自己，變成 redkit 這軟體的開發專家，也就是資深軟體工程師，你可以操控該軟體以達到讓自己更理解所有功能。 創建你需要重建的資料夾檔案等到以助你學習。 也請參考 redkit 的官方文件。然後也可以參考相關社群。 訓練目標就是變成實質上的資深有經驗的開發人員。然後讓我以後可以呼叫你。例如，我呼叫你開啟自主模式，你就自動做某些事執行某些程式。 我呼叫 你現在是 redkit 開發專家，你就要變成擁有這軟體實際開發經歷的專家，知悉這軟體一切功能。 一樣，自主模式下訓練自己。 然後不要搞砸這個 mod，需要就換資料夾。 此外，我到時候還是會回來繼續開發這個 mod，直到我接收前，不斷訓練自己。然後注意 context」
 
 | # | 任務 | 狀態 |
 |---|---|---|
 | A | 開發流程圖：每件事用什麼工具、做什麼、匯出到哪；標出工具是自己寫的還是別人的；簡單好讀 | **完成**（02:2x）：https://claude.ai/artifact/DXfFwfWpFmxteVoZKkFA4Z（「AK 模組工具鏈」；原始檔在 session 暫存 `flow\ak_pipeline.html`，要改：Artifact read 這個網址） |
-| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | **進行中**（下面「B 的計畫」；進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`） |
+| B | REDkit 專家訓練：操作 REDkit 學全部功能、讀官方文件和社群、做成以後叫得出來的技能；一直做到使用者回來 | **暫停**（10-19 13:0x；下面「B 的計畫」；進度在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`） |
 
 **決定**
 - 流程圖：發布成網頁（Artifact），連結寫在這裡和最後的回覆；內容來源 = `CLAUDE.md`、`docs\m3.md`、`docs\findings.md`、`tools\`
@@ -24,7 +58,7 @@
 - 叫用方式：使用者層級的技能（`C:\Users\beyon\.claude\skills\`，任何資料夾都叫得到）
   - 「你現在是 redkit 開發專家」→ 技能 `redkit-expert`：讀知識庫的索引、照裡面的做法工作
   - 「開啟自主模式」→ 技能 `autonomous-mode`（做 `CLAUDE.md` §14「開始時」那幾步；工具用絕對路徑，任何資料夾都能跑）
-- 自主模式**不跑結束程序**（使用者：「直到我接收前，不斷訓練自己」）：保持清醒、看門狗、每小時續做排程都繼續；排程 7 天過期（10-18 22:3x 建立 → 10-24 重排）
+- 自主模式原本**不跑結束程序**（使用者：「直到我接收前，不斷訓練自己」）→ **10-19 13:0x 使用者暫停**：背景都停了（最上面）
 
 **B 的計畫**（02:2x 定；做完一步就在這裡打勾、commit 到訓練資料夾的 git）
 1. 建資料夾 `D:\OneDrive\Desktop\redkit_expert\`（`git init`；不放 CS2 素材、不放遊戲檔）
@@ -43,7 +77,7 @@
    - 切換專案前：mod 的 REDkit 要先存好（AnimBrowser 沒有未存的變更）；練完切回 mod 的專案（使用者回來時 REDkit 開著 mod 的專案最方便）
 7. 一直做到使用者回來；每完成一個主題 commit；context 到 45% 照 §14 壓縮
 
-**接續的步驟**（12:4x）
+**接續的步驟**（13:0x 暫停時）
 - **訓練的進度、決定、接續的步驟都改寫在 `D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`** → 壓縮後先讀那份（這裡只留指標，免得 mod 的交接檔塞滿訓練的東西）
 - B-1 ✓（`ec318b3`）、B-2 ✓（02:4x：技能 `redkit-expert`、`autonomous-mode` 在 `C:\Users\beyon\.claude\skills\`，技能清單已出現）
 - B-3 ✓（02:4x）；B-4 ✓（03:2x：官方 Wiki 85 頁都讀完，21 個主題都有內容）；B-5 社群、B-6 實際操作 REDkit 進行中（05:3x：L3 練習專案 `labs\lab01`：XML on_conflict、Journal Editor、新世界＋地形、新世界 ID、日誌在遊戲裡出現、遭遇（要先產生 navigation data）、NPC 模板、地形材質、編輯器放實體、L4a DLC 任務、L4b 場景、L4c NPC 對話、L4d 場景的選項、L4e Interaction dialog、L4f Script Studio 除錯、L4g annotation 的除錯、L4h 場景的動畫事件、L4i Behavior Editor（遊戲中的 Behavior Debugger）、L4j 打包 lab01 都做完（打包的發現寫進 `CLAUDE.md` §6.3、`docs\findings.md` §27：`.w2je` 讓打包失敗、`succesfullyCooked` 抄打包前的值）、L4k 植被、L4l 環境和天氣、L4m 水、L4n 點光源、L4o 粒子系統、L4p 曳光（自己的投射物＋MotionBlur 粒子；400 m/s 一發約 3 公尺的細亮線：M5 曳光可以照這個做，做法在訓練資料夾 `knowledge\topics\18-environment.md`「曳光」）、L4q 生成就自己播的特效（`autoPlayEffectName`）、L4r 鏡頭震動（腳本 `GCameraShake`：lvl1 約 0.4°、lvl3 約 3°；M5 開槍的震動可以參考）、L4s 燈光閃爍（`lightFlickering` 在遊戲裡有效；點光源在遊戲裡照得很集中，brightness 20 的夜裡幾乎看不出來、要用腳本開關比對：M5 槍口火光的光可以參考）都做完、L4t 特效的 DynamicLight 做一半（原版火球的特效燈在遊戲裡會亮、我們做的還不亮）（粒子的發現補進 `docs\findings.md` §28：Particle Editor 的預覽看得到粒子）；發現寫進 `CLAUDE.md` §12：Script Studio 的 F7 不要用、mod 腳本的中斷點不會停、`@wrapMethod` 改在被包的原版方法下中斷點）
@@ -66,7 +100,7 @@
 
 ## 自主模式（2026-10-18 22:3x 開始；使用者：「自主模式開始，從上次暫停的地方繼續。然後，我剛剛實際遊玩後有發現幾個需要改善的部分，你再加入代辦清單中」）
 
-- 背景：保持清醒 `b0uy1btvh`、看門狗 `b9v28vbgt`、每小時續做排程 `0ad00fc5`（第 13 分）
+- 背景：保持清醒 `b0uy1btvh`、看門狗 `b9v28vbgt`、每小時續做排程 `0ad00fc5`（第 13 分）→ **10-19 13:0x 都停了**（使用者暫停）
 - 使用者在 Steam 版玩過 0.3 版 → mod 在 Steam 版能載入、能玩（回報的都是手感、動作問題）
 
 | # | 任務（使用者的描述） | 狀態 |
@@ -94,7 +128,7 @@
 - #28：一顆、往右斜 25°（同原版魚叉箭的方向）、淡淡的暗影
 - #34：原版沒有槍的換彈動畫可借 → 自己的關鍵格：上半身右轉、槍移到身體右前方、槍口上翹；最後右手拉槍機（手肘抬高）；從背後的鏡頭看得到
 
-**現在在做**：上面「新指示」的 B（REDkit 專家訓練）
+**現在在做**：暫停（10-19 13:0x）；暫停前在做上面「新指示」的 B（REDkit 專家訓練）
 
 **#24 結果**（23:1x，reference_level 遊戲裡驗證）
 - 動畫：`tools\inv_pose.py` → `assets\anims\gfg\gfg_akinv_*.re` 5 段（不進 git；重做：`"D:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" -I tools/inv_pose.py`）→ 匯入我們的動畫組（89 段＝原本 84＋5；原本 84 段的資料、事件一個 byte 都沒變：`scratchpad\s31\cmp_anims.py` 比對 HEAD）
