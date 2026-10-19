@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 17:5x（回顧後的改善 1～5 全做完；第 43 項 0.4 版裝進遊戲、第 44 項回顧網頁完成；下一步 REDkit 專家訓練）
+最後更新：2026-10-19 18:1x（第 43 項 0.4 版裝進遊戲、第 44 項回顧網頁完成；專家訓練 L4t 做完；下一步專家訓練接著練）
 
 ---
 
@@ -58,7 +58,11 @@
 2. ✅ 第 43 項：0.4 版裝進遊戲（17:3x～17:4x；`docs\findings.md` §27「第四次打包」）
    - **REDkit 打包過，同一次開著的 REDkit 再按 play game 會當** → 下一次用 REDkit 前先重開（開專家訓練的練習專案也要重開）
 3. ✅ 第 44 項：回顧網頁 https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo
-4. 下一步 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）：關 REDkit（File → Exit）→ 開練習專案
+4. ✅（18:0x）REDkit 專家訓練 L4t 做完：**特效的 DynamicLight 項目結尾超出特效的 length 就不亮**（對 M5 槍口火光的光有用；專家知識庫主題 18、21）
+   - REDkit 現在開著練習專案 lab01（不是 mod 專案）：要開發 mod 時切回（Welcome → Browse (1236,814) → `gunforgeralt.w3edit`）
+   - 打包後關 REDkit 時當在 Scaleform（17:51）：`CrashReporter.exe` 用 taskkill 關、沒送出
+   - `tools\test\g.sh` 的 `logsize` 改用 `wc -c`（`stat` 的大小在 REDkit 寫檔時會落後：專家訓練 `tools\lab\l3.sh` 早就這樣寫）
+5. 下一步 → 專家訓練接著練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`「接續的步驟」0.0 挑一個）
 - 不跑 §14 的「結束」（使用者 16:2x）
 
 ---

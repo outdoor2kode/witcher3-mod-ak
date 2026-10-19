@@ -26,7 +26,7 @@ shot() { $D shot "$P/$1.png" scale=${2:-0.5} >/dev/null; echo "$P/$1.png"; }   #
 con() { for c in "$@"; do d key oem3; sleep 0.5; d keys "$c"; d key enter; sleep 0.6; d key oem3; sleep 0.4; done; }
 
 # editor.log：先記下大小，之後只看新增的部分
-logsize() { stat -c %s "$LOG"; }
+logsize() { wc -c < "$LOG"; }   # 不用 stat：REDkit 開著檔案在寫時，目錄項的大小會落後 → 起點太前面、舊的紀錄被當成新的（專家訓練 tools\lab\l3.sh）
 has_log() { tail -c +$(( $1 + 1 )) "$LOG" | grep -a -q "$2"; }   # has_log 起點 樣式
 # wait_log 起點 樣式 秒數：每 0.5 秒看一次，出現就回來
 wait_log() { local i; for ((i=0; i<$3*2; i++)); do has_log "$1" "$2" && return 0; sleep 0.5; done; return 1; }
