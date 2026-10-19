@@ -1195,6 +1195,10 @@ function GfgTryFire()
 	if ( !ownerPlayer.IsUsingVehicle() && ( ownerPlayer.GetIsSprinting() || ownerPlayer.IsInAir() ) )
 		return;
 
+	// 船上、水裡不開槍（第 38 項）：扳機在上船、下水前就按著的情況
+	if ( GfgNoFireHere( ownerPlayer ) )
+		return;
+
 	// 騎馬瞄準超出左右範圍（第 18 項：GfgClampHorseAim）：槍沒對著準心，不開火；扳機狀態保留，回到範圍內還按著就接著射
 	if ( ownerPlayer.IsUsingVehicle() && ownerPlayer.gfgHorseAimOut )
 		return;
@@ -1251,6 +1255,14 @@ function GfgIsAkSelected( p : CR4Player ) : bool
 	return equipped == id;
 }
 
+// 船上、水裡：拿 AK 時不開槍，左鍵、中鍵都沒有行為（第 38 項；使用者 2026-10-19：「在船上把滑鼠滾輪觸發射擊禁止，也禁止左鍵開槍。
+//   在水裡也是禁止滾輪點擊射擊。也不准左鍵開槍」）
+// 船上＝站在船的範圍裡（OnBoatTrigger：boat.ws:39-42）或駕船、坐船（IsUsingBoat：actor.ws:6455-6462）；水裡＝游泳、潛水
+function GfgNoFireHere( p : CR4Player ) : bool
+{
+	return p.IsOnBoat() || p.IsUsingBoat() || p.IsSwimming() || p.IsDiving();
+}
+
 // 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
 @addMethod(CPlayerInput)
 function GfgSelectedAk() : Crossbow
@@ -1269,6 +1281,10 @@ function OnCbtAttackWithAlternateLight( action : SInputAction )
 	ak = GfgSelectedAk();
 	if ( !ak )
 		return wrappedMethod( action );
+
+	// 船上、水裡：不拿出、不開槍（第 38 項）；放開照常清掉扳機
+	if ( IsPressed( action ) && GfgNoFireHere( thePlayer ) )
+		return true;
 
 	if ( IsPressed( action ) )
 	{
@@ -1309,13 +1325,13 @@ function OnCbtSpecialAttackWithAlternateLight( action : SInputAction )
 //   不要影響到原本持有弩的所有原有行為，這更改僅限於 AK47」）
 // - 原版：按下 → 拿出、瞄準十字弩，放開 → 射一發（:3185-3214）；拿出時中鍵還按著 → 中鍵瞄準 AimThrow（CheckGotoAimThrow：rangedWeapon.ws:1362-1400）
 //   → 按下、放開都擋掉；按下時把中鍵設成放開（同原版強制收十字弩：rangedWeapon.ws:208-209），CheckGotoAimThrow 讀到的就是沒按
-// - 水中照原版：潛水時左鍵不是扳機（[Diving] 沒有 BASE_ATTACK_LIGHT），中鍵射一發是 AK 在水中唯一的開火方式（docs/findings.md §35.2）
-// - 騎馬：下面 W3VehicleCombatManagerStateNull.StartItemAction 的包裝；船照原版（船上左鍵照原版，中鍵是唯一的開火方式）
+// - 水中（游泳、潛水的中鍵也是 ThrowItem：input.settings 的 [Swimming]、[Diving]）也擋（第 38 項；原本照原版射一發：docs/findings.md §35.2）
+// - 騎馬、駕船：中鍵是 VehicleItemAction，走下面 W3VehicleCombatManagerStateNull.StartItemAction 的包裝
 // - 舒適操作模式按住替代施法鍵再按中鍵（施放亞克席法印：:3139-3146）照原版
 @addMethod(CPlayerInput)
 function GfgMiddleBlocked( action : SInputAction ) : bool
 {
-	if ( thePlayer.IsSwimming() || thePlayer.IsUsingVehicle() )
+	if ( thePlayer.IsUsingVehicle() )
 		return false;
 	if ( GetIsAltSignCastingPressed() && theInput.GetMouserControllerScheme() == MouserControllerScheme_Comfort )
 		return false;
@@ -1514,6 +1530,79 @@ function OnCommSheatheAny( action : SInputAction )
 	if ( IsPressed( action ) && thePlayer.rangedWeapon && thePlayer.rangedWeapon.GfgIsAkDrawn() )
 		thePlayer.OnRangedForceHolster( true, false );
 	return wrappedMethod( action );
+}
+
+// ===== 子彈數：左下角道具格顯示彈匣剩幾發（第 35 項；使用者 2026-10-19：「在畫面中尋找合適的地方顯示子彈剩餘數量。呈現方式符合遊戲的設計脈絡」）=====
+// 原版：選用物品是十字弩類時，左下角道具格（CR4HudModuleItemInfo 的 item1）顯示裝好的箭的數量＋名稱，無限的箭顯示 ∞（hudModuleItemInfo.ws:482-500）
+// AK：數量改成彈匣剩幾發；打空（換彈中）照原版箭用完的寫法標紅（:494-497）
+// 原版只在選用物品、箭的數量、箭的種類變了才更新這格（UpdateItem：:306-384）→ 每次 OnTick 比對剩幾發，變了就更新
+// 送給 Flash 的 setItemInfo 會讓這個模組亮起、計時後淡出（HudModuleItemInfo.as:221-300 的 GameEvent.UPDATE）：開槍時看得到；戰鬥中一直顯示（hudModuleItemInfo.ws:261-264）
+
+// 這格目前顯示的剩餘發數（-1：不是 AK）
+@addField(CR4HudModuleItemInfo)
+var gfgAmmoShown : int;
+
+// 彈匣剩幾發：射一發 shotCount 加 1，換彈結束歸零（rangedWeapon.ws:697-703）
+@addMethod(Crossbow)
+function GfgRoundsLeft() : int
+{
+	return Max( 0, GfgMagazineSize() - shotCount );
+}
+
+// 選用物品是 AK → 彈匣剩幾發；不是 → -1
+function GfgHudAkRounds( item : SItemUniqueId ) : int
+{
+	var witcher : W3PlayerWitcher;
+
+	witcher = GetWitcherPlayer();
+	if ( !witcher || !witcher.inv.IsIdValid( item ) || !witcher.inv.ItemHasTag( item, 'gfg_ak47' ) )
+		return -1;
+	// AK 的實體還沒生成（剛裝上）：當作滿的
+	if ( !witcher.rangedWeapon || !witcher.rangedWeapon.GfgIsAk() )
+		return witcher.inv.GetCrossbowAmmo( item );
+	return witcher.rangedWeapon.GfgRoundsLeft();
+}
+
+// 原版算完、送完這格之後，AK 的數量換成剩幾發（圖示、名稱、按鍵照原版剛算好的：m_previousSetItemInfo）
+@wrapMethod(CR4HudModuleItemInfo)
+function UpdateItemData( item : SItemUniqueId, bindingID : HudItemInfoBinding )
+{
+	var rounds : int;
+	var ammoStr : string;
+
+	wrappedMethod( item, bindingID );
+	if ( bindingID != HudItemInfoBinding_item1 )
+		return;
+	rounds = GfgHudAkRounds( item );
+	gfgAmmoShown = rounds;
+	if ( rounds < 0 )
+		return;
+	if ( rounds == 0 )
+		ammoStr = "<font color=\"#FF0000\">0</font>";
+	else
+		ammoStr = "<font color=\"#FFFFFF\">" + rounds + "</font>";
+	if ( m_previousSetItemInfo[ bindingID ].m_ammoStr == ammoStr )
+		return;
+	m_previousSetItemInfo[ bindingID ].m_ammoStr = ammoStr;
+	m_fxSetItemInfo.InvokeSelfSevenArgs( FlashArgInt( bindingID ), FlashArgString( m_previousSetItemInfo[ bindingID ].m_icon ),
+		FlashArgString( m_previousSetItemInfo[ bindingID ].m_category ), FlashArgString( m_previousSetItemInfo[ bindingID ].m_itemName ),
+		FlashArgString( ammoStr ), FlashArgInt( m_previousSetItemInfo[ bindingID ].m_btn ), FlashArgInt( m_previousSetItemInfo[ bindingID ].m_pcBtn ) );
+}
+
+@wrapMethod(CR4HudModuleItemInfo)
+function OnTick( timeDelta : float )
+{
+	var result : bool;
+	var item : SItemUniqueId;
+
+	result = wrappedMethod( timeDelta );
+	if ( !thePlayer.IsCiri() )
+	{
+		item = thePlayer.GetSelectedItemId();
+		if ( GfgHudAkRounds( item ) != gfgAmmoShown )
+			UpdateItemData( item, HudItemInfoBinding_item1 );
+	}
+	return result;
 }
 
 // ===== 衝刺：拿著 AK 可以衝刺、邊衝刺邊開槍（使用者 2026-10-13 選定；docs/findings.md §17.2）=====
@@ -2601,7 +2690,7 @@ function OnGameCameraTick( out moveData : SCameraMovementData, dt : float )
 // 十字弩那一組用 aimHorizontal、aimVertical 決定瞄準方向
 
 // 閒置時按左鍵（OnAttack：useVehicle.ws:706-718；回到閒置時還按著：ShouldEnterNextState :601-604）：
-// AK 選用時改成扳機，不拔劍、不揮劍（同地面的 OnCbtAttackWithAlternateLight）。船照原版
+// AK 選用時改成扳機，不拔劍、不揮劍（同地面的 OnCbtAttackWithAlternateLight）。船上：AK 選用時沒有行為（第 38 項），其他照原版
 @wrapMethod(W3VehicleCombatManagerStateNull)
 function StartAttackAction()
 {
@@ -2609,11 +2698,13 @@ function StartAttackAction()
 	var ak : Crossbow;
 
 	itemId = rider.GetSelectedItemId();
-	if ( !horseComp || !GfgIsAkSelected( rider ) )
+	if ( !GfgIsAkSelected( rider ) )
 	{
 		wrappedMethod();
 		return;
 	}
+	if ( !horseComp )
+		return;
 
 	ak = (Crossbow)rider.inv.GetItemEntityUnsafe( itemId );
 	if ( !ak )
@@ -2637,11 +2728,11 @@ function StartAttackAction()
 
 // 閒置時按中鍵（OnItemAction：useVehicle.ws:615-689；回到閒置時還按著：ShouldEnterNextState :605-608）：
 // 騎馬、AK 選用時沒有行為（第 31 項；左鍵開火：上面 StartAttackAction 的包裝）。原版會拿出十字弩、進入 ShootCrossbow，放開射一發（:744-758）
-// 炸彈、船照原版
+// 駕船也一樣（第 38 項；船上的中鍵 VehicleItemAction 也走這裡：OnItemAction :615-689）；炸彈照原版
 @wrapMethod(W3VehicleCombatManagerStateNull)
 function StartItemAction()
 {
-	if ( horseComp && GfgIsAkSelected( rider ) )
+	if ( GfgIsAkSelected( rider ) )
 		return;
 	wrappedMethod();
 }
@@ -3236,7 +3327,7 @@ function GfgSetBulletMeshVisible( visible : bool )
 // 原版：裝上十字弩類時自動裝一種無限的箭（AddAndEquipInfiniteBolt：playerWitcher.ws:5679-5717）：
 //   地面 Bodkin Bolt、游泳或潛水 Harpoon Bolt（GetCurrentInfiniteBoltName：:5663-5676）
 // AK：換成自己的子彈（gunforgeralt_items.xml 的 gfg_ak47_ammo、水中 gfg_ak47_ammo_water；兩個都有 gfg_ak47_ammo 標籤）
-// - 物品欄的子彈格、左下角道具格的名稱（hudModuleItemInfo.ws:482-498）跟著物品：圖示 gfg_ak47_ammo_64x128.png（tools/ammo_build.py）、名稱 7.62x39mm
+// - 物品欄的子彈格、左下角道具格的名稱（hudModuleItemInfo.ws:482-498）跟著物品：圖示 gfg_ak47_ammo_64x128.png（tools/ammo_build.py）、名稱 7.62mm（第 37 項改短）
 // - 裝在槍上、射出去的：物品的 hold_template = gfg_ak47_bullet.w2ent（上面「子彈的樣子」）
 // - 原版其他用到箭的地方（2026-10-18 查過所有 'Bodkin Bolt'、InfiniteAmmo 的用法）：
 //   - 用 InfiniteAmmo 標籤判斷的：子彈也有這個標籤 → 和原版的無限箭一樣（不扣數量：playerBoltProjectile.ws:386；不能卸下：inventoryMenu.ws:2562-2565 等）

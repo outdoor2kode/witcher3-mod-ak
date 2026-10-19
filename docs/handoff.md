@@ -8,6 +8,54 @@
 
 ---
 
+## 自主模式（2026-10-19 14:13 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。關於這個 mod 我對於你昨天開發完後做了測試，我覺得趨近完成，有幾個點需要改善」）
+
+- 背景：保持清醒 `bazp59owh`、看門狗 `ba5u0fbfr`、每小時續做排程 `439942a1`（第 13 分；10-19 14:13 建 → 10-25 重排）
+- 技能：`autonomous-mode`、`redkit-expert`（知識庫 `D:\OneDrive\Desktop\redkit_expert\knowledge\`；新查到的寫回主題檔、在那邊 commit）
+
+| # | 任務（使用者的描述） | 狀態 |
+|---|---|---|
+| 35 | 在畫面中找合適的地方顯示子彈剩餘數量；呈現方式符合遊戲的設計脈絡 | 程式寫好、**沒編譯、沒測**（`gfg_ak47.ws`「子彈數」一節） |
+| 36 | 物品欄裝備子彈時的圖示還是太滿太大、沒有質感，沒有「專業殺手／專家」的感覺 | 還沒動（下面「#36 計畫」） |
+| 37 | 子彈名稱太長（左下角、物品欄）：要寫數字可以，簡單的像「3.5mm」就好 | 字串改好（EN、ZH 都是 `7.62mm`）、**沒進遊戲看** |
+| 38 | 船上禁止滾輪（中鍵）射擊、也禁止左鍵開槍；水裡也禁止中鍵、左鍵 | 程式寫好、**沒編譯、沒測**（`GfgNoFireHere`） |
+
+**決定**（14:1x 回覆使用者時說了；使用者沒反對就照做）
+- #35：左下角道具格（現在顯示 ∞ 的位置）改成彈匣剩幾發：原版在這格顯示箭、炸彈的數量
+- #36：子彈縮小、留白，寫實的金屬質感重畫；比例參考原版的箭
+- #37：「7.62mm」
+- #38：拿 AK 時船上、水裡左鍵、中鍵都不開槍、不跳提示；原版十字弩照舊（取代 #31 留給使用者決定的那條）
+- 做完要不要裝進 Steam 版：問了使用者；沒回覆就不裝（寫遊戲資料夾要同意：`CLAUDE.md` §6.3）
+
+**現在在做**：#36 改 `tools\ammo_build.py`（下面「#36 計畫」）；之後開 REDkit 編譯、一次進遊戲驗證 4 項
+
+**做好的（14:2x～14:5x）**
+- #37：字串庫 10000008 `gfg_item_name_ak47_ammo` 加新版本（EN v3、ZH v4 = `7.62mm`）＋CSV（腳本 session 暫存 `scratchpad\set_ammo_name.py`；備份 `strings_backup_before_ammo_name.db`）；REDkit 關著時改的
+- #35：`gfg_ak47.ws`「子彈數」一節（在「主動收槍」後面）
+  - 包 `CR4HudModuleItemInfo.UpdateItemData`：原版送完，item1 是 AK 時數量換成彈匣剩幾發（`GfgRoundsLeft` = 30 − shotCount），0 標紅；用 `m_previousSetItemInfo` 的圖示、名稱重送 `setItemInfo`
+  - 包 `OnTick`：剩幾發變了就呼叫 `UpdateItemData`（原版只在箭的數量變了才更新）
+- #38：`GfgNoFireHere`（`IsOnBoat`／`IsUsingBoat`／`IsSwimming`／`IsDiving`）
+  - 左鍵 `OnCbtAttackWithAlternateLight`：按下時在船上、水裡 → 沒有行為；`GfgTryFire` 也擋（扳機先按著的情況）
+  - 中鍵 `GfgMiddleBlocked`：拿掉「游泳時照原版」→ 水裡也擋；駕船的中鍵（VehicleItemAction）：`StartItemAction` 包裝改成 AK 選用就不做事（馬、船）
+  - 船上的 `StartAttackAction`（VehicleAttack）：AK 選用時不做事（原版會拔劍）
+  - 右下角提示：船、游泳、潛水的原版清單本來就沒有射擊（`hudModuleControlsFeedback.ws:332-369`）→ 不用改
+- **wcc_lite 的 EULA 又跳出來**（14:4x `tools\wcc_compile.py`）：沒替使用者按 Agree，關掉（taskkill）→ 編譯改用 REDkit 的 Reload scripts（同 `docs\findings.md` §33.7）
+
+**#36 計畫**
+- 現況（`scratchpad\icons_cmp.png` 比較過）：子彈佔滿畫面（留白 10%）、淡橄欖綠、打光平（studio.exr＋Standard）→ 和原版箭的圖示（細、暗、高對比、金屬亮點）差很多
+- 改 `tools\ammo_build.py`：加 `--style`（`cs2` 原本的貼圖／`brass` 黃銅彈殼＋銅彈頭）、環境圖和強度、view transform（試 AgX）、主光；`--margin` 加大（子彈佔高度約 55～60%）
+- 渲染幾個版本 → 和原版箭的圖示並排（`scratchpad\iconsheet.ps1 輸出 3 圖…`）→ 選最像原版質感的，覆蓋 `gfg_ak47_ammo_64x128.png`（同名覆蓋不用重開 REDkit：`CLAUDE.md` §6.19）
+- 來源：`assets\ak47\ammo\weapons\models\shared\shells\ak47\ak47_bullet.gltf`、`ak47_bullet_color.png`；Blender：`"D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- <gltf> <color> <icon> <out_dir> --preview <大圖>`
+
+**驗證計畫**（REDkit 現在沒開）
+- 開 REDkit 的 mod 專案（Welcome → Browse → `gunforgeralt.w3edit`）→ File 最近的世界 reference_level → play game
+- #35：拿 AK 射幾發，左下角數字遞減、打空變紅 0、換彈後 30；R 換彈中途
+- #37：左下角、物品欄（C 收槍 → I）的名稱是 `7.62mm`
+- #38：船：`spawn` 不出船 → 找有船的地方（White Orchard 河邊？或主控台生成船的模板）；水裡：走進水裡游泳、潛水，按左鍵、中鍵都不開槍；原版十字弩照舊能射
+- #36：物品欄的子彈格
+
+---
+
 ## 使用者回來時先看這裡（2026-10-19 13:0x）
 
 使用者 13:0x：「自主模式可以暫停了 自我訓練也是請暫停 我要使用了 暫停前先紀錄目前狀態以便下次繼續訓練自己 也確認 witcher mod 的開發有記錄好方便之後繼續」
