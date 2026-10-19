@@ -36,3 +36,84 @@ function GfgMagazineSize() : int
 	ownerPlayerWitcher.GetItemEquippedOnSlot( EES_RangedWeapon, id );
 	return ownerPlayerWitcher.inv.GetCrossbowAmmo( id );
 }
+
+// ===== 槍的規格表（第 48 項；2026-10-20）=====
+// 每把槍自己的數值、名稱、模板、聲音、後座力表都在 gfg_gun_<物品名稱>.ws 的 GfgSpec…()；其他檔只查表，不寫死哪一把
+// 加新槍：
+//   1. 照 gfg_gun_ak47.ws 新增 gfg_gun_<名稱>.ws
+//   2. 下面 GfgGunIds、GfgGunSpecOf 各加一行
+//   3. 物品 XML：槍加 gfg_gun 標籤、子彈加 gfg_gun_ammo 標籤
+struct SGfgGunSpec
+{
+	var id : name;					// 物品名稱（gunforgeralt_items.xml）
+	var cycleTime : float;			// 射擊間隔（秒）
+	var recoilResetTime : float;	// 停火超過這個時間，下一發從彈道第一發重新開始（秒）
+	var range : float;				// 射程：瞄準射線的長度、子彈的飛行距離（公尺）
+	var spreadStand : float;		// 散布圓錐的半角（度）：站著不動
+	var spreadMove : float;			//   全速移動
+	var spreadPerShot : float;		//   每發累積
+	var maxMoveSpeed : float;		// 算「移動占多少」的最高速度（公尺/秒）
+	var recoveryTime : float;		// 散布恢復時間（秒）：連射第 recoveryStartShot～recoveryEndShot 發之間從 recoveryTime 變成 recoveryTimeFinal
+	var recoveryTimeFinal : float;
+	var recoveryStartShot : float;
+	var recoveryEndShot : float;
+	var dmgPerLevel : float;		// 傷害 = dmgPerLevel × 等級 + dmgFlat（銀多 25%）
+	var dmgFlat : float;
+	var headshotMult : float;		// 爆頭倍率
+	var rangeModifier : float;		// 距離衰減：每 12.7 公尺乘一次
+	var soundBank : string;			// 槍聲的 SoundBank（workspace\soundbanks\pc\）
+	var shotEvent : string;			// 槍聲事件
+	var ammoItem : name;			// 子彈物品：地面
+	var ammoWaterItem : name;		//   游泳、潛水
+	var tmplGun : string;			// 槍的實體模板（衝刺時的替身）
+	var tmplMag : string;			// 換彈時手上的彈匣
+	var tmplNoMag : string;			// 換彈時沒有彈匣的槍
+	var iconInv : string;			// 物品欄圖示的檔名（直）
+	var iconRadial : string;		// 輪盤圖示的檔名（橫）
+	var muzzle : Vector;			// 槍口：l_weapon 座標（槍口火光）
+	var kickRight : array< float >;	// 後座力：第 n 發相對前一發往右幾度（陣列第 n-1 個）
+	var kickUp : array< float >;	//   往上幾度
+}
+
+// 全部槍的物品名稱
+function GfgGunIds() : array< name >
+{
+	var ids : array< name >;
+
+	ids.PushBack( 'gfg_ak47' );
+	return ids;
+}
+
+// 物品名稱 → 規格（不認得的名稱給 AK 的：只有拿著我們的槍時才會查）
+function GfgGunSpecOf( id : name ) : SGfgGunSpec
+{
+	switch ( id )
+	{
+		case 'gfg_ak47':
+		default:
+			return GfgSpecAk47();
+	}
+}
+
+@addField(W3PlayerWitcher)
+var gfgGunSpec : SGfgGunSpec;		// GfgGun() 的快取
+
+@addField(W3PlayerWitcher)
+var gfgGunSpecFor : name;			// 快取的是哪個物品名稱（沒裝我們的槍時是空的）
+
+// 遠程武器格裝的槍的規格；換了槍才重新查表
+@addMethod(W3PlayerWitcher)
+function GfgGun() : SGfgGunSpec
+{
+	var item : SItemUniqueId;
+	var n : name;
+
+	if ( inv && GetItemEquippedOnSlot( EES_RangedWeapon, item ) && inv.ItemHasTag( item, 'gfg_gun' ) )
+		n = inv.GetItemName( item );
+	if ( n != gfgGunSpecFor || !IsNameValid( gfgGunSpec.id ) )
+	{
+		gfgGunSpec = GfgGunSpecOf( n );
+		gfgGunSpecFor = n;
+	}
+	return gfgGunSpec;
+}
