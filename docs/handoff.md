@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 16:1x（第 40 項遊戲實測通過；第 39 項量完原版、開始重做）
+最後更新：2026-10-19 17:0x（第 39 項遊戲驗證通過；開始第 41 項）
 
 ---
 
@@ -15,62 +15,41 @@
 
 | # | 任務（使用者的描述） | 狀態 |
 |---|---|---|
-| 39 | 換彈姿勢太怪：右手怎麼會這樣握槍；左手的上臂、前臂、手腕都不自然 → 好好重新審視並改善（附截圖：左手拿彈匣在腰前、右手從上面抓在機匣） | **原因找到**（下面「#39 查到的」）；還沒改 |
+| 39 | 換彈姿勢太怪：右手怎麼會這樣握槍；左手的上臂、前臂、手腕都不自然 → 好好重新審視並改善（附截圖：左手拿彈匣在腰前、右手從上面抓在機匣） | **完成**（16:5x 遊戲實測：地面、騎馬；`docs\m3.md`「換彈姿勢重做」、`docs\findings.md` §38） |
 | 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | **完成**（16:0x 遊戲實測：站在船上開槍 25 發；掌舵、游泳 0 發；`docs\findings.md` §37.4、`CLAUDE.md` §7） |
+| 41 | （16:2x 追加）回頭看整個開發過程哪裡可以做更好（耗時、流程順序、其他角度）→ 整理一份文件、更新必要的文件，之後不重蹈覆轍 | **做中** |
+| 42 | （16:3x 追加，#41 的補充）① 經驗總結也加進 REDkit 專家的知識庫 ② 從 REDkit 專家的經驗＋經驗總結抽出**通用**的軟體開發知識（網頁、網頁動畫、其他遊戲、app 都用得到）→ 做成新技能（例：資深軟體工程師） | 等 #41 |
 
-| 41 | （16:2x 追加）回頭看整個開發過程哪裡可以做更好（耗時、流程順序、其他角度）→ 整理一份文件、更新必要的文件，之後不重蹈覆轍 | 等 #39 做完 |
+- **#42 的使用情境（使用者原話）**：「開發 the witcher 3 mod 時，我就會打開自主模式，redkit 開發專家，還有這個資深軟體工程師 skill。但如果開發網頁的話，我就只會開起自主模式和這個資深軟體工程師 skill（再加上之後可能會有的網頁開發專家 skill，目前還沒有）」「開發這個新的 skill 時，記得參考此使用情境來開發」
+  - → 新技能只放跨領域的知識：不寫 REDkit、巫師3 的細節（那是 `redkit-expert`），也不重複自主模式的操作程序（那是 `autonomous-mode`）；三個技能同時開不能互相打架（誰管什麼要寫清楚）
 
 - **使用者 16:2x：「做完後不要停止自主模式和Redkit專家模式」** → 這次任務做完**不跑 `CLAUDE.md` §14 的「結束」**（不刪排程、不停保持清醒和看門狗）；做完後接著做回顧裡找到的改善、REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`）
 
 **決定**
 - #40：`GfgNoFireHere` 拿掉 `IsOnBoat()`，留 `IsUsingBoat()`（掌舵、乘客）、`IsSwimming()`、`IsDiving()`
-- #39：手的方向改用解剖角度控制（`tools\reload_pose.py` 檔頭）；槍右傾 20°、槍口朝下 10°、往左 8 公分（身體中線）、槍口往左 10°；左手肘往下引導；右手肘換彈匣時往下 25°、拉槍機時抬 15°；拉槍機掌心朝左下；左腰 (-0.24, 0.12, 1.04)
-  - 抓彈匣的點變成 F +0.1447、U −0.0401、R −0.0480 → `gfg_ak47.ws` 的 `GfgMagTick` 要跟著改
+- #39：手的方向改用解剖角度控制；槍右傾 20°、槍口朝下 10°、往左 8 公分（身體中線）；左手肘往下；右手肘換彈匣時往下 25°、拉槍機時抬 15°（細節：`docs\m3.md`「換彈姿勢重做」、`docs\findings.md` §38、`CLAUDE.md` §6 第 21 項、§7）
+- #41 的文件放 `docs\retrospective.md`（專案裡的文件，不發布成網頁；最後的回覆用一行提可以發布）
+- #42 的新技能：`C:\Users\beyon\.claude\skills\senior-engineer\`（使用者層級，任何資料夾都叫得到；叫法「你現在是資深軟體工程師」）
 
-**現在在做**：#39 進遊戲驗證（工具改好、6 段產生好、`GfgMagTick` 改好：commit `c980643`；下面「接續的步驟」）→ 再做 #41
+**現在在做**：#41（回顧）→ #42
 
-**#39 查到的**（15:4x；暫存工具 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\roll_check.py`：每格手相對前臂繞前臂軸的扭轉角、扭轉骨頭的扭轉角）
-- 換彈動畫是 `tools\reload_pose.py` 產生的（關鍵格＋兩節手臂 IK；`docs\m3.md`「換彈動作明顯一點」）
-- **原因 1：前臂沒有扭轉，扭轉全部集中在手腕**
-  - 骨架：`l_forearm` → `l_forearmRoll1` → `l_forearmRoll2` → `l_handRoll`（扭轉骨頭鏈，前臂、手腕的皮膚掛在這上面）；`l_hand` 是 `l_forearm` 的直接子骨頭；另有 `l_bicep2`（上臂）、`l_elbowRoll`、`l_shoulderRoll`；右手同名
-  - 我們的換彈（`gfg_geralt_gabriel_reload_lowered.re`）：左手扭轉 −28.5°（瞄準）→ 拿彈匣時 **+159°**（差 187°，超過人的前臂旋轉範圍）；右手 +71° → +103°；扭轉骨頭一直是底層的值（左 0、右 forearmRoll1 +48.3）
-  - 原版 `inventory_crossbow_check1.re`：扭轉骨頭跟著手轉，各占手扭轉的 **0.2（forearmRoll1）、0.5（forearmRoll2）、0.2（handRoll）**（各自相對父骨頭）；`bicep2` 也會變（和什麼成比例：還沒量）；手扭轉 −82～+17°
-  - `square_pose.two_bone_ik`：前臂的扭轉沿用底層（只 swing），手直接設成目標方向 → 目標的手勢一轉，全部變成手腕扭轉
-- **原因 2：槍往右傾 45°、槍口上翹 18°**（#34 為了從背後看得到）→ 右手握把的手背朝上，看起來像從上面抓機匣；彈匣也跟著轉到左下，左手要極度外旋才握得到（握彈匣的手勢 q：掌心貼彈匣左面）
-- 舊的離線預覽 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\scratchpad\s34\pv.py`：粗棒子人，看不出手腕扭轉
+**#39 完成**（16:5x；commit 見 git log）
+- 6 段用 `gfg_` 檔名同名重匯：動畫組 89 筆、沒有 `man_`；和舊版比只有這 6 段的資料變了、事件一樣（暫存 `39998eff…\scratchpad\s31\cmp_anims.py`、`desk\anim_events.py`）
+- 遊戲裡（Novigrad）：地面從左側、左前、右後、遊戲鏡頭（繞到右側）連拍；騎馬從左前連拍 → 右手一直握握把、左手到左腰拿彈匣、插上、右手拉槍機；`magOut` 換彈中段 true、裝上後 false
+- 暫時的測試腳本搬到 `backup\gfg_tmp39_2026-10-19.ws`；重載腳本：原版 1525＋我們 1 個，`Scriptables reloaded`
+- REDkit 開著（主視窗 0xF40C0E、AnimBrowser 0x1B8215E、Asset Browser 0x1F0DA0；遊戲已 F10 結束）
 
-**#39 16:0x 又查到的**
-- **遊戲裡扭轉骨頭是即時算的**：動畫圖 `gfg_gameplay`、`gfg_overlay` 輸出前都有 `CBehaviorGraphConstraintNodeRoll`（「Roll deformation」）
-  - `editor.exe` 的字串：寫死的骨頭 forearmRoll1/2、handRoll、elbowRoll、bicep2、shoulderRoll、legRoll…（`behaviorConstraintNodeRoll.cpp`）
-  - → 動畫裡烤的扭轉骨頭值，遊戲裡會被蓋掉；**問題在手的目標方向本身**（AnimBrowser 預覽不跑動畫圖 → 烤進去，預覽才和遊戲一樣）
-- 原版 Geralt 動畫（inventory_*）的規則（暫存 `s39\roll_fit.py`、`roll_fit2.py`）
-  - forearmRoll1／2、handRoll 各＝手相對前臂扭轉 ×0.2／0.5／0.2；handRoll 的 swing＝手腕彎的一半
-  - elbowRoll＝上臂、前臂的正中間；shoulderRoll＝鎖骨、上臂的正中間
-  - bicep2 ≈ −0.92（左）／−0.97（右）× 上臂相對鎖骨的扭轉
-- **解剖角度**（暫存 `s39\anat.py`：旋前＋／旋後−、屈腕＋、橈偏＋；掌心＝手骨 +Y）
-  - 原版 Geralt：左旋前 −86～+19、右 −35～0；屈腕 −23～+69；底層（瞄準）左 −107、右 −53
-  - **現在的換彈**：左手到左腰時旋前 +100～+126、**屈腕 +175、橈偏 +148**（手整個折到手背）；抓彈匣時旋前 +61（從 −107 轉了 168°）
-  - 右手換彈中旋前 −92、拉槍機時尺偏 −56～−72
-- 遊戲開著（16:0x 開的，Novigrad、Geralt 在水裡）：可以直接 AnimBrowser 重匯、在遊戲裡看
-
-**#39 改好的**（16:2x，commit `c980643`；細節在 `tools\reload_pose.py` 檔頭）
-- 每格印左右手的旋前、屈腕、橈偏，超出 `NAT` 範圍會列出；彈匣離身體、槍托離胸口也印
-- 新版：左手 旋前 −119～+17、屈腕 −36～−8、橈偏 −18～+24；右手 旋前 −66～−6、屈腕 −30～+4、橈偏 −33～−5（全部在範圍內）
-- 6 段已產生在 `assets\anims\gfg\`（舊的備份 `assets\anims\gfg\backup_reload_C_1019\`）；騎馬加 `--pouch -0.24 0.17 1.20`
-- 離線棒子人預覽：`C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\pv_v3.png`
-- 試參數的腳本：同資料夾 `exp.py`（改 R 的常數再跑）
-
-**接續的步驟**（#39 進遊戲）
-1. ✅（16:2x）F10 結束遊戲、重載腳本（`GfgMagTick` 新的抓的點）；暫時的測試腳本 `workspace\scripts\local\gfg_tmp39.ws`（**測完刪掉**；不進 git）：
-   - `gfgfree(角度, 距離, 高度)` 自由鏡頭對著槍（`gfgfree(0, 0, 0, true)` 關）；`gfgshots(n)` 設已射幾發；`gfgmag()` 印 magOut、換彈狀態
-   - backup 的 `gfg_debug_2026-10-19.ws` 沒有 gfgfree（10-18 清理時拿掉了，舊版在 git `7684690^`）→ 寫了這個小檔
-   - 自由鏡頭開著時 `GfgCameraTick` 不跑（抓彈匣在裡面）→ 要等抓到之後再開（`gfgmag()` 看 magOut=true）
-   - REDkit 開著：主視窗 0xF40C0E、Asset Browser 0x1F0DA0（已搜尋 `gfg_ak47_geralt`，結果還沒雙擊）
-2. AnimBrowser（Asset Browser 雙擊 `dlc\gunforgeralt\data\animations\gfg_ak47_geralt.w2anims`；問 Entity… 按 No）→ 6 段用 `gfg_` 檔名 plain 同名重匯（g.sh 的 `import_one plain <檔名>`；GAB 要換成新開的視窗 handle）
-3. 開遊戲（`game_start3`）、拿 AK → 換彈：遊戲鏡頭（使用者的視角）連拍＋側面（`gfgfree`）；`slow(0.05)`；看左手握彈匣、左腰、右手握把和拉槍機；彈匣有沒有被抓到（紀錄、截圖）
-4. 騎馬換彈也看一次（叫馬 `instantMount('playerHorse')`）
-5. 通過：`docs\m3.md` 加一節（第 39 項）、`docs\findings.md`（扭轉骨頭即時算、原版規則、解剖角度）、`CLAUDE.md` §7、專家知識庫（`06-animation.md`）→ commit
-6. 然後做 #41（回顧）
+**接續的步驟**（#41、#42）
+1. 收集資料（只讀）：
+   - `git log --reverse`（全部 commit 的時間、訊息）→ 每個里程碑、每一項花多久
+   - 對話紀錄 `C:\Users\beyon\.claude\projects\D--OneDrive-Desktop-gunforgeralt\*.jsonl`：使用者每則訊息（時間、內容）、壓縮次數、使用者糾正我的地方（例：「不是」「為什麼」「做不到」）、看門狗叫醒的次數
+   - `docs\m3.md`、`docs\findings.md` 的「試過、放棄」「犯過」「學到的」；`CLAUDE.md` 的規則是哪次事件之後加的
+   - 專家訓練：`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`、`labs\LOG.md`
+2. 分析：① 時間（哪裡花最多、怎樣更快）② 流程順序（先學工具和文件、先找現成資源、先懂專案架構、先建測試方法）③ 其他角度（驗證品質、和使用者溝通、工具化、知識管理、context、自主模式的停頓、安全）
+3. 寫 `docs\retrospective.md`；更新 `CLAUDE.md`（新規則）、技能（`autonomous-mode`、`redkit-expert`）、memory
+4. #42 ①：經驗總結加進專家知識庫（新主題檔＋INDEX）、在 `redkit_expert` commit
+5. #42 ②：抽出通用的知識 → 新技能 `senior-engineer`（只放跨領域的；不寫 REDkit 細節、不重複自主模式的操作程序；寫清楚和另外兩個技能怎麼分工）
+6. 做完不跑 §14 的「結束」：接著做回顧裡找到的改善、REDkit 專家訓練
 
 ---
 

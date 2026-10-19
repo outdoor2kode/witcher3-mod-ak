@@ -2701,3 +2701,40 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
 - 潛水時中鍵按太早（還在 `Swimming` → `Diving` 的過渡）不會進瞄準：原版十字弩也一樣 → 按住 C 3 秒再測
 - 主控台偶爾在 `con` 之後還開著（原因沒查）：之後的按鍵打進主控台 → 截圖確認關了
 - `desk.ps1 focus` 在遊戲執行中偶爾報「叫不到前面」，但前景本來就是 REDkit：輸入照樣送得到
+
+## 38. 動畫：扭轉骨頭、手腕的解剖角度（2026-10-19 第 39 項；離線量測＋遊戲實測）
+
+### 38.1 扭轉骨頭（roll bones）在遊戲裡即時算
+
+- 骨架（`man_base.w2rig`）：`l_forearm` → `l_forearmRoll1` → `l_forearmRoll2` → `l_handRoll`（前臂、手腕的皮膚掛在這條鏈上）；`l_hand` 是 `l_forearm` 的直接子骨頭；另有 `l_bicep2`（上臂）、`l_elbowRoll`、`l_shoulderRoll`；右手同名
+- 動畫圖 `gfg_gameplay`、`gfg_overlay`（原版 `pc_gameplay`、`pc_overlay` 的複本）輸出前都有 `CBehaviorGraphConstraintNodeRoll`（節點名稱「Roll deformation」；`tools\cr2w_dump.py` 讀的）
+  - 處理哪些骨頭寫死在 `editor.exe`（字串：forearmRoll1／2、handRoll、elbowRoll、bicep2、shoulderRoll、legRoll…；原始檔名 `behaviorConstraintNodeRoll.cpp`）
+- → 動畫裡烤的扭轉骨頭，遊戲裡會被蓋掉；**手腕看起來扭曲＝手（`l_hand`）的方向本身不對**
+- AnimBrowser 的預覽不跑動畫圖 → 扭轉骨頭照 §38.2 烤進動畫，預覽才和遊戲一樣
+
+### 38.2 原版 Geralt 動畫的扭轉規則（量 `inventory_*` 動畫；暫存 `s39\roll_fit.py`、`roll_fit2.py`）
+
+- forearmRoll1、forearmRoll2、handRoll（各自相對父骨頭）＝手相對前臂、繞前臂軸的扭轉 × **0.2、0.5、0.2**
+- handRoll 的 swing（彎）＝手腕彎的一半
+- elbowRoll＝上臂、前臂的正中間；shoulderRoll＝鎖骨（`shoulder`）、上臂的正中間
+- bicep2 ≈ −0.92·tw + 0.8（左）、−0.97·tw − 6.0（右）；tw＝上臂相對鎖骨的扭轉（度）
+- 骨頭的區域 X 軸沿著骨頭；扭轉用 swing-twist 分解（R = swing·twist）
+- 實作：`tools\reload_pose.py` 的 `bake_rolls`
+
+### 38.3 手腕的解剖角度（暫存 `s39\anat.py`；`tools\reload_pose.py` 的 `anat`）
+
+- 旋前（＋）／旋後（−）：掌心繞前臂軸轉；0＝掌心朝內側（內側＝手肘鉸鏈軸＝上臂 × 前臂；左 ＋、右 −）
+- 屈腕（＋往掌心）、橈偏（＋往拇指）
+- 掌心＝手骨 +Y（拇指根 y +0.014、指節 y −0.008）；拇指那側：左 −Z、右 +Z
+- 原版 Geralt（`inventory_*`）：左旋前 −86～+19、右 −35～0；屈腕 −23～+69；底層（瞄準）左 −107、右 −53
+- 檢查用的範圍 `NAT`（原版＋人體轉得到的範圍）：左 旋前 −120～60、屈腕 −45～50、橈偏 −55～25；右 旋前 −80～60、屈腕 −45～45、橈偏 −45～20
+- 第 39 項以前的換彈：左腰 屈腕 +175、橈偏 +148；抓彈匣時左旋前 +61；右旋前 −92、拉槍機尺偏 −72 → 使用者看了說「不自然」的就是這些
+- **做手臂動作時**：每格量兩手的這 3 個角度、和範圍比；手的目標方向用解剖角度指定（或「掌心貼在某個面、長軸對齊前臂」），不要用固定的手勢轉換
+
+### 38.4 測試時學到的
+
+- 自由鏡頭（`theGame.EnableFreeCamera`：`game.ws:161`）開著時，玩家的 `OnGameCameraTick` 不跑 → 在裡面做的事（`GfgMagTick` 抓彈匣）停住 → 等 `magOut=true` 之後才開
+- 拿著 AK、在探索中用滑鼠轉鏡頭：Geralt 不跟著轉 → 遊戲鏡頭可以繞到側面看換彈
+- REDkit 的 Tools 選單在遊戲中點不到（滑鼠鎖在遊戲畫面）→ 先 F10；下拉選單是另一個視窗：`wshot mode=print` 截不到 → 用全螢幕的 `shot`
+- F10 結束遊戲的紀錄（`EndSession force fade off`）有時晚十幾秒才寫進 `editor.log` → 等不到時先截圖
+- 換彈 2.22 秒：`slow(0.04)`＝55 秒、`slow(0.02)`＝111 秒；`con` 一次（開主控台、打字、關）約 2～7 秒

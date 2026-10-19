@@ -247,6 +247,9 @@
     - 本專案：`workspace\soundbanks\pc\gfg_ak47.bnk`，事件 `gfg_ak47_shot`（CS2 的 `ak47_01`、`02`、`04`；同時 1 個；−3 dB），掛在原版十字弩的 actor-mixer 底下
     - **裝進遊戲時**：Publish 不會包聲音 → `tools\sound_cache.py <mod 的 content>\soundspc.cache --pack <bank>`（CS3W；校驗碼 FNV-1a 64，用原版的檔驗證過）；還沒在 Steam 版測過
     - 驗證：Claude 聽不到 → `tools\audio_rec.py` 錄電腦播的聲音（§12）
+21. **手臂的扭轉骨頭（forearmRoll1／2、handRoll、elbowRoll、bicep2、shoulderRoll）在遊戲裡由動畫圖即時算**（`CBehaviorGraphConstraintNodeRoll`；2026-10-19，`docs\findings.md` §38）
+    - 動畫裡烤的值會被蓋掉 → 手腕看起來扭曲，要改的是手（`l_hand`）的方向本身
+    - AnimBrowser 的預覽不跑動畫圖 → 照原版的比例烤進去，預覽才和遊戲一樣（§38.2）
 
 ---
 
@@ -284,6 +287,9 @@
   - 掌舵（含坐船）、游泳、潛水：左鍵、中鍵都沒有行為（不拿出、不開火、不提示）
   - **只是站在船上（沒掌舵）照陸地**（使用者 2026-10-19 第 40 項：「沒有駕駛，只是站在船上，這要跟站在陸地上一樣行為」）
   - 原版十字弩照舊（潛水、船上按中鍵照樣射）；做法見 `docs\findings.md` §37.4
+- **換彈姿勢：手腕、手肘在人體轉得到的範圍內**（使用者 2026-10-19 第 39 項：「這個換子姿勢也太怪了吧。右手怎麼會這樣握槍???左手的整個上臂前臂手腕都不自然」）
+  - 槍右傾 20°、槍口朝下、在身體中線；右手一直握著握把（拉槍機時從右上方抓拉柄）；左手肘往下、到左腰拿彈匣（騎馬：大腿上方）
+  - 做手臂動作時，每格的旋前、屈腕、橈偏都要在原版 Geralt＋人體的範圍內（`tools\reload_pose.py` 會印、會檢查；`docs\findings.md` §38、`docs\m3.md`「換彈姿勢重做」）
 
 **第三人稱射擊**
 
