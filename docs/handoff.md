@@ -4,7 +4,43 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 15:1x（自主模式結束：第 35～38 項做完、遊戲裡驗證過）
+最後更新：2026-10-19 15:4x（自主模式開始：第 39、40 項）
+
+---
+
+## 自主模式（2026-10-19 15:36 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。」＋ 2 項）
+
+- 背景：保持清醒 `bl37km196`、看門狗 `bo3tnm14a`、每小時續做排程 `c8a498e9`（第 13 分；10-19 15:3x 建 → 10-25 重排）
+- 技能：`autonomous-mode`、`redkit-expert`
+
+| # | 任務（使用者的描述） | 狀態 |
+|---|---|---|
+| 39 | 換彈姿勢太怪：右手怎麼會這樣握槍；左手的上臂、前臂、手腕都不自然 → 好好重新審視並改善（附截圖：左手拿彈匣在腰前、右手從上面抓在機匣） | **原因找到**（下面「#39 查到的」）；還沒改 |
+| 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | 程式改好（`GfgNoFireHere` 拿掉 `IsOnBoat()`）、**沒編譯、沒測** |
+
+**決定**
+- #40：`GfgNoFireHere` 拿掉 `IsOnBoat()`，留 `IsUsingBoat()`（掌舵、乘客）、`IsSwimming()`、`IsDiving()`
+
+**現在在做**：#39 改 `tools\reload_pose.py`（下面「接續的步驟」）；#40 等進遊戲一起測
+
+**#39 查到的**（15:4x；暫存工具 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\roll_check.py`：每格手相對前臂繞前臂軸的扭轉角、扭轉骨頭的扭轉角）
+- 換彈動畫是 `tools\reload_pose.py` 產生的（關鍵格＋兩節手臂 IK；`docs\m3.md`「換彈動作明顯一點」）
+- **原因 1：前臂沒有扭轉，扭轉全部集中在手腕**
+  - 骨架：`l_forearm` → `l_forearmRoll1` → `l_forearmRoll2` → `l_handRoll`（扭轉骨頭鏈，前臂、手腕的皮膚掛在這上面）；`l_hand` 是 `l_forearm` 的直接子骨頭；另有 `l_bicep2`（上臂）、`l_elbowRoll`、`l_shoulderRoll`；右手同名
+  - 我們的換彈（`gfg_geralt_gabriel_reload_lowered.re`）：左手扭轉 −28.5°（瞄準）→ 拿彈匣時 **+159°**（差 187°，超過人的前臂旋轉範圍）；右手 +71° → +103°；扭轉骨頭一直是底層的值（左 0、右 forearmRoll1 +48.3）
+  - 原版 `inventory_crossbow_check1.re`：扭轉骨頭跟著手轉，各占手扭轉的 **0.2（forearmRoll1）、0.5（forearmRoll2）、0.2（handRoll）**（各自相對父骨頭）；`bicep2` 也會變（和什麼成比例：還沒量）；手扭轉 −82～+17°
+  - `square_pose.two_bone_ik`：前臂的扭轉沿用底層（只 swing），手直接設成目標方向 → 目標的手勢一轉，全部變成手腕扭轉
+- **原因 2：槍往右傾 45°、槍口上翹 18°**（#34 為了從背後看得到）→ 右手握把的手背朝上，看起來像從上面抓機匣；彈匣也跟著轉到左下，左手要極度外旋才握得到（握彈匣的手勢 q：掌心貼彈匣左面）
+- 舊的離線預覽 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\scratchpad\s34\pv.py`：粗棒子人，看不出手腕扭轉
+
+**接續的步驟**（#39）
+1. 量原版的 `bicep2`、`elbowRoll`、`shoulderRoll` 和什麼成比例（上臂扭轉、手肘彎曲）：用 `roll_check.py` 的寫法、原版 `assets\anims\inventory_crossbow_check1.re` 等多段擬合
+2. `reload_pose.py`：IK 之後照原版比例設扭轉骨頭（手扭轉 × 0.2／0.5／0.2、bicep2…），加進 `changed`
+3. 重新設計關鍵格，讓手扭轉留在原版的範圍：槍右傾 45° → 約 20°、槍口上翹 18° → 往下約 10°；上半身右轉留著（#34 從背後要看得到）；握彈匣、左腰的手勢重算（左腰：手臂自然下垂）
+   - 握彈匣的手相對槍變了 → `gfg_ak47.ws` `GfgMagTick` 的抓的點要改成 `reload_pose.py` 印的值（現在 F 0.1875、U −0.1042、R −0.0378）
+4. 輸出 6 段（地面 `gfg_geralt_gabriel_reload_lowered.re`＋複本 `…_reload_front_2.re`、騎馬 4 段 `gfg_geralt_gabriel_horse_{gait}_reload_lowered.re`；底層、指令在 `docs\m3.md`「換彈動作明顯一點」的「底層、檔名」）→ AnimBrowser 用 `gfg_` 檔名同名重匯（事件保留）
+5. 遊戲裡側面看：暫時把 `backup\gfg_debug_2026-10-19.ws` 放回 `workspace\scripts\local\`（`gfgfree`、`gfgshots`、`gfgnoturn`），測完拿掉；`slow(0.05)` 慢動作連拍
+6. #40 一起測：Novigrad `xy(375, 1180)` → `spawnBoatAndMount()` → E 離開舵 → 左鍵：AK 拿出來、開槍（數 `Thrown <<gfg_ak47_ammo>>`）；掌舵、水裡照舊 0 發
 
 ---
 

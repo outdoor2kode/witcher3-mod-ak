@@ -1257,10 +1257,11 @@ function GfgIsAkSelected( p : CR4Player ) : bool
 
 // 船上、水裡：拿 AK 時不開槍，左鍵、中鍵都沒有行為（第 38 項；使用者 2026-10-19：「在船上把滑鼠滾輪觸發射擊禁止，也禁止左鍵開槍。
 //   在水裡也是禁止滾輪點擊射擊。也不准左鍵開槍」）
-// 船上＝站在船的範圍裡（OnBoatTrigger：boat.ws:39-42）或駕船、坐船（IsUsingBoat：actor.ws:6455-6462）；水裡＝游泳、潛水
+// 船上＝駕船、坐船（IsUsingBoat：actor.ws:6455-6462）；水裡＝游泳、潛水
+// 只是站在船上（IsOnBoat：OnBoatTrigger，boat.ws:39-42）照陸地（第 40 項；使用者 2026-10-19：「沒有駕駛，只是站在船上，這要跟站在陸地上一樣行為」）
 function GfgNoFireHere( p : CR4Player ) : bool
 {
-	return p.IsOnBoat() || p.IsUsingBoat() || p.IsSwimming() || p.IsDiving();
+	return p.IsUsingBoat() || p.IsSwimming() || p.IsDiving();
 }
 
 // 目前選用的物品若是 AK，回傳它的物件（同 r4Player.ws:10712 的取法）
