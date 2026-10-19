@@ -131,7 +131,7 @@ function OnProjectileShot( targetCurrentPosition : Vector, optional target : CNo
 	if ( gfgGunRange > 0.f )
 	{
 		witcher = (W3PlayerWitcher)GetOwner();
-		if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_Bolt, bolt ) || !witcher.inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
+		if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_Bolt, bolt ) || !witcher.inv.ItemHasTag( bolt, 'gfg_gun_ammo' ) )
 			GfgSetBulletMeshVisible( false );
 		StopActiveTrail();
 	}
@@ -164,9 +164,21 @@ function GfgSetBulletMeshVisible( visible : bool )
 // - AK 只用自己的子彈：輪盤不列出原版的箭（UpdateCrossbowItemData 的包裝）、物品欄不能把箭裝上去；
 //   換回十字弩時照原版裝 Bodkin Bolt（裝 AK 前選的特殊箭留在物品欄）
 
+// 是不是我們的槍的子彈（槍的規格表裡任何一把的地面、水中子彈）
 function GfgIsGunAmmoName( n : name ) : bool
 {
-	return n == 'gfg_ak47_ammo' || n == 'gfg_ak47_ammo_water';
+	var ids : array< name >;
+	var g : SGfgGunSpec;
+	var i : int;
+
+	ids = GfgGunIds();
+	for ( i = 0; i < ids.Size(); i += 1 )
+	{
+		g = GfgGunSpecOf( ids[i] );
+		if ( n == g.ammoItem || n == g.ammoWaterItem )
+			return true;
+	}
+	return false;
 }
 
 // 遠程武器格裝的是不是 AK（同 Crossbow.GfgIsGun，但不用十字弩的物件：裝備的過程中它可能還沒生成，playerWitcher.ws:6382-6384）
@@ -177,7 +189,7 @@ function GfgGunEquipped() : bool
 
 	if ( !inv || !GetItemEquippedOnSlot( EES_RangedWeapon, id ) )
 		return false;
-	return inv.ItemHasTag( id, 'gfg_ak47' );
+	return inv.ItemHasTag( id, 'gfg_gun' );
 }
 
 // 該用哪一種無限的箭：裝 AK 時換成子彈（游泳、潛水時照原版換成水中用的那種）
@@ -185,13 +197,15 @@ function GfgGunEquipped() : bool
 function GetCurrentInfiniteBoltName( optional forceBodkin : bool, optional forceHarpoon : bool ) : name
 {
 	var n : name;
+	var g : SGfgGunSpec;
 
 	n = wrappedMethod( forceBodkin, forceHarpoon );
 	if ( !GfgGunEquipped() )
 		return n;
+	g = GfgGun();
 	if ( n == 'Harpoon Bolt' )
-		return 'gfg_ak47_ammo_water';
-	return 'gfg_ak47_ammo';
+		return g.ammoWaterItem;
+	return g.ammoItem;
 }
 
 // 原版先刪光 Bodkin、Harpoon 再加新的（:5686-5693）→ 子彈也先刪光（換回十字弩、出入水時不留下舊的）
@@ -201,7 +215,7 @@ function AddAndEquipInfiniteBolt( optional forceBodkin : bool, optional forceHar
 	var ids : array< SItemUniqueId >;
 	var i : int;
 
-	ids = inv.GetItemsByTag( 'gfg_ak47_ammo' );
+	ids = inv.GetItemsByTag( 'gfg_gun_ammo' );
 	for ( i = ids.Size() - 1; i >= 0; i -= 1 )
 		inv.RemoveItem( ids[i], inv.GetItemQuantity( ids[i] ) );
 	wrappedMethod( forceBodkin, forceHarpoon );
@@ -233,7 +247,7 @@ function GfgFixAmmo()
 		return;		// 空著的話原版已經補了（:6403-6406）
 	if ( inv.GetItemName( bolt ) == GetCurrentInfiniteBoltName() )
 		return;
-	if ( GfgGunEquipped() || inv.ItemHasTag( bolt, 'gfg_ak47_ammo' ) )
+	if ( GfgGunEquipped() || inv.ItemHasTag( bolt, 'gfg_gun_ammo' ) )
 		AddAndEquipInfiniteBolt();
 }
 
@@ -243,7 +257,7 @@ function GfgFixAmmo()
 function OnEquipItem( item : SItemUniqueId, slot : int, quantity : int )
 {
 	if ( _currentInv != _containerInv && !_shopNpc && !_containerInv
-		&& _inv.IsIdValid( item ) && _inv.IsItemBolt( item ) && !_inv.ItemHasTag( item, 'gfg_ak47_ammo' )
+		&& _inv.IsIdValid( item ) && _inv.IsItemBolt( item ) && !_inv.ItemHasTag( item, 'gfg_gun_ammo' )
 		&& GetWitcherPlayer() && GetWitcherPlayer().GfgGunEquipped() )
 	{
 		showNotification( GetLocStringByKeyExt( "menu_cannot_perform_action_now" ) );
@@ -261,7 +275,7 @@ function updateInputFeedback()
 	var removed : bool;
 
 	wrappedMethod();
-	if ( !invComponentRef || !invComponentRef.IsIdValid( currentItemId ) || !invComponentRef.ItemHasTag( currentItemId, 'gfg_ak47_ammo' ) )
+	if ( !invComponentRef || !invComponentRef.IsIdValid( currentItemId ) || !invComponentRef.ItemHasTag( currentItemId, 'gfg_gun_ammo' ) )
 		return;
 	for ( i = m_inputBindings.Size() - 1; i >= 0; i -= 1 )
 	{
@@ -289,7 +303,7 @@ function RegisterNewItem( item : SItemUniqueId )
 	if ( GetWitcherPlayer() )
 	{
 		inv = GetWitcherPlayer().GetInventory();
-		if ( inv && inv.IsIdValid( item ) && inv.ItemHasTag( item, 'gfg_ak47_ammo' ) )
+		if ( inv && inv.IsIdValid( item ) && inv.ItemHasTag( item, 'gfg_gun_ammo' ) )
 			return;
 	}
 	wrappedMethod( item );
@@ -305,7 +319,7 @@ function GetBaseItemData( item : SItemUniqueId, itemInvComponent : CInventoryCom
 	var label : string;
 
 	data = wrappedMethod( item, itemInvComponent, isShopItem, compareWithItem, compareItemInv );
-	if ( data && itemInvComponent && itemInvComponent.IsIdValid( item ) && itemInvComponent.ItemHasTag( item, 'gfg_ak47_ammo' ) )
+	if ( data && itemInvComponent && itemInvComponent.IsIdValid( item ) && itemInvComponent.ItemHasTag( item, 'gfg_gun_ammo' ) )
 	{
 		label = GetLocStringByKeyExt( "gfg_item_category_ammo" );
 		data.SetMemberFlashString( "ItemType", label );

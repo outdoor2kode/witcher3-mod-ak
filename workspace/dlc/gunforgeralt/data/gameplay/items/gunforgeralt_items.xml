@@ -32,7 +32,7 @@
 				icon_path						="icons/inventory/weapons/gfg_ak47_64x128.png"
 			>
 				<!-- gfg_ak47 tag: scripts use it to recognise the AK (workspace/scripts/local/gfg_ak47.ws) -->
-				<tags>							Weapon, crossbow, mod_weapon, gfg_ak47
+				<tags>							Weapon, crossbow, mod_weapon, gfg_ak47, gfg_gun
 				</tags>
 				<base_abilities>				<a>Default weapon _Stats</a>
 												<a>gfg_ak47 _Stats</a>
@@ -55,7 +55,7 @@
 				localisation_key_description	="gfg_item_desc_ak47_ammo"
 				icon_path						="icons/inventory/weapons/gfg_ak47_ammo_64x128.png"
 			>
-				<tags>							WeaponTab, InfiniteAmmo, GroundAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo
+				<tags>							WeaponTab, InfiniteAmmo, GroundAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo, gfg_gun_ammo
 				</tags>
 				<base_abilities>				<a>bodkin_bolt _Stats</a>
 												<a>Default weapon _Stats</a>
@@ -76,7 +76,7 @@
 				localisation_key_description	="gfg_item_desc_ak47_ammo"
 				icon_path						="icons/inventory/weapons/gfg_ak47_ammo_64x128.png"
 			>
-				<tags>							WeaponTab, InfiniteAmmo, UnderwaterAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo
+				<tags>							WeaponTab, InfiniteAmmo, UnderwaterAmmo, bolt, NoDrop, mod_noprice, mod_nosale, gfg_ak47_ammo, gfg_gun_ammo
 				</tags>
 				<base_abilities>				<a>harpoon_bolt _Stats</a>
 												<a>Default weapon _Stats</a>

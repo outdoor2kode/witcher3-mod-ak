@@ -192,7 +192,7 @@ function GfgHudGunRounds( item : SItemUniqueId ) : int
 	var witcher : W3PlayerWitcher;
 
 	witcher = GetWitcherPlayer();
-	if ( !witcher || !witcher.inv.IsIdValid( item ) || !witcher.inv.ItemHasTag( item, 'gfg_ak47' ) )
+	if ( !witcher || !witcher.inv.IsIdValid( item ) || !witcher.inv.ItemHasTag( item, 'gfg_gun' ) )
 		return -1;
 	// AK 的實體還沒生成（剛裝上）：當作滿的
 	if ( !witcher.rangedWeapon || !witcher.rangedWeapon.GfgIsGun() )

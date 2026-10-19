@@ -24,7 +24,7 @@ function GfgIsGun() : bool
 		return false;
 	if ( !ownerPlayerWitcher.GetItemEquippedOnSlot( EES_RangedWeapon, id ) )
 		return false;
-	return ownerPlayerWitcher.inv.ItemHasTag( id, 'gfg_ak47' );
+	return ownerPlayerWitcher.inv.ItemHasTag( id, 'gfg_gun' );
 }
 
 // 彈匣容量：XML 的 ammo 屬性（inventoryComponent.ws:4165 GetCrossbowAmmo，原版沒有呼叫者）

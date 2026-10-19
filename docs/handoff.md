@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 23:5x（自主模式開始：第 46～49 項；M4A1 的計畫寫在下面）
+最後更新：2026-10-20 01:1x（第 47 項完成；第 48 項重構：拆檔、Ak→Gun 改名、槍的規格表做到 2b-3a；下一步 2b-3b：見計畫第 3 步）
 
 ---
 
@@ -17,8 +17,8 @@
 | # | 任務（使用者的描述） | 狀態 |
 |---|---|---|
 | 46 | 看 WitcherOnline 的 Claude.md，把 WitcherScript 的語法差異與陷阱更新到專家和工程師的知識庫（做過就略） | **跳過：找不到這個檔**（本機 D:、C:\Users\beyon 全找過；GitHub `rejuvenate7/WitcherOnline`、`Flawkee/WitcherOnline` 共 6 個分支都沒有 CLAUDE.md）→ 使用者給路徑再補 |
-| 47 | 開發時把開發知識加進 redkit 專家和資深工程師的知識庫；「這點也加入文件讓你以後能記得」 | 待做（`CLAUDE.md` §15＋兩個技能） |
-| 48 | 加新武器前（或後）把程式碼模組化、優化：好加新武器、結構清楚、易讀、clean code、SOLID | 待做 |
+| 47 | 開發時把開發知識加進 redkit 專家和資深工程師的知識庫；「這點也加入文件讓你以後能記得」 | **完成**（`CLAUDE.md` §15「開發時一起累積知識」、技能 `senior-engineer`、`redkit-expert`；之後每步照做） |
+| 48 | 加新武器前（或後）把程式碼模組化、優化：好加新武器、結構清楚、易讀、clean code、SOLID | **進行中**（計畫第 2、3 步） |
 | 49 | 加第二把武器 **M4A1 卡賓槍**：照開發經驗從頭到尾快速加；**不准影響現有功能**（AK 的一切、持弩、拿劍…） | 待做 |
 
 **決定**
@@ -62,6 +62,18 @@
      - 判斷「我們的槍」用共用標籤 `gfg_gun`、子彈用 `gfg_gun_ammo`（XML 加上；舊標籤留著）
      - **子彈記住哪把槍射的**（`W3BoltProjectile` 加 `gfgGunId`，和 `gfgGunRange` 同一處設）：傷害照那把槍算（打中時玩家可能換槍了）
      - **換槍時重新生成快取的實體**：替身 `gfgDummy`、彈匣 `gfgMagNoMag`／`gfgMagEnt`（記下用的模板，和現在的槍不同就刪掉重生）
+   - ✅ 2b-1（00:5x）：`SGfgGunSpec`、`GfgGunIds`、`GfgGunSpecOf`、`W3PlayerWitcher.GfgGun()`、`Crossbow.GfgSpec()`（`gfg_core.ws`）＋`gfg_gun_ak47.ws`
+   - ✅ 2b-2（01:0x）：數值都查表了（`GfgCycleTime`、`GfgRecoilResetTime`、`GfgRange`、`GfgSpread*`、`GfgMaxMoveSpeed`、`GfgSpreadRecoveryTime`、`GfgSetGunDamage`（照子彈的 `gfgGunId`）、`GfgRecoilKickRight`／`Up`）
+   - ✅ 2b-3a（01:1x）：XML 加了 `gfg_gun`（AK）、`gfg_gun_ammo`（兩種子彈）；腳本的標籤判斷都換成這兩個；`GfgIsGunAmmoName`、`GetCurrentInfiniteBoltName` 查表
+   - **WitcherScript 的兩個坑**（已寫進專家主題 08）：`switch` 只有 `default` → `Empty switch`；`函式().欄位` → `Parent scope does not come from variable`（先放進區域變數）
+   - **2b-3b 下一步**（每個都還寫死 AK）：
+     - `gfg_fire.ws` 的 `GfgShotSound`：bank、事件用 `g = GfgSpec();` 的 `g.soundBank`、`g.shotEvent`
+     - `gfg_fire.ws` 的 `GfgMuzzleFlash`（CR4Player）：`CreateAttachment` 的位置用 `GetWitcherPlayer().GfgGun()` 的 `muzzle`
+     - `gfg_ui.ws` 的 `GfgRadialGunIcon`：對 `GfgGunIds()` 每把槍，路徑有 `iconInv` 就換成 `iconRadial`
+     - `gfg_reload.ws` 67／71（`GfgMagSpawn` 的兩個模板）、`gfg_anim.ws` 的 `GfgCarrySpawnDummy`（替身模板）→ 規格表＋換槍時刪掉重生（2b-4）
+     - `gfg_core.ws` 檔頭第 2 行還寫「只對帶有 gfg_ak47 標籤」→ 改成 `gfg_gun`
+     - 整理：`gfg_ui.ws` 最後一節裡的 `ThrowProjectile` 包裝（子彈飛向準心、設射程和 `gfgGunId`）是拆檔時分錯的 → 搬到 `gfg_projectile.ws`
+   - 之後：開 REDkit（先查 `witcher3.exe` 沒在跑）→ mod 專案 → 遊戲裡跑 AK 的回歸清單（拿出、連射 30 發、後座力、換彈動畫和彈匣、HUD、輪盤圖示、槍聲、傷害、槍口火光、騎馬、船）＋原版十字弩、劍
 4. M4 素材（離線）：VPK 取模型、彈匣、貼圖、槍聲、圖示 → Blender 建模（`m3_build_ak.py` 參數化）→ 槍聲 bank → 圖示 → 後座力表 → 物品 XML、字串
 5. M4 素材（REDkit）：匯入模型、貼圖 → 實體模板（複製 AK 的換模型）→ 重開 REDkit（新 bank、新圖示）
 6. M4 的規格加進表 → 遊戲裡跑驗收清單 → 回歸清單

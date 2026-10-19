@@ -66,7 +66,7 @@ function GfgGunGraphsWanted() : bool
 	witcher = (W3PlayerWitcher)this;
 	if ( !witcher || !witcher.GetItemEquippedOnSlot( EES_RangedWeapon, id ) )
 		return false;
-	return inv.ItemHasTag( id, 'gfg_ak47' );
+	return inv.ItemHasTag( id, 'gfg_gun' );
 }
 
 @addMethod(CR4Player)

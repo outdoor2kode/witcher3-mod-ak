@@ -462,7 +462,7 @@ function GfgIsGunSelected( p : CR4Player ) : bool
 	if ( !w )
 		return false;
 	id = p.GetSelectedItemId();
-	if ( !p.inv.IsIdValid( id ) || !p.inv.ItemHasTag( id, 'gfg_ak47' ) )
+	if ( !p.inv.IsIdValid( id ) || !p.inv.ItemHasTag( id, 'gfg_gun' ) )
 		return false;
 	if ( !w.GetItemEquippedOnSlot( EES_RangedWeapon, equipped ) )
 		return false;
