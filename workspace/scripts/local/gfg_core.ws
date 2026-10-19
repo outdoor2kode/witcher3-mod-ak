@@ -117,3 +117,12 @@ function GfgGun() : SGfgGunSpec
 	}
 	return gfgGunSpec;
 }
+
+// 十字弩物件裡用的捷徑：拿著它的玩家裝的槍
+@addMethod(Crossbow)
+function GfgSpec() : SGfgGunSpec
+{
+	if ( !ownerPlayerWitcher )
+		return GfgGunSpecOf( '' );
+	return ownerPlayerWitcher.GfgGun();
+}

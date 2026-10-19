@@ -318,6 +318,7 @@ function ThrowProjectile( targetPosIn : Vector )
 {
 	var player : CR4Player;
 	var target, rayStart, rayDir : Vector;
+	var gun : SGfgGunSpec;
 
 	target = targetPosIn;
 	player = (CR4Player)GetOwner();
@@ -325,6 +326,8 @@ function ThrowProjectile( targetPosIn : Vector )
 	{
 		target = player.rangedWeapon.GfgAimPoint( rayStart, rayDir );
 		gfgAimTarget = target;
+		gun = player.rangedWeapon.GfgSpec();
+		gfgGunId = gun.id;
 		// 射程：發射時換成 AK 的射程（下面 ShootProjectileAtPosition／AtBone 的包裝）；水中照原版 5 公尺（playerBoltProjectile.ws:341-345）
 		if ( !player.IsDiving() )
 		{

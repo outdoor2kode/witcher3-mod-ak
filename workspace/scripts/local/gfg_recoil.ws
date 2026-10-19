@@ -31,11 +31,14 @@ function GfgRecoilScale() : float
 	return 1.0;
 }
 
-// 停火超過這個時間，下一發從彈道第一發重新開始：借用 CS2 的 m_flRecoveryTimeStand（data/cs2/weapons.vdata:13271）（推測）
+// 停火超過這個時間，下一發從彈道第一發重新開始：借用 CS2 的 m_flRecoveryTimeStand（推測）；槍的規格表
 @addMethod(Crossbow)
 function GfgRecoilResetTime() : float
 {
-	return 0.368;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.recoilResetTime;
 }
 
 // 每發的後座力花幾秒轉完（可調）
@@ -47,11 +50,14 @@ function GfgKickTime() : float
 	return GfgCycleTime();
 }
 
-// 射程：瞄準射線的長度，也是箭的飛行距離；CS2 m_flRange 8192 單位 ≈ 208 公尺（docs/ak47_params.md §6）
+// 射程：瞄準射線的長度，也是箭的飛行距離；CS2 m_flRange 8192 單位 ≈ 208 公尺（docs/ak47_params.md §6）；槍的規格表
 @addMethod(Crossbow)
 function GfgRange() : float
 {
-	return 208.0;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.range;
 }
 
 // 開完一發：記下這一發的後座力，之後每格畫面轉一部分到鏡頭上（GfgUpdateRecoil）
@@ -156,33 +162,45 @@ function GfgViewDirection() : Vector
 @addField(Crossbow)
 var gfgSpreadPenalty : float;	// 開火累積的不準度（度）
 
-// 站著不動：atan(m_flInaccuracyStand 0.00641 + m_flSpread 0.0006)（weapon_vdata.gd:88）
+// 站著不動：atan(m_flInaccuracyStand + m_flSpread)（weapon_vdata.gd:88）；槍的規格表
 @addMethod(Crossbow)
 function GfgSpreadStand() : float
 {
-	return 0.4016;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.spreadStand;
 }
 
-// 全速移動：atan(m_flInaccuracyMove 0.17506 + Stand 0.00641 + Spread 0.0006)（weapon_vdata.gd:90）
+// 全速移動：atan(m_flInaccuracyMove + Stand + Spread)（weapon_vdata.gd:90）
 @addMethod(Crossbow)
 function GfgSpreadMove() : float
 {
-	return 10.3188;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.spreadMove;
 }
 
-// 每發累積：atan(m_flInaccuracyFire 0.0078)（weapon_vdata.gd:92）
+// 每發累積：atan(m_flInaccuracyFire)（weapon_vdata.gd:92）
 @addMethod(Crossbow)
 function GfgSpreadPerShot() : float
 {
-	return 0.4469;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.spreadPerShot;
 }
 
-// AK 的最高移動速度：m_flMaxSpeed 215 單位/秒 ≈ 5.46 公尺/秒（docs/ak47_params.md §6）
+// 槍的最高移動速度：m_flMaxSpeed（AK 215 單位/秒 ≈ 5.46 公尺/秒：docs/ak47_params.md §6）
 // Geralt 的速度直接和它比（推測，之後可調）
 @addMethod(Crossbow)
 function GfgMaxMoveSpeed() : float
 {
-	return 5.46;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.maxMoveSpeed;
 }
 
 // 移動占多少：速度在最高速的 34%～95% 之間從 0 到 1，再開四次方根（CSGODOT weapon.gd:118-126、:613-619，註明是 CS:GO 的 0.34、0.95）
@@ -213,7 +231,11 @@ function GfgSpreadCone() : float
 @addMethod(Crossbow)
 function GfgSpreadRecoveryTime() : float
 {
-	return 0.368 + ( 0.506 - 0.368 ) * ClampF( ( gfgBurstShots - 2.f ) / ( 5.f - 2.f ), 0.f, 1.f );
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.recoveryTime + ( g.recoveryTimeFinal - g.recoveryTime )
+		* ClampF( ( gfgBurstShots - g.recoveryStartShot ) / ( g.recoveryEndShot - g.recoveryStartShot ), 0.f, 1.f );
 }
 
 // 每格畫面：開火累積量指數衰減，時間常數 = 恢復時間 ÷ ln 10；低於每發值的 1% 就歸零

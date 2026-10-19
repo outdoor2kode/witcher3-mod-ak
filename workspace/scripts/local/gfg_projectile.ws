@@ -9,6 +9,9 @@
 var gfgGunRange : float;		// AK 的箭發射時用的射程（公尺；ThrowProjectile 設定）；0 = 照原版（不是 AK 的箭、在水中）
 
 @addField(W3AdvancedProjectile)
+var gfgGunId : name;			// 哪把槍射的（物品名稱；ThrowProjectile 包裝設定）：打中時照它算傷害（那時玩家可能換槍了）
+
+@addField(W3AdvancedProjectile)
 var gfgAimTarget : Vector;		// AK：準心的射線點（ThrowProjectile 包裝設定）
 @addField(W3AdvancedProjectile)
 var gfgHitActor : CActor;		// AK：準心射線經過的角色（ThrowProjectile 包裝設定；沒有 = NULL）
@@ -438,104 +441,51 @@ function ProcessAction( act : W3DamageAction )
 @addMethod(W3DamageManager)
 function GfgSetGunDamage( act : W3DamageAction, bolt : W3BoltProjectile )
 {
-	var dmg, dist, perLevel, flat : float;
+	var dmg, dist : float;
+	var g : SGfgGunSpec;
 
-	// 一發 ≈ 同等級裝備的劍輕攻擊的 45%（2026-10-16 19:5x 定，推算寫在 docs/m3.md「子彈、傷害」）
+	// 數值在槍的規格表（射出這發子彈的槍）
+	// AK：一發 ≈ 同等級裝備的劍輕攻擊的 45%（2026-10-16 19:5x 定，推算寫在 docs/m3.md「子彈、傷害」）
 	// 經過原版流程後實際傷害 = 這個值 + 58（Geralt 本身的加成，不隨等級變：19:5x 實測 188.99 → 246.99）
 	// 銀（打怪物的精華）多 25%：同等級的銀劍比鋼劍高；怪物每級 +270 精華、人類每級 +55 血（monster_base_abl_new.xml:44-47、opp_base_abl.xml:283-286）
-	perLevel = 10.f;
-	flat = 20.f;
-	dmg =perLevel * GetWitcherPlayer().GetLevel() + flat;
+	g = GfgGunSpecOf( bolt.gfgGunId );
+	dmg = g.dmgPerLevel * GetWitcherPlayer().GetLevel() + g.dmgFlat;
 	if ( act.GetIsHeadShot() || bolt.GfgHeadHit() )
 	{
-		dmg *= 4.f;
+		dmg *= g.headshotMult;
 		act.SetHeadShot();		// 原版爆頭的暴擊加成、Headshot 事件（damageManagerProcessor.ws:847-851）
 	}
 	if ( act.attacker && act.victim )
 	{
 		dist = VecDistance( act.attacker.GetWorldPosition(), act.victim.GetWorldPosition() );
-		dmg *= PowF( 0.98f, dist / 12.7f );
+		dmg *= PowF( g.rangeModifier, dist / 12.7f );
 	}
 	act.ClearDamage();
 	act.AddDamage( theGame.params.DAMAGE_NAME_PIERCING, dmg );
 	act.AddDamage( theGame.params.DAMAGE_NAME_SILVER, dmg * 1.25f );
 }
 
-// 以下兩個表由 python -X utf8 tools/recoil_pattern.py --ws 產生
+// 後座力表在槍的規格表（gfg_gun_<名稱>.ws；表由 python -X utf8 tools/recoil_pattern.py --ws 產生）
 // 第 shot 發相對前一發往右幾度（shot 從 1 起算，超過資料長度回傳 0）
 @addMethod(Crossbow)
 function GfgRecoilKickRight( shot : int ) : float
 {
-	switch ( shot )
-	{
-		case 1: return 0.0000f;
-		case 2: return -0.0057f;
-		case 3: return 0.1345f;
-		case 4: return 0.0568f;
-		case 5: return -0.6643f;
-		case 6: return -0.4560f;
-		case 7: return -0.7079f;
-		case 8: return 0.9111f;
-		case 9: return 2.2679f;
-		case 10: return 1.2503f;
-		case 11: return -0.7254f;
-		case 12: return 0.8777f;
-		case 13: return 1.4474f;
-		case 14: return 0.1316f;
-		case 15: return -2.0068f;
-		case 16: return -1.2548f;
-		case 17: return -0.7720f;
-		case 18: return -1.4349f;
-		case 19: return -1.8820f;
-		case 20: return 1.0298f;
-		case 21: return -0.2740f;
-		case 22: return 0.4636f;
-		case 23: return 0.4884f;
-		case 24: return -1.0950f;
-		case 25: return -0.3705f;
-		case 26: return 1.1509f;
-		case 27: return 1.7798f;
-		case 28: return 2.5425f;
-		case 29: return 0.7770f;
-	}
-	return 0.f;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	if ( shot < 1 || shot > g.kickRight.Size() )
+		return 0.f;
+	return g.kickRight[ shot - 1 ];
 }
 
 // 第 shot 發相對前一發往上幾度（shot 從 1 起算，超過資料長度回傳 0）
 @addMethod(Crossbow)
 function GfgRecoilKickUp( shot : int ) : float
 {
-	switch ( shot )
-	{
-		case 1: return 0.0000f;
-		case 2: return 1.4016f;
-		case 3: return 1.6146f;
-		case 4: return 1.7194f;
-		case 5: return 1.7850f;
-		case 6: return 1.4950f;
-		case 7: return 1.0682f;
-		case 8: return 0.8146f;
-		case 9: return -0.2707f;
-		case 10: return 0.4928f;
-		case 11: return 0.4220f;
-		case 12: return 0.0933f;
-		case 13: return -0.5133f;
-		case 14: return 0.2887f;
-		case 15: return 0.4325f;
-		case 16: return 0.2915f;
-		case 17: return 0.3100f;
-		case 18: return -0.1525f;
-		case 19: return -0.4638f;
-		case 20: return 0.3013f;
-		case 21: return -0.0084f;
-		case 22: return 0.3190f;
-		case 23: return 0.1128f;
-		case 24: return -0.1513f;
-		case 25: return 0.2904f;
-		case 26: return 0.0329f;
-		case 27: return -0.1465f;
-		case 28: return -1.1404f;
-		case 29: return 0.0106f;
-	}
-	return 0.f;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	if ( shot < 1 || shot > g.kickUp.Size() )
+		return 0.f;
+	return g.kickUp[ shot - 1 ];
 }

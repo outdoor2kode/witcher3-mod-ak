@@ -59,11 +59,14 @@ function GfgGripReady() : bool
 	return gfgGripSince > 0.f && theGame.GetEngineTimeAsSeconds() - gfgGripSince >= wait;
 }
 
-// 射擊間隔：CS2 m_flCycleTime = 0.1 秒（data/cs2/weapons.vdata:13298）
+// 射擊間隔（秒）：槍的規格表（AK：CS2 m_flCycleTime 0.1）
 @addMethod(Crossbow)
 function GfgCycleTime() : float
 {
-	return 0.1;
+	var g : SGfgGunSpec;
+
+	g = GfgSpec();
+	return g.cycleTime;
 }
 
 // 扣下／放開扳機
