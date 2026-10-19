@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 15:4x（自主模式開始：第 39、40 項）
+最後更新：2026-10-19 16:1x（第 40 項遊戲實測通過；第 39 項量完原版、開始重做）
 
 ---
 
@@ -16,12 +16,12 @@
 | # | 任務（使用者的描述） | 狀態 |
 |---|---|---|
 | 39 | 換彈姿勢太怪：右手怎麼會這樣握槍；左手的上臂、前臂、手腕都不自然 → 好好重新審視並改善（附截圖：左手拿彈匣在腰前、右手從上面抓在機匣） | **原因找到**（下面「#39 查到的」）；還沒改 |
-| 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | 程式改好（`GfgNoFireHere` 拿掉 `IsOnBoat()`）、**沒編譯、沒測** |
+| 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | **完成**（16:0x 遊戲實測：站在船上開槍 25 發；掌舵、游泳 0 發；`docs\findings.md` §37.4、`CLAUDE.md` §7） |
 
 **決定**
 - #40：`GfgNoFireHere` 拿掉 `IsOnBoat()`，留 `IsUsingBoat()`（掌舵、乘客）、`IsSwimming()`、`IsDiving()`
 
-**現在在做**：#39 改 `tools\reload_pose.py`（下面「接續的步驟」）；#40 等進遊戲一起測
+**現在在做**：#39 改 `tools\reload_pose.py`（下面「接續的步驟」）
 
 **#39 查到的**（15:4x；暫存工具 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\s39\roll_check.py`：每格手相對前臂繞前臂軸的扭轉角、扭轉骨頭的扭轉角）
 - 換彈動畫是 `tools\reload_pose.py` 產生的（關鍵格＋兩節手臂 IK；`docs\m3.md`「換彈動作明顯一點」）
@@ -32,6 +32,20 @@
   - `square_pose.two_bone_ik`：前臂的扭轉沿用底層（只 swing），手直接設成目標方向 → 目標的手勢一轉，全部變成手腕扭轉
 - **原因 2：槍往右傾 45°、槍口上翹 18°**（#34 為了從背後看得到）→ 右手握把的手背朝上，看起來像從上面抓機匣；彈匣也跟著轉到左下，左手要極度外旋才握得到（握彈匣的手勢 q：掌心貼彈匣左面）
 - 舊的離線預覽 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\39998eff-46be-449b-9abb-ed90f487652c\scratchpad\s34\pv.py`：粗棒子人，看不出手腕扭轉
+
+**#39 16:0x 又查到的**
+- **遊戲裡扭轉骨頭是即時算的**：動畫圖 `gfg_gameplay`、`gfg_overlay` 輸出前都有 `CBehaviorGraphConstraintNodeRoll`（「Roll deformation」）
+  - `editor.exe` 的字串：寫死的骨頭 forearmRoll1/2、handRoll、elbowRoll、bicep2、shoulderRoll、legRoll…（`behaviorConstraintNodeRoll.cpp`）
+  - → 動畫裡烤的扭轉骨頭值，遊戲裡會被蓋掉；**問題在手的目標方向本身**（AnimBrowser 預覽不跑動畫圖 → 烤進去，預覽才和遊戲一樣）
+- 原版 Geralt 動畫（inventory_*）的規則（暫存 `s39\roll_fit.py`、`roll_fit2.py`）
+  - forearmRoll1／2、handRoll 各＝手相對前臂扭轉 ×0.2／0.5／0.2；handRoll 的 swing＝手腕彎的一半
+  - elbowRoll＝上臂、前臂的正中間；shoulderRoll＝鎖骨、上臂的正中間
+  - bicep2 ≈ −0.92（左）／−0.97（右）× 上臂相對鎖骨的扭轉
+- **解剖角度**（暫存 `s39\anat.py`：旋前＋／旋後−、屈腕＋、橈偏＋；掌心＝手骨 +Y）
+  - 原版 Geralt：左旋前 −86～+19、右 −35～0；屈腕 −23～+69；底層（瞄準）左 −107、右 −53
+  - **現在的換彈**：左手到左腰時旋前 +100～+126、**屈腕 +175、橈偏 +148**（手整個折到手背）；抓彈匣時旋前 +61（從 −107 轉了 168°）
+  - 右手換彈中旋前 −92、拉槍機時尺偏 −56～−72
+- 遊戲開著（16:0x 開的，Novigrad、Geralt 在水裡）：可以直接 AnimBrowser 重匯、在遊戲裡看
 
 **接續的步驟**（#39）
 1. 量原版的 `bicep2`、`elbowRoll`、`shoulderRoll` 和什麼成比例（上臂扭轉、手肘彎曲）：用 `roll_check.py` 的寫法、原版 `assets\anims\inventory_crossbow_check1.re` 等多段擬合
