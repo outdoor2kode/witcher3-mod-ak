@@ -2516,7 +2516,7 @@ function GfgMuzzleFlash()
 
 // ===== 換彈：彈匣真的拿下來（第一批第 8 項 B；2026-10-17）=====
 // 換彈動畫（tools/reload_pose.py；docs/m3.md「換彈動畫」）：左手 0.30 秒握住彈匣 → 拉出 → 左腰 → 1.50 秒裝上（動畫事件 OnWeaponReload）
-// - 抓：換彈開始 0.9 秒內，左手腕到了握彈匣的位置（槍座標 F 0.1875、U −0.1042、R −0.0378：reload_pose.py 印的）3 公分內、而且不再變近 →
+// - 抓：換彈開始 0.9 秒內，左手腕到了握彈匣的位置（槍座標 F 0.1447、U −0.0401、R −0.0480：reload_pose.py 印的；第 39 項握法改了，原本 F 0.1875、U −0.1042、R −0.0378）3 公分內、而且不再變近 →
 //   真的 AK 藏起來、改顯示沒彈匣的替身（gfg_ak47_nomag.w2ent：掛 l_weapon 不帶偏移 = 真的 AK 的位置，同衝刺的替身）；
 //   彈匣（gfg_ak47_mag.w2ent：模型在槍上的位置）用現在的世界姿勢掛到左手（CreateAttachmentAtBoneWS：原版插在敵人身上的箭也這樣掛，arrowProjectile.ws:554）
 // - 裝上：OnWeaponReload 換回真的 AK；換彈中斷（離開換彈狀態、衝刺提槍、收槍）也換回
@@ -2620,7 +2620,7 @@ function GfgMagTick( akDrawn : bool )
 	f0 = VecNormalize( Vector( 0.8033f, 0.2140f, 0.5558f ) );
 	u0 = VecNormalize( Vector( 0.02721f, -0.94542f, 0.32472f ) );
 	r0 = VecCross( f0, u0 );
-	dist = VecLength( Vector( VecDot( g, f0 ) - 0.1875f, VecDot( g, u0 ) + 0.1042f, VecDot( g, r0 ) + 0.0378f ) );
+	dist = VecLength( Vector( VecDot( g, f0 ) - 0.1447f, VecDot( g, u0 ) + 0.0401f, VecDot( g, r0 ) + 0.0480f ) );
 	// 上一格在 3 公分內、這一格不再變近才抓（= 最接近的那一刻剛過）：01:4x 一進 3 公分就抓，兩次都是 2.9 公分（剛好在門檻邊）
 	prev = gfgMagPrevDist;
 	gfgMagPrevDist = dist;
