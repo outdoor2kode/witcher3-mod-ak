@@ -54,6 +54,9 @@
 - 來源：`assets\ak47\ammo\weapons\models\shared\shells\ak47\ak47_bullet.gltf`、`ak47_bullet_color.png`；Blender：`"D:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --factory-startup --background --python-exit-code 1 --python tools/ammo_build.py -- <gltf> <color> <icon> <out_dir> --preview <大圖>`
 
 **驗證計畫**（REDkit 現在沒開）
+- 輔助腳本：`source C:/Users/beyon/AppData/Local/Temp/claude/D--OneDrive-Desktop-gunforgeralt/789b26d6-a510-42d9-96ac-a3831c548864/scratchpad/desk/g.sh`（舊 session 的 g.sh 複本：`con`、`game_start2`、`ak_select2`、`reload_edit2`、`combat_start`…；加了 `set_mw`、`open_mod_project`、`open_ref_level`）
+  - REDkit：`"D:/Program Files (x86)/Steam/steamapps/common/The Witcher 3 REDkit/bin/x64_RedKit/editor.exe"`？（路徑先查；之前是從 Steam 開）→ Welcome 畫面 → `open_mod_project` → `set_mw` → `open_ref_level` → `game_start2` → `ak_select2`
+  - 編譯錯誤看 editor.log（開遊戲時編譯；Reload scripts 回報 `Scriptables reloaded`）
 - 開 REDkit 的 mod 專案（Welcome → Browse → `gunforgeralt.w3edit`）→ File 最近的世界 reference_level → play game
 - #35：拿 AK 射幾發，左下角數字遞減、打空變紅 0、換彈後 30；R 換彈中途
 - #37：左下角、物品欄（C 收槍 → I）的名稱是 `7.62mm`
