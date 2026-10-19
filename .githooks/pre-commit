@@ -1,0 +1,4 @@
+#!/bin/sh
+# commit 前的檢查（第 41 項回顧；2026-10-19）：要 commit 的文字檔不能有控制字元（說明在 check_ctrl.py）
+# 啟用：git config core.hooksPath .githooks（每個 clone 做一次；CLAUDE.md §15）
+exec python -X utf8 "$(dirname "$0")/check_ctrl.py"

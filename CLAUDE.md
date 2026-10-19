@@ -652,6 +652,8 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 
 **寫文字**
 - 含反斜線（Windows 路徑）的文字一律用 Write／Edit，不經過 shell 的 heredoc、`echo`、Python 字串（10-15～19 被轉成控制字元 9 次）
+  - Bash 工具的指令裡兩個反斜線會先變成一個 → Python 裡要寫反斜線用 `chr(92)`
+- commit 前自動檢查控制字元：`.githooks\pre-commit`（`check_ctrl.py`；含 NUL 的檔當二進位跳過）；新的 clone 要先 `git config core.hooksPath .githooks`（2026-10-19 啟用；專家訓練的 repo 也裝了，裝的當下抓到知識庫一個既有的錯）
 
 **技能**（使用者層級，任何資料夾都叫得到；正本在 `D:\OneDrive\Desktop\redkit_expert\skills\`）
 - 「開啟自主模式」→ `autonomous-mode`：使用者不在時怎麼一直跑

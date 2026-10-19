@@ -15,3 +15,5 @@
 *.db         binary
 # bash 腳本固定 LF（CRLF 會讓 bash 讀到 CR 字元而出錯；.claude/hooks/*.sh）
 *.sh text eol=lf
+# Git hook 腳本固定 LF（sh 讀到 CR 會出錯）
+.githooks/* text eol=lf
