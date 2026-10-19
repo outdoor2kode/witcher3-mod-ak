@@ -2220,6 +2220,11 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - 其他用 REDkit 打包、裝在遊戲裡的 mod（`modBetterIcons2025_Remastered`、`modMoreSkillSlots`、`modSortEverything`…）都是 `true`
   - 原因的候選（10-17 01:3x 讀紀錄）：① 種子清單把 `scripts\local\gfg_ak47.ws` 當資源去 cook → `Dynamic class resolve … failed`、`Failed to cook`（這次 cook 唯一失敗的檔；腳本另外在 CompileScripts 編進 `precompiled.rsblob`）② CompileSounds 的 `Fatal Error: Wwise installation not found`
   - **第二次打包（10-17 05:44）是 `true`**：紀錄裡一樣有 ① ② 兩個錯誤 → 這兩個不是 `false` 的原因；第一次為什麼是 `false` 沒查到
+  - **2026-10-19 查到**（REDkit 專家訓練的練習專案：`D:\OneDrive\Desktop\redkit_expert\labs\LOG.md` L4j）：`info.json` 的 `succesfullyCooked` ＝**這次打包開始前**專案檔 `.w3edit` 的值（上一次打包成功與否）→ 每個專案第一次成功打包一定寫 `false`
+    - lab01 第 2 次打包成功 → `.w3edit` 變 `true`、`info.json` 是 `false`；第 3 次 → `info.json` `true`
+- **workspace 根目錄的 `.w2je`（關 Journal Editor 時 REDkit 自動寫的空檔）會讓打包最後一步 CreateMetadataStores 失敗**（同上 L4j）
+  - `mods\…\blob0.bundle` 只包了這個沒有主檔名的檔 → `ParseBundle failed … too small to contain headers` → `Failed to build metadata store from bundles. Something's wrong with the data.`
+  - 把 `.w2je` 搬出 workspace、再 Start cooking 就過；本專案現在沒有這個檔（10-19 開過一次 Journal Editor，當時已搬走）
   - **遊戲執行檔 `witcher3.exe` 裡沒有 `succesfullyCooked`、`useLooseScripts` 字串**（ASCII、UTF-16 都沒有；`info.json`、`gameVersion`、`modName`、`dependencies` 有，旁邊是 `modioModsConfig.json`）；REDkit 的 `editor.exe` 有 3 處 → 推論只有 REDkit 用（例：Install、發布），遊戲載入 mod 不看它（**未實測**）
 - ⚠️ 打包後（重建了虛擬 depot），同一次開著的 REDkit 重開世界、按 play game **當掉**（`EXCEPTION_ACCESS_VIOLATION`，堆疊在 Scaleform；紀錄停在 `World loaded` 之後）→ 打包完要重開 REDkit 再測
 - **第二次打包**（10-17 05:44～05:46，版本 0.2；紀錄 `logs\publish 2026-10-17 05-44-58.log`）

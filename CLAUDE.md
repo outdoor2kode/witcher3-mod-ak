@@ -151,6 +151,7 @@
    - **2026-10-18 裝進遊戲**（0.3 版；使用者同意；`mods\modgunforgeralt`、`dlc\gunforgeralt`）；Steam 版能不能用還沒驗證；之後再裝（寫遊戲資料夾）照樣先問使用者
    - **打包前先在 REDkit 進一次遊戲（play game → F10）**：剛開好專案就打包，cook DLC 時一定當掉（2026-10-18 7 次；進過遊戲後 2 次都過；§27）
    - 打包後同一次開著的 REDkit 按 play game 會當掉 → 打包完重開 REDkit 再測
+   - `workspace\` 根目錄不能有 `.w2je`（關 Journal Editor 時 REDkit 自動寫的空檔）：打包最後一步 CreateMetadataStores 會失敗 → 搬走（2026-10-19 練習專案實測；§27）
    - 中文遊戲：每個字串都要有 ZH（打包不拿英文代替；§27）
 4. REDkit 匯入動畫時，**骨骼名稱與階層必須完全一致**
    → CS2 的動畫不能套到 Geralt，持槍／開槍／換彈動作要用 Geralt 骨架重做
