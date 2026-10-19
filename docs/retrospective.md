@@ -9,6 +9,7 @@
 > - `docs\m3.md`、`docs\findings.md` 的「試過、放棄」「犯過」；交接檔
 >
 > 結論落實在：`CLAUDE.md` §15、技能 `autonomous-mode`／`redkit-expert`／`senior-engineer`（新）、專家知識庫 `knowledge\topics\22-lessons.md`（第 6 節）
+> 網頁版（分享用；第 44 項）：https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo（私人：要給別人看，從頁面的 Share 開權限）
 
 ---
 
@@ -186,8 +187,8 @@
 | 經驗總結（REDkit 專家版） | 專家知識庫 `knowledge\topics\22-lessons.md`＋`INDEX.md`；技能 `redkit-expert` 開工前先讀 | 做了 |
 | 通用的經驗（網頁、app、其他遊戲都用得到） | 新技能 `senior-engineer`（資深軟體工程師；第 42 項） | 做了 |
 | 三個技能一起開時的分工 | `autonomous-mode`、`redkit-expert`、`senior-engineer` 各自寫清楚 | 做了 |
-| 工具索引 | `tools\README.md` | 回顧後接著做 |
-| 主腳本的目錄 | `gfg_ak47.ws` 檔頭 | 回顧後接著做 |
-| 測試輔助、測試指令放進專案（不會不見、不會被打包） | `tools\test\`（`g.sh`、`gfg_debug.ws`＋開關） | 回顧後接著做 |
-| commit 前擋控制字元 | git hook | 回顧後接著做 |
-| 壓縮工具：使用者在打字就等 | `tools\claude_compact.ps1` | 回顧後接著做 |
+| 工具索引 | `tools\README.md` | 做了（17:2x） |
+| 主腳本的目錄 | `gfg_ak47.ws` 檔頭 | 做了（17:2x） |
+| 測試輔助、測試指令放進專案（不會不見、不會被打包） | `tools\test\`（`g.sh`、`gfg_debug.ws`＋開關 `dbg_on`／`dbg_off`） | 做了（17:3x；遊戲裡從頭跑過一次） |
+| commit 前擋控制字元 | git hook（`.githooks\pre-commit`） | 做了（17:1x；裝的當下抓到知識庫一個既有的錯） |
+| 壓縮工具：使用者在打字就等 | `tools\claude_compact.ps1` | 做了（17:1x） |

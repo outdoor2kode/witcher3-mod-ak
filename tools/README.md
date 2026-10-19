@@ -69,6 +69,18 @@
 | `ak_soundbank.py` | CS2 的 WAV → 槍聲 SoundBank（不用 Wwise） | `CLAUDE.md` §6.20 |
 | `recoil_pattern.py` | 後座力彈道：換算成角度、畫圖、產生腳本的資料表 | `CLAUDE.md` §9 |
 
+## 測試輔助（`test\`；Claude 進遊戲測試時用；2026-10-19 從 session 暫存搬進來）
+
+| 檔案 | 用途 |
+|---|---|
+| `test\g.sh` | bash 函式：`P=<截圖資料夾> source tools/test/g.sh`；`set_mw`／`set_gab`（視窗）、`reload_edit`、`game_start`、`ak_select`、`game_end`、`restart_all`、`horse_start`、`side_after`（側面連拍換彈）、AnimBrowser 的 `import_one`／`add_ev`／`add_dur`／`add_track`／`rm_anim`／`save_gab`、圖片 `crop`／`gridm`／`mont`；說明在每個函式上面 |
+| `test\gfg_debug.ws` | 測試用的主控台指令（`gfgfree`、`gfgshots`、`gfgmag`、`gfgbv`、`gfgstack`、`gfggraphs`、`gfgdrawlog`、`gfgammo`、`gfgbulletwatch`、`gfgbulletview`、`gfgakstate`、`gfgakshow`）；`dbg_on` 放進 workspace、`dbg_off` 拿出來（**打包前要拿出來**） |
+| `test\crop.ps1`、`grid.ps1`、`montage.ps1` | 裁切放大、拼成格子（標編號）、橫向拼接（`g.sh` 的 `crop`、`gridm`、`mont` 會叫） |
+
+- 座標是 1920x1080、REDkit 最大化時量的：介面不一樣先截圖再改
+- 10-19 17:3x 遊戲裡從頭跑過一次：`dbg_on` → `reload_edit` → `game_start` → `ak_select` → 每個除錯指令 → `side_after` → `game_end` → `dbg_off` → `reload_edit`（AnimBrowser 那幾個這次沒跑；10-16～10-19 用過）
+- `gfg_debug.ws` 用到 `gfg_ak47.ws` 的欄位、函式：那邊改名時這裡跟著改；檢查：兩個檔放進同一個暫存資料夾給 `wcc_compile.py` 編譯
+
 ## 資料夾
 
 - `_vendor\`：第三方（REDkit 的 Blender 外掛、h5py、wwiser）；不進 git

@@ -4,7 +4,7 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 17:2x（第 41、42 項完成；回顧後的改善 1、2、4、5 做完，下一步 3）
+最後更新：2026-10-19 17:5x（回顧後的改善 1～5 全做完；第 43 項 0.4 版裝進遊戲、第 44 項回顧網頁完成；下一步 REDkit 專家訓練）
 
 ---
 
@@ -19,6 +19,8 @@
 | 40 | 站在船上（沒駕駛）也不能射擊 → 只有駕駛時不能射；站在船上要跟陸地一樣 | **完成**（16:0x 遊戲實測：站在船上開槍 25 發；掌舵、游泳 0 發；`docs\findings.md` §37.4、`CLAUDE.md` §7） |
 | 41 | （16:2x 追加）回頭看整個開發過程哪裡可以做更好（耗時、流程順序、其他角度）→ 整理一份文件、更新必要的文件，之後不重蹈覆轍 | **完成**（17:3x：`docs\retrospective.md`、`CLAUDE.md` §15） |
 | 42 | （16:3x 追加，#41 的補充）① 經驗總結也加進 REDkit 專家的知識庫 ② 從 REDkit 專家的經驗＋經驗總結抽出**通用**的軟體開發知識（網頁、網頁動畫、其他遊戲、app 都用得到）→ 做成新技能（例：資深軟體工程師） | **完成**（17:3x：知識庫 `22-lessons.md`；新技能 `senior-engineer`） |
+| 43 | （17:3x，使用者回我列的兩件事：「兩個都做」）把目前的版本裝進 Steam 版遊戲 | **完成**（17:4x：0.4 版；`docs\findings.md` §27「第四次打包」；Steam 版裡沒開遊戲測） |
+| 44 | （同上）回顧文件做成網頁方便分享 | **完成**（17:4x：https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo；私人，分享要從頁面的 Share；原始檔在 session 暫存 `retro\gunforgeralt_retro.html`，要改：Artifact read 這個網址） |
 
 - **#42 的使用情境（使用者原話）**：「開發 the witcher 3 mod 時，我就會打開自主模式，redkit 開發專家，還有這個資深軟體工程師 skill。但如果開發網頁的話，我就只會開起自主模式和這個資深軟體工程師 skill（再加上之後可能會有的網頁開發專家 skill，目前還沒有）」「開發這個新的 skill 時，記得參考此使用情境來開發」
   - → 新技能只放跨領域的知識：不寫 REDkit、巫師3 的細節（那是 `redkit-expert`），也不重複自主模式的操作程序（那是 `autonomous-mode`）；三個技能同時開不能互相打架（誰管什麼要寫清楚）
@@ -45,19 +47,18 @@
 - 三個技能的正本放 `D:\OneDrive\Desktop\redkit_expert\skills\`（有 git）→ 複製到 `C:\Users\beyon\.claude\skills\`（已同步）
 - 統計腳本、資料：session 暫存 `s41\`（`scan.py`、`user_dedup.txt`、`sessions.txt`）
 
-**現在在做**：回顧後的改善（使用者：做完不停，接著做回顧裡找到的改善、REDkit 專家訓練）
+**現在在做**：REDkit 專家訓練（使用者 16:2x：做完不停，接著做回顧裡找到的改善 → 都做完了 → 專家訓練）
 
-**接續的步驟**（回顧後的改善；`docs\retrospective.md` 第 6 節）
-1. ✅（17:2x）`tools\README.md`：「要改什麼 → 去哪個檔」＋29 支工具的索引（分 5 類，附文件章節）
-2. ✅（17:2x）`gfg_ak47.ws` 檔頭加目錄（照區段標題、函式名稱；不寫行號）；`wcc_compile.py` 通過、BOM 還在
-3. 測試輔助放進專案 `tools\test\`（下一步）：
-   - `g.sh`（session 暫存 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\desk\g.sh`）每個函式只留最後一版：`d`、`shot`、`con`、`logsize`、`has_log`、`wait_log`、`set_mw`（第二版）、`game_start3`、`ak_select2`（第三版）、`horse_start`、`import_one`（第四版；`GAB`＝AnimBrowser 的 handle）、`save_gab`、`add_ev`、`add_dur`、`add_track`（第二版）、`rm_anim`、`reload_edit`（第二版）、`restart_all`、`radial_select`、`crop`、`gridm`、`mont`；加今天的 `side_after`（`gfgshots(28)`＋R、13 秒後 `gfgfree`、連拍）
-     - 同資料夾的 `crop.ps1`、`grid.ps1`、`montage.ps1` 一起搬；`P`（輸出資料夾）改成參數或預設 session 暫存
-   - `gfg_debug.ws`：合併 `backup\gfg_tmp39_2026-10-19.ws`（`gfgfree`、`gfgshots`、`gfgmag`）＋ `backup\gfg_debug_2026-10-19.ws`、`backup\gfg_debug_gfgbv_2026-10-19.ws` 裡還用得到的；用法：複製到 `workspace\scripts\local\` → Reload scripts；測完刪掉 workspace 的副本（正本在 `tools\test\`）
-   - `CLAUDE.md` §12「自己寫的測試指令」那段改指向 `tools\test\`；`tools\README.md` 加一節
-4. ✅（17:1x）commit 前擋控制字元：`.githooks\pre-commit`＋`check_ctrl.py`（兩個 repo 都裝了、`core.hooksPath` 設好；測過會擋；裝的當下抓到知識庫 `16-packaging.md` 一個既有的退格字元，修了）
-5. ✅（17:1x）`tools\claude_compact.ps1`：每次送出前 `Wait-UserQuiet`（使用者停手 8 秒、分頁不忙；最多 10 分鐘，等不到不送）；`-Test` 跑過；**下一次壓縮時看紀錄確認**（`使用者在操作…` 那行只有等的時候才印）
-6. 做完 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）
+**接續的步驟**
+1. ✅ 回顧後的改善 5 項都做完（`docs\retrospective.md` 第 6 節）
+   - `tools\README.md`、`gfg_ak47.ws` 檔頭的目錄（17:2x）；hook、壓縮工具等使用者停手（17:1x）
+   - **`tools\test\`**（17:3x）：`g.sh`（每個函式的最後一版；舊名 `game_start3`→`game_start`、`ak_select2`→`ak_select`；視窗 handle 存在 `$P/handles.sh`；新的 `game_end`、`dbg_on`／`dbg_off`、`ak_state`、`gfg_log`）、`gfg_debug.ws`（合併 3 個舊檔還用得到的；拿掉第 25 項的動畫圖堆疊實驗、第 29 項的閃躲紀錄、`gfgbulletspeed`）、`crop.ps1`、`grid.ps1`、`montage.ps1`
+     - 遊戲裡從頭跑過：`dbg_on` → 重載 → 開遊戲 → 拿出 AK → 每個除錯指令都印了 → `side_after`（側面連拍 4 張：左手在左腰拿彈匣）→ F10 → `dbg_off` → 重載
+     - 壓縮工具：17:21 那次使用者沒在打字 → 沒有等就送（紀錄沒有「使用者在操作」那行）；會等的那條路只有 `-Test` 跑過
+2. ✅ 第 43 項：0.4 版裝進遊戲（17:3x～17:4x；`docs\findings.md` §27「第四次打包」）
+   - **REDkit 打包過，同一次開著的 REDkit 再按 play game 會當** → 下一次用 REDkit 前先重開（開專家訓練的練習專案也要重開）
+3. ✅ 第 44 項：回顧網頁 https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo
+4. 下一步 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）：關 REDkit（File → Exit）→ 開練習專案
 - 不跑 §14 的「結束」（使用者 16:2x）
 
 ---
@@ -80,9 +81,7 @@
 - 舊的子彈圖示、比過的 7 種版本：session 暫存 `C:\Users\beyon\AppData\Local\Temp\claude\D--OneDrive-Desktop-gunforgeralt\789b26d6-a510-42d9-96ac-a3831c548864\scratchpad\icon36\`（`old_gfg_ak47_ammo_64x128.png`、`sheet1.png`、`sheet2.png`；session 結束可能會沒）；要回到第 28 項的樣子：`tools\ammo_build.py` 加 `--margin 0.1 --style cs2 --env-strength 1 --key 0 --rim 0`
 
 **要使用者決定的**
-- 要不要把目前的版本裝進 Steam 版：現在裝的是 **0.3 版（10-18 21:1x）**，10-18 的 8 項、這次的 4 項都還沒進去
-  - 要裝：回覆「裝」→ 重新 Publish、槍聲 `sound_cache.py`、複製到遊戲資料夾（步驟在下面「打包、裝進遊戲」）
-  - 寫遊戲資料夾要先問使用者（`CLAUDE.md` §6.3）
+- ~~要不要把目前的版本裝進 Steam 版~~ → 使用者 17:3x「裝」→ **0.4 版裝好了**（10-19 17:4x；第 43 項）；之後再裝照樣先問（`CLAUDE.md` §6.3）
 - 子彈圖示的「質感」是主觀的：看了不滿意，說哪裡要改
 - 外觀選單（Transmog）的 AK 預覽沒進遊戲測（舊的，還留著）
 - 已經不用決定的（10-19 13:0x 列過）：#31 水中、船上的中鍵 → 第 38 項擋掉了；中鍵瞄準時短按左鍵 → AK 已經沒有中鍵瞄準
@@ -204,18 +203,19 @@
 
 ---
 
-## 打包、裝進遊戲（2026-10-18 20:2x～21:1x，完成；使用者：「將目前的開發打包一下，我要在遊戲試玩一下」）
+## 打包、裝進遊戲（現在裝的是 0.4 版：2026-10-19 17:4x；細節 `docs\findings.md` §27「第四次打包」）
 
-- **使用者正在 Steam 版試玩**（第一次在 Steam 版跑我們的 mod）→ 等回報
-- 版本 0.3（紀錄 `logs\publish 2026-10-18 21-09-47.log`；`info.json` 的 `succesfullyCooked` 是 true）
-- 裝在 `<W3_GAME_DIR>\mods\modgunforgeralt`、`<W3_GAME_DIR>\dlc\gunforgeralt`（使用者同意 Claude 複製；`diff -rq` 和 `packed\` 一致）
-  - 原本兩個資料夾都不存在；`Documents\The Witcher 3\mods.settings` 是空檔（沒有載入順序設定）
-- 槍聲：`tools\sound_cache.py` 包進 `mods\modgunforgeralt\content\soundspc.cache`（校驗碼相符）；`gfg_ak47.bnk` 打包時移出 workspace，之後放回了
-- 存檔備份：專案 `backup\gamesaves_2026-10-18\`（17 MB、73 個檔，`diff` 一致；`.gitignore` 加 `/backup/`）
+- 0.4（10-19，使用者：「裝」）：紀錄 `logs\publish 2026-10-19 17-39-03.log`；`succesfullyCooked` true；遊戲裡的檔和 `packed\` 一致（`diff -rq`）；和遊戲裡其他 11 個 mod 的腳本一起編譯通過；Steam 版裡 Claude 沒開遊戲測
+  - 舊的 0.3：`backup\installed_0.3_2026-10-18\`；存檔備份 `backup\gamesaves_2026-10-19\`（73 個檔）
+  - 要退回 0.3：把備份的兩個資料夾覆蓋回 `<W3_GAME_DIR>\mods\`、`dlc\`（寫遊戲資料夾要使用者同意）
+- 0.3（10-18 21:1x，使用者：「將目前的開發打包一下，我要在遊戲試玩一下」）：第一次裝
+- 裝在 `<W3_GAME_DIR>\mods\modgunforgeralt`、`<W3_GAME_DIR>\dlc\gunforgeralt`；`Documents\The Witcher 3\mods.settings` 是空檔（沒有載入順序設定）
+- 槍聲：`tools\sound_cache.py` 包進 `mods\modgunforgeralt\content\soundspc.cache`（校驗碼相符）；`gfg_ak47.bnk` 打包時移出 workspace，打包完放回（0.3、0.4 都這樣做）
+- 存檔備份：專案 `backup\gamesaves_2026-10-18\`、`backup\gamesaves_2026-10-19\`（`.gitignore` 有 `/backup/`）
 - 遊戲是中文介面（`dx12user.settings`：`TextLanguage=ZH`）；主控台已開（`general.ini` `DBGConsoleOn=true`）
 - AK 名稱補中文：字串 10000001 加 ZH 'AK-47'（字串庫＋CSV；`scratchpad\s28\add_zh_ak_name.py`）
   - `zh.w3strings` 只放有中文的字串，不拿英文代替（補之前 3 個 key、補之後 4 個）→ 沒補的話 AK 在中文遊戲裡沒有名字
-- `gfg_debug.ws`：打包時移出 workspace（不包進去），打包完放回
+- `gfg_debug.ws`：正本在 `tools\test\`，平常不在 workspace（打包前確認 `git status` 沒有列出 `workspace/scripts/local/gfg_debug.ws`）
 - **Publish 當掉的解法**：REDkit 開好專案就打包 → 7 次都在 DLC 那一輪 cook `test.reddlc` 時當掉；**先開世界、按 play game 進一次遊戲、F10 結束，再打包 → 過了**（21:03、21:09 兩次）
   - 寫進 `docs\findings.md` §27
   - 故障回報視窗：`desk.ps1` 點不到（不在允許名單）→ `taskkill` 關（不送出）；dump 留在 `%LOCALAPPDATA%\REDEngine\ReportQueue\Witcher3_20261018_*`（REDkit 下次開會不會自己送出：不知道）

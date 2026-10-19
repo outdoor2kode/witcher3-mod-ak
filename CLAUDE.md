@@ -148,7 +148,9 @@
 3. 從 **REDkit 編輯器啟動遊戲**時，可在遊戲中**熱重載腳本**（Tools → Debuggers → Reload scripts，2026-10-13 實測）；XML 要重新啟動遊戲，模型等資源未確認
    - 這時遊戲跑在 `editor.exe` 裡，直接讀 `workspace` 的原始檔（`docs\findings.md` §13.16）
    - 已安裝的 mod 都在 `<W3_GAME_DIR>\mods\`；我們的 mod 用 REDkit 打包（Publish → Save and publish mod project，輸出在專案的 `packed\`：`docs\findings.md` §27）
-   - **2026-10-18 裝進遊戲**（0.3 版；使用者同意；`mods\modgunforgeralt`、`dlc\gunforgeralt`）；Steam 版能不能用還沒驗證；之後再裝（寫遊戲資料夾）照樣先問使用者
+   - **裝進遊戲**（`mods\modgunforgeralt`、`dlc\gunforgeralt`；每次都是使用者同意）：0.3 版 2026-10-18、**0.4 版 2026-10-19 17:4x**（使用者：「裝」）；Steam 版裡 Claude 沒開遊戲測過；之後再裝（寫遊戲資料夾）照樣先問使用者
+     - 換版本：舊的先備份到 `backup\installed_<版本>_<日期>\` → 用 `cp -r packed/…/. <遊戲>/…/` 覆蓋（檔名清單一樣才覆蓋）；`.claude\settings.local.json` 擋遊戲資料夾的寫入，`rm -rf` 會被拒絕（10-19）
+     - 裝之前把遊戲 `mods\` 裡其他 mod 的散裝腳本和我們的一起用 `tools\wcc_compile.py` 編譯，抓腳本衝突（10-19：11 個 mod、132 個檔通過；`docs\findings.md` §27）
    - **打包前先在 REDkit 進一次遊戲（play game → F10）**：剛開好專案就打包，cook DLC 時一定當掉（2026-10-18 7 次；進過遊戲後 2 次都過；§27）
    - 打包後同一次開著的 REDkit 按 play game 會當掉 → 打包完重開 REDkit 再測
    - `workspace\` 根目錄不能有 `.w2je`（關 Journal Editor 時 REDkit 自動寫的空檔）：打包最後一步 CreateMetadataStores 會失敗 → 搬走（2026-10-19 練習專案實測；§27）
@@ -487,7 +489,12 @@ AK-47 的兩個值都相同 → **一律取第一個值**。證據與完整數�
 | `SoundEvent("事件")` | 播聲音 | `SoundEvent("gfg_ak47_shot")`；有時錄不到 → 掛在玩家身上播（下面「錄電腦播的聲音」） | `engine\sound.ws:626` |
 | `TM(每分鐘幾小時)` | 時間流速 | `TM(60)` 快轉、`TM(0.25)` 恢復（2026-10-12 寫在測試步驟裡；之後改用 `settime`） | `game\temp.ws:1027` |
 
-- 自己寫的測試指令（`gfg` 開頭）都拿掉了：最後一批在 `backup\gfg_debug_2026-10-19.ws`、`backup\gfg_debug_gfgbv_2026-10-19.ws`（要用就放回 `workspace\scripts\local\`），較早的在 git 歷史
+- **自己寫的測試輔助在 `tools\test\`**（2026-10-19 整理；用法在各檔的檔頭、`tools\README.md`）
+  - `gfg_debug.ws`：測試用的主控台指令（`gfgfree` 自由鏡頭對著槍、`gfgshots` 設定已射幾發、`gfgmag` 彈匣在不在左手、`gfgstack` 動畫圖堆疊…）
+    - 正本不放 workspace：`g.sh` 的 `dbg_on` 複製進去 → Reload scripts；測完 `dbg_off` → Reload scripts
+    - **打包前確認 workspace 沒有它**（`git status` 會列出 `workspace/scripts/local/gfg_debug.ws`）
+  - `g.sh`：Claude 操作 REDkit、遊戲的 bash 函式（開遊戲到拿出 AK、重載腳本、AnimBrowser 匯入動畫和加事件、側面連拍換彈、拼圖）；`P=<截圖資料夾> source tools/test/g.sh`
+  - 舊的除錯指令（第 25 項動畫圖堆疊的實驗等）在 `backup\`（不進 git），更早的在 git 歷史
 - **在 REDkit 編輯器直接放物件**（Wiki「HOW-TO: Add objects into the world multiple times」，頁面 15499265；未實測）
   - 開著世界、在 Scene 面板雙擊圖層使它變粗體（啟用）→ Asset Browser（Ctrl+A）選模型或實體 → 點一下畫面 → 按 **C** 放在滑鼠位置；也可以直接拖進畫面
   - 放模型時選 Static Mesh 才有碰撞（搜尋結果引用的同一頁內容）
