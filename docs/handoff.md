@@ -10,7 +10,7 @@
 
 ## 自主模式（2026-10-19 15:36 開始；使用者：「開啟自主模式，然後你現在是 redkit 開發專家。」＋ 2 項）
 
-- 背景：保持清醒 `bl37km196`、看門狗 `bo3tnm14a`、每小時續做排程 `c8a498e9`（第 13 分；10-19 15:3x 建 → 10-25 重排）
+- 背景：保持清醒 `bl37km196`、看門狗 `b9msivnyc`（17:1x 重開：用新版的 `Submit`）、每小時續做排程 `c8a498e9`（第 13 分；10-19 15:3x 建 → 10-25 重排）
 - 技能：`autonomous-mode`、`redkit-expert`
 
 | # | 任務（使用者的描述） | 狀態 |
@@ -51,8 +51,8 @@
 1. `tools\README.md`：29 支工具的索引（用途、輸入、輸出、相關文件章節）
 2. `gfg_ak47.ws` 檔頭加目錄（32 個區段標記、關鍵函式）
 3. 測試輔助放進專案：`tools\test\`（`g.sh` 整理成一版、`gfg_debug.ws`＝`gfgfree`、`gfgshots`、`gfgmag` 等＋放進／拿出 workspace 的做法）；`CLAUDE.md` §12 改指向它
-4. commit 前擋控制字元：git hook（`.githooks\pre-commit`＋`git config core.hooksPath`）
-5. `tools\claude_compact.ps1`：送 `/compact` 前確認使用者幾秒內沒操作（看門狗已經有這個邏輯）
+4. ✅（17:1x）commit 前擋控制字元：`.githooks\pre-commit`＋`check_ctrl.py`（兩個 repo 都裝了、`core.hooksPath` 設好；測過會擋；裝的當下抓到知識庫 `16-packaging.md` 一個既有的退格字元，修了）
+5. ✅（17:1x）`tools\claude_compact.ps1`：每次送出前 `Wait-UserQuiet`（使用者停手 8 秒、分頁不忙；最多 10 分鐘，等不到不送）；`-Test` 跑過；**下一次壓縮時看紀錄確認**（`使用者在操作…` 那行只有等的時候才印）
 6. 做完 → REDkit 專家訓練（`D:\OneDrive\Desktop\redkit_expert\docs\handoff.md`：L4t 特效的燈做一半）
 - 不跑 §14 的「結束」（使用者 16:2x）
 

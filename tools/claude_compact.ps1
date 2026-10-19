@@ -21,7 +21,8 @@ compact／clear 的流程：
   - 現在：往上找這支程式的上層程序裡的 claude（＝啟動它的那個 Claude Code session），AttachConsole 到它的主控台，
     用 WriteConsoleInput 把按鍵直接寫進輸入緩衝區 → 不經過視窗、不會打錯分頁，使用者在用其他視窗也不受影響
   - 文字和 Enter 分開寫（14:2x 實測：一起寫入時 Enter 沒有送出）；送出後確認分頁變忙碌（標題開頭 ◐◓◑◒，閒置是 ✳）
-  - 使用者正在輸入框打字時寫進去，會接在使用者的文字後面一起送出（14:23 發生過）→ 看門狗在使用者 5 秒內有操作時先等（最多 60 秒）
+  - 使用者正在輸入框打字時寫進去，會接在使用者的文字後面一起送出（10-16 14:23、10-19 16:27 發生過）
+    → 看門狗在使用者 5 秒內有操作時先等（最多 60 秒）；每次送出（Submit）前再等使用者停手 8 秒、分頁不忙（最多 10 分鐘，等不到就不送）
 安全：只寫上面固定的幾段文字；只寫給自己的上層 claude 程序
 #>
 param(
@@ -168,9 +169,23 @@ function Get-State {
     return $state
 }
 function Test-Busy { return (Get-State) -eq 'busy' }
+# 等使用者停手：鍵盤、滑鼠 $quietSec 秒沒操作，而且分頁不是忙碌（使用者剛送出訊息時 Claude 在忙）
+# 10-19 16:27：送 /compact 時使用者正在打字 → 兩段黏在一起送出、使用者重貼（docs/retrospective.md 第 1 節第 10 條）
+# 等不到（使用者一直在操作）就不送：compact 交給 autoCompactWindow（48%）當保險，看門狗 60 秒後再試
+function Wait-UserQuiet([int]$quietSec = 8, [int]$maxSec = 600) {
+    $t0 = Get-Date; $logged = $false
+    while (((Get-Date) - $t0).TotalSeconds -lt $maxSec) {
+        if ([ConIn]::UserIdleSeconds() -ge $quietSec -and -not (Test-Busy)) { return $true }
+        if (-not $logged) { Log "使用者在操作（或分頁忙碌）：等停手 $quietSec 秒再送"; $logged = $true }
+        Start-Sleep -Milliseconds 500
+    }
+    return $false
+}
+
 # 打一段文字再送出：文字和 Enter 分開寫（14:2x 實測：一起寫入時 Enter 沒有送出，文字留在輸入框）
 # 按 Enter 後 8 秒內分頁要變成忙碌（或紀錄出現這段文字）；沒有就再按一次（最多 3 次）
 function Submit([string]$text) {
+    if (-not (Wait-UserQuiet)) { Log "使用者 10 分鐘內一直在操作：不送「$($text.Substring(0, [Math]::Min(12, $text.Length)))…」"; return $false }
     $probe = ($text -split '[\\"]')[0]
     if ($probe.Length -gt 14) { $probe = $probe.Substring(0, 14) }
     $off = Get-Len
