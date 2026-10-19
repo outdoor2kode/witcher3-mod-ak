@@ -4,23 +4,29 @@
 > 只放「還在變動」的東西：已定案的決策在 `CLAUDE.md`，查證過的事實在 `docs\findings.md`。
 > 每次 commit 時一起更新（`CLAUDE.md` §11）。內容是「現在」的快照：過時的直接改掉，不累積。
 
-最後更新：2026-10-19 18:1x（使用者暫停自主模式：「可以暫停自主模式了 我要使用電腦」→ 背景都停了；第 39～44 項都完成；專家訓練 L4u 只做了離線查詢）
+最後更新：2026-10-19 19:3x（第 45 項：Steam 版讀檔當機＝REDkit 同時開著造成的（使用者實測關掉就好）→ 使用者「結束任務」→ 自主模式結束）
 
 ---
 
-## 使用者回來時先看這裡（2026-10-19 18:1x）
+## 使用者回來時先看這裡（2026-10-19 19:3x）
 
-自主模式（15:36 開始）**暫停**（使用者 18:1x：「可以暫停自主模式了 我要使用電腦」）
-- 背景都停了：保持清醒 `bl37km196`、看門狗 `b9msivnyc`（TaskStop）、每小時續做排程 `c8a498e9`（CronDelete）、旗標 `.autonomous`（改名成 `.autonomous.paused_1817`）
+自主模式（19:17 開始；使用者：「開啟自主，Redkit專家，還有資深工程師模式」＋當機的截圖）**結束**（使用者 19:3x：「結束任務」）
+- 背景都停了：保持清醒 `bz0vnw03u`、看門狗 `by7mw44vh`（TaskStop）、每小時續做排程 `ae91fe53`（CronDelete）、旗標 `.autonomous`（改名成 `.autonomous.ended_1930`）
 - 要再開：說「開始自主模式」（`CLAUDE.md` §14）；現在是互動模式（`CLAUDE.md` §11）
-- 交辦的 6 項（#39～#44）都做完：下面「自主模式」的表
 
-**REDkit 現在開著練習專案 lab01**（不是 mod 專案；世界 labworld、遊戲已 F10）
-- 要開發 mod：File → Restart...（y=360）→ Welcome 的 Recent projects 點 gunforgeralt 那一列的空白處；不行就 Browse (1236,814) → `gunforgeralt.w3edit`
-- 0.4 打包後 REDkit 已經重開過 → 切回 mod 專案後可以直接 play game
+| # | 任務（使用者的描述） | 結果 |
+|---|---|---|
+| 45 | 「實際要進入遊戲會在loading時當掉」（截圖：遊戲的故障回報、讀取中） | **REDkit 同時開著造成的**：使用者實測關掉 REDkit 就不當（19:2x）；Claude 查 dump、存檔、0.3 和 0.4 的包，排除了 0.4 的內容（`docs\findings.md` §27「Steam 版讀檔當機」）；規則寫進 `CLAUDE.md` §6.3：Steam 版和 REDkit 不要同時開 |
+
+- 查的過程：Claude 原本要自己關 REDkit、開遊戲重現 → 使用者擋下那一步、自己測了
+- 用到的小工具（minidump、存檔、bundle 的解析）：session 暫存 `crash\` → 複製到專家訓練的 `tools\`（`mdmp.py`、`unsave.py`、`bundle.py`、`unbundle.py`、`strs.py`）
+
+**現況**
+- REDkit 關著（使用者關的）；Steam 版遊戲開著（使用者 19:28 開的，Claude 沒碰）
+- 要開發 mod：開 REDkit → Welcome 的 Recent projects 點 gunforgeralt（上次開的是練習專案 lab01）
 
 **要使用者做、決定的**
-- 0.4 版已裝進 Steam 版（17:4x）：Claude 沒在 Steam 版裡開遊戲測 → 玩一下看看；之後再裝照樣先問（`CLAUDE.md` §6.3）
+- 0.4 版已裝進 Steam 版（17:4x），關掉 REDkit 後讀檔正常（使用者實測）；之後再裝照樣先問（`CLAUDE.md` §6.3）
 - 回顧網頁 https://claude.ai/artifact/FDVMcFsfc5LzAK3rjahsSo：私人，要分享從頁面的 Share
 - 子彈圖示的「質感」是主觀的：看了不滿意，說哪裡要改
 - 外觀選單（Transmog）的 AK 預覽沒進遊戲測（舊的，還留著）

@@ -151,6 +151,7 @@
    - **裝進遊戲**（`mods\modgunforgeralt`、`dlc\gunforgeralt`；每次都是使用者同意）：0.3 版 2026-10-18、**0.4 版 2026-10-19 17:4x**（使用者：「裝」）；Steam 版裡 Claude 沒開遊戲測過；之後再裝（寫遊戲資料夾）照樣先問使用者
      - 換版本：舊的先備份到 `backup\installed_<版本>_<日期>\` → 用 `cp -r packed/…/. <遊戲>/…/` 覆蓋（檔名清單一樣才覆蓋）；`.claude\settings.local.json` 擋遊戲資料夾的寫入，`rm -rf` 會被拒絕（10-19）
      - 裝之前把遊戲 `mods\` 裡其他 mod 的散裝腳本和我們的一起用 `tools\wcc_compile.py` 編譯，抓腳本衝突（10-19：11 個 mod、132 個檔通過；`docs\findings.md` §27）
+     - **Steam 版和 REDkit 不要同時開**：REDkit 開著時 Steam 版讀檔會當在渲染執行緒（10-19 使用者回報 2 次；關掉 REDkit 就好；原因推測是顯示卡記憶體，沒驗證；`docs\findings.md` §27）
    - **打包前先在 REDkit 進一次遊戲（play game → F10）**：剛開好專案就打包，cook DLC 時一定當掉（2026-10-18 7 次；進過遊戲後 2 次都過；§27）
    - 打包後同一次開著的 REDkit 按 play game 會當掉 → 打包完重開 REDkit 再測
    - `workspace\` 根目錄不能有 `.w2je`（關 Journal Editor 時 REDkit 自動寫的空檔）：打包最後一步 CreateMetadataStores 會失敗 → 搬走（2026-10-19 練習專案實測；§27）

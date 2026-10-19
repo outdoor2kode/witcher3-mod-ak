@@ -2261,6 +2261,15 @@ Start-Process "<REDKIT_DIR>\bin\x64_RedKit\wcc_lite.exe" `
   - **和其他 mod 一起編譯**：遊戲 `mods\` 裡 11 個 mod 的散裝腳本 131 個（`content\scripts\`，路徑沒有重複；`modMoreSkillSlots` 整檔覆寫原版 `playerwitcher.ws` 等 4 個檔）＋我們的 `gfg_ak47.ws`，一起給 `tools\wcc_compile.py` → 132 個檔通過
     - 只放 `precompiled.rsblob` 的 3 個 mod（`modContainerGlow`、`modimprovedmerchants`、`modtruemappois`）沒有原始碼，查不到
   - Steam 版裡 Claude 沒開遊戲測（使用者在用電腦）
+- **Steam 版讀檔當機（10-19 19:13、19:15，使用者回報）→ REDkit 同時開著造成的**
+  - 現象：開 Steam 版、讀檔時在「讀取中」當掉，跳出遊戲的故障回報（Stacktrace 是空的）
+  - **使用者實測（19:2x）：關掉 REDkit 再開遊戲就不當了**
+  - dump：Windows 自動存在 `%LOCALAPPDATA%\CrashDumps\witcher3.exe.<PID>.dmp`（各約 176 MB；REDkit 當機的也在這：`editor.exe.<PID>.dmp`）
+    - 兩次一模一樣：`RenderThread` 執行緒、`0xC0000005` 讀位址 0、`witcher3.exe+0x1F15AC4`（Claude 寫的 minidump 解析：例外、模組、堆疊上落在模組裡的值）
+    - 讀的存檔是使用者 10-18 22:33 的 ManualSave（dump 裡有它的路徑；0.3 版時存的，存檔裡有 `gfg_ak47`），不是之後 REDkit 在同一個資料夾留下的自動存檔（`initial buildID` 5.0.1048625、`numMods` 0）
+  - 0.3 → 0.4 的 DLC 包逐檔比對（解開 `blob0.bundle`）：動畫組、4 張動畫圖的內容變了、多了 `gfg_inventory.w2beh`；4 個模型只差包圍盒沒用到的 W 值；`texture.cache` 只差子彈圖示的像素 → 會畫的資源沒有實質改變
+  - 原因推測是顯示卡記憶體（RTX 3060 Ti 8 GB；REDkit 開著時整台用掉約 4 GB）：沒驗證
+  - → **Steam 版和 REDkit 不要同時開**（`CLAUDE.md` §6.3）
 
 ## 28. 特效模板：複製原版、在 Entity Editor 改特效（2026-10-17 槍口火光實測）
 
